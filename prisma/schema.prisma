@@ -1,0 +1,181 @@
+generator client {
+  provider   = "prisma-client-js"
+  engineType = "library"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  ADMIN
+  FARMER
+  BUYER
+}
+
+enum CropStage {
+  SEEDLING
+  GROWING
+  READY_TO_HARVEST
+  HARVESTED
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  READY
+  DELIVERED
+  CANCELLED
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+}
+
+enum ListingStatus {
+  ACTIVE
+  PENDING_REVIEW
+  REMOVED
+}
+
+enum FarmerStatus {
+  PENDING
+  VERIFIED
+  SUSPENDED
+}
+
+model User {
+  id            String       @id @default(uuid())
+  email         String       @unique
+  name          String
+  phone         String?
+  avatarUrl     String?
+  role          Role         @default(BUYER)
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  farm          Farm?
+  ordersAsBuyer Order[]      @relation("BuyerOrders")
+  addresses     Address[]
+}
+
+model Farm {
+  id           String       @id @default(uuid())
+  userId       String       @unique
+  user         User         @relation(fields: [userId], references: [id])
+  farmName     String
+  barangay     String
+  municipality String       @default("Agoo")
+  province     String       @default("La Union")
+  landArea     Float
+  coverPhoto   String?
+  bio          String?
+  status       FarmerStatus @default(PENDING)
+  rating       Float        @default(0)
+  totalSales   Float        @default(0)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  crops        Crop[]
+  products     Product[]
+  activities   Activity[]
+}
+
+model Crop {
+  id              String     @id @default(uuid())
+  farmId          String
+  farm            Farm       @relation(fields: [farmId], references: [id])
+  cropName        String
+  variety         String?
+  datePlanted     DateTime
+  expectedHarvest DateTime
+  actualHarvest   DateTime?
+  areaSqm         Float
+  stage           CropStage  @default(SEEDLING)
+  notes           String?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+  products        Product[]
+  activities      Activity[]
+}
+
+model Product {
+  id            String        @id @default(uuid())
+  farmId        String
+  farm          Farm          @relation(fields: [farmId], references: [id])
+  cropId        String?
+  crop          Crop?         @relation(fields: [cropId], references: [id])
+  name          String
+  category      String
+  description   String?
+  pricePerKg    Float
+  stockKg       Float
+  photos        String[]
+  harvestDate   DateTime?
+  deliveryAvail Boolean       @default(false)
+  status        ListingStatus @default(PENDING_REVIEW)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  orderItems    OrderItem[]
+}
+
+model Order {
+  id            String        @id @default(uuid())
+  buyerId       String
+  buyer         User          @relation("BuyerOrders", fields: [buyerId], references: [id])
+  totalAmount   Float
+  deliveryFee   Float         @default(0)
+  orderStatus   OrderStatus   @default(PENDING)
+  paymentStatus PaymentStatus @default(PENDING)
+  paymentRef    String?
+  addressId     String
+  address       Address       @relation(fields: [addressId], references: [id])
+  notes         String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  items         OrderItem[]
+}
+
+model OrderItem {
+  id         String   @id @default(uuid())
+  orderId    String
+  order      Order    @relation(fields: [orderId], references: [id])
+  productId  String
+  product    Product  @relation(fields: [productId], references: [id])
+  quantityKg Float
+  pricePerKg Float
+  subtotal   Float
+}
+
+model Address {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  label     String?
+  fullName  String
+  phone     String
+  street    String
+  barangay  String
+  city      String
+  province  String
+  zipCode   String?
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now())
+  orders    Order[]
+}
+
+model Activity {
+  id           String   @id @default(uuid())
+  farmId       String
+  farm         Farm     @relation(fields: [farmId], references: [id])
+  cropId       String?
+  crop         Crop?    @relation(fields: [cropId], references: [id])
+  activityType String
+  description  String?
+  inputsUsed   String?
+  quantity     Float?
+  unit         String?
+  activityDate DateTime
+  createdAt    DateTime @default(now())
+}

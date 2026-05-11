@@ -1,0 +1,25 @@
+{
+  "name": "FarmFlow - Agoo Agricultural Marketplace",
+  "short_name": "FarmFlow",
+  "description": "Fresh crops directly from Agoo, La Union farmers",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#FAFAF7",
+  "theme_color": "#1B4332",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/icons/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "/icons/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable any"
+    }
+  ],
+  "categories": ["food", "shopping", "agriculture"]
+}
