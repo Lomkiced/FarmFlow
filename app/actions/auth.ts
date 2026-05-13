@@ -170,7 +170,7 @@ export async function registerFarmerAction(
 
   // 2. Create User + Farm rows in a transaction
   try {
-    await prisma.$transaction(async (tx) => {
+    await prisma.$transaction(async (tx: any) => {
       await tx.user.create({
         data: {
           id: data.user!.id,

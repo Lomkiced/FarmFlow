@@ -3,7 +3,7 @@
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 
-export default function RegisterSuccessPage() {
+function RegisterSuccessContent() {
   const searchParams = useSearchParams();
   const role = searchParams.get('role');
 
@@ -89,5 +89,19 @@ export default function RegisterSuccessPage() {
 
       </div>
     </div>
+  );
+}
+
+import { Suspense } from 'react';
+
+export default function RegisterSuccessPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-auth-background">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    }>
+      <RegisterSuccessContent />
+    </Suspense>
   );
 }
