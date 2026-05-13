@@ -37,7 +37,7 @@ export default function FarmerRegisterPage() {
   };
 
   return (
-    <div className="flex min-h-screen bg-auth-background">
+    <div className="flex flex-col lg:flex-row min-h-screen bg-auth-background">
       <AuthLeftPanel variant="farmer" widthClass="w-1/3" />
 
       <div className="w-full lg:w-2/3 flex flex-col h-screen overflow-y-auto bg-auth-surface">

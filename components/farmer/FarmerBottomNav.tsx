@@ -8,7 +8,7 @@ interface FarmerBottomNavProps {
 
 export default function FarmerBottomNav({ activePage }: FarmerBottomNavProps) {
   return (
-    <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[390px] z-50 flex justify-around items-center px-2 py-3 bg-white border-t border-stone-100 shadow-[0_-4px_20px_rgba(27,67,50,0.04)] rounded-t-2xl md:hidden">
+    <nav className="fixed bottom-0 left-0 right-0 w-full z-50 flex justify-around items-center px-2 py-3 pb-[calc(12px+env(safe-area-inset-bottom))] bg-white border-t border-stone-100 shadow-[0_-4px_20px_rgba(27,67,50,0.04)] rounded-t-2xl md:hidden">
       
       <Link href="/farmer/dashboard" className={`flex flex-col items-center justify-center transition-all ${activePage === 'home' ? 'text-primary bg-secondary-container/50 rounded-xl px-3 py-1 translate-y-[-2px]' : 'text-stone-400 px-3 py-1'}`}>
         <span className="material-symbols-outlined" style={{ fontVariationSettings: activePage === 'home' ? "'FILL' 1" : "'FILL' 0" }}>grid_view</span>

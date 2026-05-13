@@ -15,7 +15,7 @@ export default function LoginPage() {
   );
 
   return (
-    <div className="flex w-full min-h-screen overflow-hidden bg-[#fcf9f2] lg:bg-auth-surface">
+    <div className="flex flex-col lg:flex-row w-full min-h-screen overflow-hidden bg-[#fcf9f2] lg:bg-auth-surface">
       <AuthLeftPanel variant="login" />
 
       <div className="w-full lg:w-1/2 h-full overflow-y-auto flex items-center justify-center p-[16px] md:p-[32px]">

@@ -21,10 +21,10 @@ export default function BuyerRegisterPage() {
   const passwordsMatch = password.length > 0 && password === confirmPassword;
 
   return (
-    <div className="flex flex-col md:flex-row min-h-screen bg-auth-surface">
+    <div className="flex flex-col lg:flex-row min-h-screen bg-auth-surface">
       <AuthLeftPanel variant="buyer" widthClass="w-1/2" />
 
-      <div className="w-full md:w-1/2 flex flex-col p-[20px] md:p-[40px] bg-auth-surface overflow-y-auto">
+      <div className="w-full lg:w-1/2 flex flex-col p-[20px] md:p-[40px] bg-auth-surface overflow-y-auto">
         <div className="flex justify-between items-center mb-[32px]">
           <Link href="/auth/register" className="inline-flex items-center gap-1 text-auth-secondary text-[14px] hover:text-primary transition-colors">
             <span className="material-symbols-outlined text-[18px]">arrow_back</span>
