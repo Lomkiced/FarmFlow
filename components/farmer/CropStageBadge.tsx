@@ -3,6 +3,7 @@ interface CropStageBadgeProps {
 }
 
 export default function CropStageBadge({ stage }: CropStageBadgeProps) {
+  if (!stage) return null;
   // Normalize the stage string to match our keys
   const normalizedStage = stage.toLowerCase().replace('_to_harvest', '');
   

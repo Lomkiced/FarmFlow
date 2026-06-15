@@ -25,11 +25,12 @@ export default function Navbar({ user }: { user?: SessionUser | null }) {
     const isActive = pathname === path || (path !== '/' && pathname?.startsWith(path));
     return isActive 
       ? 'text-emerald-900 font-label-md border-b-2 border-emerald-900 pb-1'
-      : 'text-stone-600 font-label-md hover:text-emerald-700 border-b-2 border-transparent pb-1 transition-colors';
+      : 'text-stone-600 font-label-md hover:text-emerald-700 hover:border-emerald-700 border-b-2 border-transparent pb-1 transition-colors';
   };
 
   return (
-    <nav className="sticky top-0 z-[100] bg-[#FAFAF7]/95 backdrop-blur-md border-b border-stone-200 shadow-sm">
+    <>
+      <nav className="sticky top-0 z-[100] bg-[#FAFAF7]/95 backdrop-blur-md border-b border-stone-200 shadow-sm">
       <div className="px-4 md:px-8 py-4 max-w-screen-2xl mx-auto flex items-center justify-between">
         
         {/* LEFT: Brand logo */}
@@ -179,10 +180,11 @@ export default function Navbar({ user }: { user?: SessionUser | null }) {
           </div>
         </div>
       </div>
+      </nav>
 
       {/* Mobile Search Overlay */}
       {isMobileSearchOpen && (
-        <div className="md:hidden absolute top-full left-0 w-full bg-[#fcf9f2] border-b border-stone-200 p-4 shadow-md z-40 animate-in slide-in-from-top-2">
+        <div className="md:hidden fixed top-[73px] left-0 w-full bg-[#fcf9f2] border-b border-stone-200 p-4 shadow-md z-40 animate-in slide-in-from-top-2">
           <div className="relative">
             <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline">
               search
@@ -297,6 +299,6 @@ export default function Navbar({ user }: { user?: SessionUser | null }) {
           </div>
         </div>
       )}
-    </nav>
+    </>
   );
 }

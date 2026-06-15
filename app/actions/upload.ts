@@ -38,19 +38,21 @@ async function uploadToStorage(
     });
 
   // If the bucket does not exist, Supabase returns a specific error.
-  // We can attempt to create the bucket dynamically and retry.
-  if (error && error.message.toLowerCase().includes('bucket') && error.message.toLowerCase().includes('not found')) {
+  const errorMsg = error ? String(error.message || (error as any).error || '').toLowerCase() : '';
+  if (errorMsg.includes('bucket') || errorMsg.includes('not found')) {
     console.log(`[upload] Bucket '${BUCKET}' not found. Attempting to create it...`);
     const { error: bucketError } = await supabase.storage.createBucket(BUCKET, {
       public: true,
-      allowedMimeTypes: ['image/png', 'image/jpeg', 'image/webp', 'image/jpg'],
       fileSizeLimit: 5242880, // 5MB
     });
 
-    if (bucketError && !bucketError.message.includes('already exists')) {
+    if (bucketError && !String(bucketError.message || '').includes('already exists')) {
       console.error('[upload] Failed to create bucket:', bucketError);
       return { success: false, error: 'Storage setup failed. Please contact support.' };
     }
+
+    // Wait briefly for bucket propagation
+    await new Promise(resolve => setTimeout(resolve, 500));
 
     // Retry upload after creating the bucket
     const retry = await supabase.storage
