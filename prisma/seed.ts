@@ -7,15 +7,12 @@ async function main() {
   console.log('🌱 Starting database seeding...');
 
   // 1. Create Users
-  const passwordHash = await bcrypt.hash('password123', 10);
-
   const admin = await prisma.user.upsert({
     where: { email: 'admin@farmflow.ph' },
     update: {},
     create: {
       email: 'admin@farmflow.ph',
       name: 'FarmFlow Admin',
-      passwordHash,
       role: 'ADMIN',
     },
   });
@@ -26,7 +23,6 @@ async function main() {
     create: {
       email: 'juan@farm.com',
       name: 'Juan Dela Cruz',
-      passwordHash,
       role: 'FARMER',
       phone: '+639171234567',
     },
@@ -38,7 +34,6 @@ async function main() {
     create: {
       email: 'buyer@store.com',
       name: 'Maria Clara',
-      passwordHash,
       role: 'BUYER',
       phone: '+639181234567',
     },
@@ -51,7 +46,10 @@ async function main() {
     create: {
       userId: farmer.id,
       farmName: 'Dela Cruz Family Farm',
-      location: 'Benguet, Philippines',
+      barangay: 'San Vicente',
+      municipality: 'Agoo',
+      province: 'La Union',
+      landArea: 2.5,
       bio: 'Sustainable organic farming since 1990.',
       status: 'VERIFIED',
     },
@@ -61,14 +59,12 @@ async function main() {
   const crop1 = await prisma.crop.create({
     data: {
       farmId: farm.id,
-      name: 'Carrots',
+      cropName: 'Carrots',
       variety: 'Nantes',
-      areaUnit: 'HECTARE',
-      areaSize: 2.5,
-      expectedYieldKg: 5000,
-      plantedAt: new Date('2023-09-01'),
+      areaSqm: 25000,
+      datePlanted: new Date('2023-09-01'),
       expectedHarvest: new Date('2023-12-01'),
-      status: 'GROWING',
+      stage: 'GROWING',
     },
   });
 
@@ -79,8 +75,7 @@ async function main() {
       name: 'Fresh Organic Carrots',
       description: 'Newly harvested, premium organic carrots from Benguet.',
       pricePerKg: 45.0,
-      minOrderKg: 50,
-      availableKg: 2000,
+      stockKg: 2000,
       category: 'VEGETABLES',
       status: 'ACTIVE',
       photos: ['https://images.unsplash.com/photo-1598170845058-32b9d6a5da37?w=800&q=80'],
@@ -92,7 +87,7 @@ async function main() {
     data: {
       userId: buyer.id,
       label: 'Main Warehouse',
-      recipientName: 'Maria Clara',
+      fullName: 'Maria Clara',
       phone: '+639181234567',
       street: '123 Market St',
       barangay: 'San Lorenzo',
@@ -115,8 +110,9 @@ async function main() {
         create: [
           {
             productId: product1.id,
-            quantity: 100,
-            priceAtPurchase: 45.0,
+            quantityKg: 100,
+            pricePerKg: 45.0,
+            subtotal: 4500,
           },
         ],
       },

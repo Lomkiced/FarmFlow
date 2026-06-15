@@ -26,8 +26,7 @@ export default async function FarmProfilePage() {
   const rating = farmProfile.rating ? farmProfile.rating.toFixed(1) : 'New';
 
   const chips = [
-    { icon: 'landscape', label: `${farmProfile.sizeHectares} Hectares` },
-    { icon: 'history', label: `${farmProfile.yearsFarming} years farming` },
+    { icon: 'landscape', label: `${farmProfile.landArea} Hectares` },
   ];
 
   // Derive primary crops from active products

@@ -3,10 +3,10 @@ import { z } from 'zod';
 export const cropSchema = z.object({
   cropName: z.string().min(2, 'Crop name must be at least 2 characters.').trim(),
   variety: z.string().trim().optional(),
-  datePlanted: z.coerce.date({ invalid_type_error: 'Invalid date planted.' }),
-  expectedHarvest: z.coerce.date({ invalid_type_error: 'Invalid expected harvest date.' }),
+  datePlanted: z.coerce.date(),
+  expectedHarvest: z.coerce.date(),
   areaSqm: z.coerce
-    .number({ invalid_type_error: 'Area must be a number.' })
+    .number()
     .positive('Area must be greater than 0.'),
   stage: z.enum(['SEEDLING', 'GROWING', 'READY_TO_HARVEST', 'HARVESTED']).default('SEEDLING'),
   notes: z.string().trim().optional(),
