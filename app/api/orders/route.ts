@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/db';
-import { getCurrentUser } from '@/lib/dal';
+import { prisma } from '@/lib/prisma';
+import { getSessionUser } from '@/lib/dal';
 
 export async function GET(request: Request) {
   try {
-    const user = await getCurrentUser();
+    const user = await getSessionUser();
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }

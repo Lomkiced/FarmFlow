@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { prisma } from '@/lib/prisma';
 import { requireFarmer } from '@/lib/dal';
 import { productSchema } from '@/lib/validations/product';
+import { sendAdminNotification } from '@/lib/notifications';
 import type { ActionState } from './crops';
 
 // ─── Get Farm Products (Farmer's Own Listings) ────────────────────────────────
@@ -97,6 +98,14 @@ export async function createProductAction(
 
     revalidatePath('/farmer/products');
     revalidatePath('/farmer/dashboard');
+
+    sendAdminNotification({
+      type: 'NEW_LISTING',
+      title: 'New Product Listing',
+      message: `${parsed.data.name} was submitted and is pending your review.`,
+      relatedId: product.id,
+      relatedType: 'product',
+    });
 
     return {
       success: true,

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useTransition } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { updateOrderStatusAdminAction } from '@/app/actions/admin';
 import toast from 'react-hot-toast';
 import { formatDistanceToNow } from 'date-fns';
@@ -27,8 +28,72 @@ type OrderData = {
 };
 
 export default function OrdersClient({ initialOrders }: { initialOrders: OrderData[] }) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  const activeStatus = searchParams.get('status') || 'ALL';
+  const buyerParam = searchParams.get('buyer') || '';
+  const dateFromParam = searchParams.get('dateFrom') || '';
+  const dateToParam = searchParams.get('dateTo') || '';
+  const minAmountParam = searchParams.get('minAmount') || '';
+  const maxAmountParam = searchParams.get('maxAmount') || '';
+
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [filterBuyer, setFilterBuyer] = useState(buyerParam);
+  const [filterDateFrom, setFilterDateFrom] = useState(dateFromParam);
+  const [filterDateTo, setFilterDateTo] = useState(dateToParam);
+  const [filterMinAmount, setFilterMinAmount] = useState(minAmountParam);
+  const [filterMaxAmount, setFilterMaxAmount] = useState(maxAmountParam);
+
   const [selectedOrder, setSelectedOrder] = useState<OrderData | null>(null);
   const [isPending, startTransition] = useTransition();
+
+  const handleStatusChange = (newStatus: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (newStatus === 'ALL') params.delete('status');
+    else params.set('status', newStatus);
+    router.push(`?${params.toString()}`);
+  };
+
+  const applyFilters = () => {
+    const params = new URLSearchParams(searchParams.toString());
+    
+    if (filterBuyer) params.set('buyer', filterBuyer);
+    else params.delete('buyer');
+
+    if (filterDateFrom) params.set('dateFrom', filterDateFrom);
+    else params.delete('dateFrom');
+
+    if (filterDateTo) params.set('dateTo', filterDateTo);
+    else params.delete('dateTo');
+
+    if (filterMinAmount) params.set('minAmount', filterMinAmount);
+    else params.delete('minAmount');
+
+    if (filterMaxAmount) params.set('maxAmount', filterMaxAmount);
+    else params.delete('maxAmount');
+
+    router.push(`?${params.toString()}`);
+    setIsFilterOpen(false);
+  };
+
+  const clearFilters = () => {
+    setFilterBuyer('');
+    setFilterDateFrom('');
+    setFilterDateTo('');
+    setFilterMinAmount('');
+    setFilterMaxAmount('');
+
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete('buyer');
+    params.delete('dateFrom');
+    params.delete('dateTo');
+    params.delete('minAmount');
+    params.delete('maxAmount');
+
+    router.push(`?${params.toString()}`);
+    setIsFilterOpen(false);
+  };
 
   const handleUpdateStatus = (id: string, currentStatus: string) => {
     let nextStatus: 'PENDING' | 'CONFIRMED' | 'READY' | 'DELIVERED' | 'CANCELLED';
@@ -65,18 +130,108 @@ export default function OrdersClient({ initialOrders }: { initialOrders: OrderDa
       <div className="bg-admin-surface-container-lowest p-[16px] rounded-xl border border-admin-outline-variant flex flex-wrap gap-4 items-center">
         <div className="flex flex-col gap-1">
           <span className="font-admin-label-caps text-admin-label-caps text-admin-on-surface-variant">Order Status</span>
-          <select className="border border-admin-outline-variant rounded-lg px-3 py-1.5 font-admin-body-sm bg-admin-surface-container-lowest text-admin-on-surface outline-none">
-            <option>All</option>
-            <option>Delivered</option>
-            <option>Pending</option>
+          <select 
+            value={activeStatus}
+            onChange={(e) => handleStatusChange(e.target.value)}
+            className="border border-admin-outline-variant rounded-lg px-3 py-1.5 font-admin-body-sm bg-admin-surface-container-lowest text-admin-on-surface outline-none focus:border-primary"
+          >
+            <option value="ALL">All</option>
+            <option value="PENDING">Pending</option>
+            <option value="CONFIRMED">Confirmed</option>
+            <option value="READY">Ready</option>
+            <option value="DELIVERED">Delivered</option>
+            <option value="CANCELLED">Cancelled</option>
           </select>
         </div>
         <div className="flex-1"></div>
-        <button className="text-primary font-admin-body-sm font-medium flex items-center gap-1 hover:underline">
+        <button 
+          onClick={() => setIsFilterOpen(!isFilterOpen)}
+          className={`font-admin-body-sm font-medium flex items-center gap-1 px-3 py-1.5 rounded-lg transition-colors relative ${
+            (buyerParam || dateFromParam || dateToParam || minAmountParam || maxAmountParam)
+              ? 'bg-primary text-on-primary border border-primary hover:bg-primary-container hover:text-on-primary-container'
+              : 'text-primary hover:bg-admin-surface-container-low'
+          }`}
+        >
           <span className="material-symbols-outlined text-[18px]">tune</span>
           More Filters
+          {(buyerParam || dateFromParam || dateToParam || minAmountParam || maxAmountParam) && (
+            <span className="w-2 h-2 rounded-full bg-error absolute -top-1 -right-1"></span>
+          )}
         </button>
       </div>
+
+      {/* INLINE MORE FILTERS PANEL */}
+      {isFilterOpen && (
+        <div className="bg-admin-surface-container-lowest border border-admin-outline-variant rounded-xl p-4 flex flex-wrap items-end gap-4 shadow-sm transition-all duration-300">
+          <div className="flex-1 min-w-[200px]">
+            <label className="block text-xs font-admin-label-caps text-admin-on-surface-variant mb-1">Buyer Name</label>
+            <input 
+              type="text" 
+              value={filterBuyer}
+              onChange={(e) => setFilterBuyer(e.target.value)}
+              placeholder="Search by buyer..."
+              className="w-full bg-admin-surface border border-admin-outline-variant rounded p-2 text-sm text-admin-on-surface focus:border-primary outline-none"
+            />
+          </div>
+
+          <div className="w-[140px]">
+            <label className="block text-xs font-admin-label-caps text-admin-on-surface-variant mb-1">Min Amount (₱)</label>
+            <input 
+              type="number" 
+              value={filterMinAmount}
+              onChange={(e) => setFilterMinAmount(e.target.value)}
+              placeholder="e.g. 100"
+              className="w-full bg-admin-surface border border-admin-outline-variant rounded p-2 text-sm text-admin-on-surface focus:border-primary outline-none"
+            />
+          </div>
+
+          <div className="w-[140px]">
+            <label className="block text-xs font-admin-label-caps text-admin-on-surface-variant mb-1">Max Amount (₱)</label>
+            <input 
+              type="number" 
+              value={filterMaxAmount}
+              onChange={(e) => setFilterMaxAmount(e.target.value)}
+              placeholder="e.g. 5000"
+              className="w-full bg-admin-surface border border-admin-outline-variant rounded p-2 text-sm text-admin-on-surface focus:border-primary outline-none"
+            />
+          </div>
+          
+          <div className="w-[140px]">
+            <label className="block text-xs font-admin-label-caps text-admin-on-surface-variant mb-1">Date From</label>
+            <input 
+              type="date" 
+              value={filterDateFrom}
+              onChange={(e) => setFilterDateFrom(e.target.value)}
+              className="w-full bg-admin-surface border border-admin-outline-variant rounded p-2 text-sm text-admin-on-surface focus:border-primary outline-none"
+            />
+          </div>
+          
+          <div className="w-[140px]">
+            <label className="block text-xs font-admin-label-caps text-admin-on-surface-variant mb-1">Date To</label>
+            <input 
+              type="date" 
+              value={filterDateTo}
+              onChange={(e) => setFilterDateTo(e.target.value)}
+              className="w-full bg-admin-surface border border-admin-outline-variant rounded p-2 text-sm text-admin-on-surface focus:border-primary outline-none"
+            />
+          </div>
+
+          <div className="flex gap-2 ml-auto">
+            <button 
+              onClick={clearFilters}
+              className="px-6 py-2 border border-admin-outline-variant text-admin-on-surface-variant rounded text-sm font-medium hover:bg-admin-surface-container-low transition-colors"
+            >
+              Clear
+            </button>
+            <button 
+              onClick={applyFilters}
+              className="px-6 py-2 bg-primary text-on-primary rounded text-sm font-medium hover:bg-primary-container transition-colors shadow-sm"
+            >
+              Apply Filters
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* MAIN LAYOUT */}
       <div className="flex gap-[20px] items-start">

@@ -1,13 +1,13 @@
 'use server';
 
-import { getCurrentUser } from '@/lib/dal';
-import { prisma } from '@/lib/db';
+import { getSessionUser } from '@/lib/dal';
+import { prisma } from '@/lib/prisma';
 
 const PAYMONGO_SECRET_KEY = process.env.PAYMONGO_SECRET_KEY || '';
 
 export async function createCheckoutSessionAction(orderId: string) {
   try {
-    const user = await getCurrentUser();
+    const user = await getSessionUser();
     if (!user) {
       return { success: false, error: 'Unauthorized' };
     }
@@ -34,13 +34,13 @@ export async function createCheckoutSessionAction(orderId: string) {
     // Prepare line items for PayMongo
     const lineItems = order.items.map((item) => ({
       currency: 'PHP',
-      amount: Math.round(item.priceAtPurchase * 100), // PayMongo expects amount in centavos
+      amount: Math.round(item.pricePerKg * 100), // PayMongo expects amount in centavos
       name: item.product.name,
-      quantity: item.quantity,
+      quantity: item.quantityKg,
     }));
 
     // Calculate subtotal from items
-    const subtotal = order.items.reduce((sum, item) => sum + (item.priceAtPurchase * item.quantity), 0);
+    const subtotal = order.items.reduce((sum, item) => sum + (item.pricePerKg * item.quantityKg), 0);
     
     // Calculate total logistics + platform fee
     const fees = order.totalAmount - subtotal;

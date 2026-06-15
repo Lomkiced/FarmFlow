@@ -6,7 +6,7 @@ export const activitySchema = z.object({
   inputsUsed: z.string().trim().optional(),
   quantity: z.coerce.number().positive().optional(),
   unit: z.string().trim().optional(),
-  activityDate: z.coerce.date({ invalid_type_error: 'Invalid activity date.' }),
+  activityDate: z.coerce.date(),
   cropId: z.string().uuid().optional(),
 });
 

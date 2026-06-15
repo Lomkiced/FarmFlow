@@ -23,10 +23,7 @@ export default async function AdminDashboardPage() {
           <h2 className="font-admin-h1 text-admin-h1 text-admin-on-surface">Admin Dashboard</h2>
           <p className="font-admin-body-base text-admin-body-base text-secondary mt-1">Overview of marketplace activity and system health.</p>
         </div>
-        <button className="bg-primary text-on-primary px-4 py-2 rounded-lg font-admin-body-sm flex items-center gap-2">
-          <span className="material-symbols-outlined text-[18px]">download</span>
-          Export Report
-        </button>
+
       </div>
 
       {/* KPI BENTO GRID */}
