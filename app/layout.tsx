@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import { Inter, Manrope } from 'next/font/google';
+import { Toaster } from 'react-hot-toast';
 import './globals.css';
 
 const inter = Inter({
@@ -58,6 +59,30 @@ export default function RootLayout({
       </head>
       <body className="min-h-full flex flex-col bg-background text-on-surface">
         {children}
+        <Toaster
+          position="top-center"
+          toastOptions={{
+            duration: 4000,
+            style: {
+              background: '#1B4332',
+              color: '#fff',
+              fontFamily: 'var(--font-inter)',
+              fontSize: '14px',
+              borderRadius: '12px',
+              padding: '12px 16px',
+            },
+            success: {
+              iconTheme: { primary: '#52B788', secondary: '#fff' },
+            },
+            error: {
+              iconTheme: { primary: '#F87171', secondary: '#fff' },
+              style: {
+                background: '#7F1D1D',
+                color: '#fff',
+              },
+            },
+          }}
+        />
       </body>
     </html>
   );

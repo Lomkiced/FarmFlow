@@ -1,105 +1,79 @@
-'use client';
-
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
+import { notFound } from 'next/navigation';
 import Footer from '@/components/layout/Footer';
-
-const mockOrder = {
-  id: 'FF-8924',
-  placedOn: 'October 24, 2024',
-  status: 'Ready for Delivery',
-  currentStep: 2,
-  statusMessage: {
-    title: 'Your harvest is packed and ready.',
-    body: 'Farmer Santos is preparing the delivery vehicle. Expect movement within the next few hours.',
-  },
-  items: [
-    {
-      id: 'i1',
-      name: 'Organic Heirloom Tomatoes',
-      farm: 'Agoo Valley Farms',
-      qty: '5 kg',
-      price: 1250.00,
-      image: 'https://images.unsplash.com/photo-1546094096-0df4bcaaa337?w=400&q=80',
-    },
-    {
-      id: 'i2',
-      name: 'Fresh Green Kale Bundle',
-      farm: 'Agoo Valley Farms',
-      qty: '3 bundles',
-      price: 450.00,
-      image: 'https://images.unsplash.com/photo-1598512752271-33f913a5af13?w=400&q=80',
-    },
-  ],
-  delivery: {
-    address: 'Central Market Hub, Block 4',
-    note: 'Ensure someone is available to receive the fresh produce.',
-    eta: 'Today, 2:00 PM',
-    mapImage: 'https://images.unsplash.com/photo-1524661135-423995f22d0b?w=600&q=80',
-    location: 'Agoo, La Union',
-  },
-  farmer: {
-    name: 'Miguel Santos',
-    farm: 'Agoo Valley Farms',
-    avatar: 'https://i.pravatar.cc/150?img=12',
-  },
-};
+import { getOrderAction } from '@/app/actions/orders';
 
 const steps = [
-  { label: 'Placed',    icon: 'check',       index: 0 },
-  { label: 'Confirmed', icon: 'inventory_2', index: 1 },
-  { label: 'Ready',     icon: 'agriculture', index: 2 },
-  { label: 'Delivered', icon: 'home',        index: 3 },
+  { label: 'Placed',    icon: 'check',       status: 'PENDING',   index: 0 },
+  { label: 'Confirmed', icon: 'inventory_2', status: 'CONFIRMED', index: 1 },
+  { label: 'Ready',     icon: 'agriculture', status: 'READY',     index: 2 },
+  { label: 'Delivered', icon: 'home',        status: 'DELIVERED', index: 3 },
 ];
 
 function TrackingHeader() {
-  const router = useRouter();
-  
   return (
     <header className="sticky top-0 z-50 bg-[#FAFAF7]/90 backdrop-blur-md border-b border-stone-200 shadow-sm px-8 py-4">
       <div className="max-w-screen-2xl mx-auto flex items-center justify-between">
-        <button
-          onClick={() => router.back()}
+        <Link
+          href="/"
           className="flex items-center gap-2 text-on-surface hover:text-primary transition-colors group"
         >
           <span className="material-symbols-outlined">arrow_back</span>
-          <span className="font-label-md font-medium">Back to Orders</span>
-        </button>
+          <span className="font-label-md font-medium">Home</span>
+        </Link>
 
         <div className="font-display font-black text-2xl text-emerald-900 tracking-tighter">
           FarmFlow Track
         </div>
 
-        <div className="w-[120px]" /> {/* Spacer for centering */}
+        <div className="w-[120px]" />
       </div>
     </header>
   );
 }
 
-function OrderPageHeader() {
+function OrderPageHeader({ order }: { order: any }) {
   return (
     <div className="mb-[32px] flex flex-col md:flex-row md:items-end justify-between gap-4">
       <div>
         <h1 className="font-['Manrope'] text-[48px] font-bold tracking-[-0.02em] leading-[1.1] text-primary mb-2">
-          Order #{mockOrder.id}
+          Order #{order.id.slice(0, 8).toUpperCase()}
         </h1>
         <div className="font-body-lg text-on-surface-variant">
-          Placed on {mockOrder.placedOn}
+          Placed on {new Date(order.createdAt).toLocaleDateString()}
         </div>
       </div>
       <div className="inline-flex items-center gap-2 px-4 py-2 bg-secondary-container text-on-secondary-container rounded-full">
         <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>local_shipping</span>
-        <span className="font-label-md">Status: {mockOrder.status}</span>
+        <span className="font-label-md">Status: {order.orderStatus}</span>
       </div>
     </div>
   );
 }
 
-function ProgressStepper() {
-  const currentStep = mockOrder.currentStep;
+function ProgressStepper({ status }: { status: string }) {
+  let currentStep = steps.findIndex(s => s.status === status);
+  if (currentStep === -1) currentStep = 0; // Default or Cancelled
+
   const progressWidth = `${(currentStep / (steps.length - 1)) * 100}%`;
+
+  let title = 'Your harvest is packed and ready.';
+  let body = 'The farmer is preparing the delivery. Expect movement soon.';
+
+  if (status === 'PENDING') {
+    title = 'Order received by the farmer.';
+    body = 'Waiting for the farmer to confirm your order.';
+  } else if (status === 'CONFIRMED') {
+    title = 'Order confirmed.';
+    body = 'The farmer is currently harvesting and packing your order.';
+  } else if (status === 'DELIVERED') {
+    title = 'Order delivered.';
+    body = 'Enjoy your fresh produce!';
+  } else if (status === 'CANCELLED') {
+    title = 'Order cancelled.';
+    body = 'This order has been cancelled.';
+  }
 
   return (
     <div className="bg-surface-container-lowest rounded-xl p-8 shadow-level-1">
@@ -109,7 +83,7 @@ function ProgressStepper() {
         <div className="absolute left-0 top-1/2 -translate-y-1/2 w-full h-1 bg-surface-variant z-0" />
         <div 
           className="absolute left-0 top-1/2 -translate-y-1/2 h-1 bg-primary z-0 transition-all duration-500" 
-          style={{ width: progressWidth }}
+          style={{ width: status === 'CANCELLED' ? '0%' : progressWidth }}
         />
         
         {steps.map((step, idx) => {
@@ -120,7 +94,9 @@ function ProgressStepper() {
           let nodeClasses = "";
           let iconFilled = false;
 
-          if (isCompleted) {
+          if (status === 'CANCELLED') {
+             nodeClasses = "w-12 h-12 rounded-full bg-surface-container text-on-surface-variant flex items-center justify-center border-4 border-surface-container-lowest";
+          } else if (isCompleted) {
             nodeClasses = "w-12 h-12 rounded-full bg-primary text-on-primary flex items-center justify-center shadow-sm border-4 border-surface-container-lowest";
             iconFilled = true;
           } else if (isActive) {
@@ -135,10 +111,10 @@ function ProgressStepper() {
             <div key={idx} className="relative z-10 flex flex-col items-center gap-3">
               <div className={nodeClasses}>
                 <span className="material-symbols-outlined" style={iconFilled ? { fontVariationSettings: "'FILL' 1" } : {}}>
-                  {step.icon}
+                  {status === 'CANCELLED' && idx === 0 ? 'cancel' : step.icon}
                 </span>
               </div>
-              <div className={`font-label-md text-label-md text-center ${(isCompleted || isActive) ? 'text-primary font-semibold' : 'text-on-surface-variant font-normal'}`}>
+              <div className={`font-label-md text-label-md text-center ${(isCompleted || isActive) && status !== 'CANCELLED' ? 'text-primary font-semibold' : 'text-on-surface-variant font-normal'}`}>
                 {step.label}
               </div>
             </div>
@@ -149,36 +125,34 @@ function ProgressStepper() {
       <div className="mt-8 p-4 bg-surface rounded-lg flex items-start gap-4 border border-surface-variant">
         <span className="material-symbols-outlined text-primary mt-1">info</span>
         <div>
-          <div className="font-body-md font-medium text-on-surface">{mockOrder.statusMessage.title}</div>
-          <div className="font-body-md text-on-surface-variant mt-1">{mockOrder.statusMessage.body}</div>
+          <div className="font-body-md font-medium text-on-surface">{title}</div>
+          <div className="font-body-md text-on-surface-variant mt-1">{body}</div>
         </div>
       </div>
     </div>
   );
 }
 
-function HarvestSummaryCard() {
-  const total = mockOrder.items.reduce((sum, item) => sum + item.price, 0);
-
+function HarvestSummaryCard({ items, total }: { items: any[], total: number }) {
   return (
     <div className="bg-surface-container-lowest rounded-xl p-8 shadow-level-1">
       <h2 className="font-h2 text-h2 text-primary mb-6">Harvest Summary</h2>
       
       <div className="flex flex-col gap-6">
-        {mockOrder.items.map((item) => (
+        {items.map((item) => (
           <div key={item.id} className="flex items-center gap-4 border-b border-surface-variant pb-6 last:border-0 last:pb-0">
             <div className="w-24 h-24 rounded-lg overflow-hidden bg-surface-container flex-shrink-0 relative">
-              <Image src={item.image} alt={item.name} width={96} height={96} className="object-cover" />
+              <Image src={item.product.photos[0] || 'https://images.unsplash.com/photo-1546094096-0df4bcaaa337?w=400&q=80'} alt={item.product.name} fill className="object-cover" sizes="96px" />
             </div>
             <div className="flex-grow">
-              <div className="font-h3 text-h3 text-primary">{item.name}</div>
-              <div className="font-body-md text-on-surface-variant">{item.farm}</div>
+              <div className="font-h3 text-h3 text-primary">{item.product.name}</div>
+              <div className="font-body-md text-on-surface-variant">{item.product.farm.farmName}</div>
               <div className="mt-2 inline-block px-2 py-1 bg-surface-container text-on-surface font-label-sm text-label-sm rounded uppercase tracking-wider">
-                Qty: {item.qty}
+                Qty: {item.quantityKg} kg
               </div>
             </div>
             <div className="text-right">
-              <div className="font-h3 text-h3 text-on-surface">₱{item.price.toFixed(2)}</div>
+              <div className="font-h3 text-h3 text-on-surface">₱{item.subtotal.toFixed(2)}</div>
             </div>
           </div>
         ))}
@@ -192,53 +166,55 @@ function HarvestSummaryCard() {
   );
 }
 
-function MapCard() {
+function MapCard({ address }: { address: any }) {
   return (
     <div className="bg-surface-container-lowest rounded-xl overflow-hidden shadow-level-1 flex flex-col">
       <div className="relative w-full h-64 bg-surface-container opacity-90">
-        <Image src={mockOrder.delivery.mapImage} alt="Map" fill className="object-cover" />
+        <Image src="https://images.unsplash.com/photo-1524661135-423995f22d0b?w=600&q=80" alt="Map" fill className="object-cover" />
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center">
           <span className="material-symbols-outlined text-4xl text-primary drop-shadow-md" style={{ fontVariationSettings: "'FILL' 1" }}>location_on</span>
-          <div className="mt-1 px-3 py-1 rounded-full shadow-sm bg-surface-container-lowest/90 backdrop-blur-sm font-label-sm text-primary uppercase tracking-widest">
-            {mockOrder.delivery.location}
+          <div className="mt-1 px-3 py-1 rounded-full shadow-sm bg-surface-container-lowest/90 backdrop-blur-sm font-label-sm text-primary uppercase tracking-widest max-w-[200px] truncate text-center">
+            {address.barangay}, {address.city}
           </div>
         </div>
       </div>
       <div className="p-6">
         <h3 className="font-h3 text-h3 text-primary mb-2">Delivery Details</h3>
-        <div className="font-body-md text-on-surface-variant mb-4">{mockOrder.delivery.address}. {mockOrder.delivery.note}</div>
+        <div className="font-body-md text-on-surface-variant mb-4">{address.street}, {address.barangay}, {address.city}, {address.province}</div>
         <div className="flex items-center gap-3 text-secondary">
           <span className="material-symbols-outlined">schedule</span>
-          <span className="font-label-md">Est. Arrival: {mockOrder.delivery.eta}</span>
+          <span className="font-label-md">Est. Arrival: Today</span>
         </div>
       </div>
     </div>
   );
 }
 
-function FarmerContactCard() {
+function FarmerContactCard({ items }: { items: any[] }) {
+  // If multiple farms, just pick the first one for now
+  const farm = items[0]?.product.farm;
+  if (!farm) return null;
+
   return (
     <div className="bg-surface-container-lowest rounded-xl p-6 shadow-level-1 border border-surface-variant">
       <div className="font-label-sm text-on-surface-variant uppercase tracking-widest mb-4">Fulfillment Partner</div>
       <div className="flex items-center gap-4 mb-6">
         <div className="w-16 h-16 rounded-full overflow-hidden bg-surface-container border-2 border-surface-container-lowest shadow-sm relative shrink-0">
-          <Image src={mockOrder.farmer.avatar} alt={mockOrder.farmer.name} width={64} height={64} className="object-cover" />
+          <Image src={farm.user.avatarUrl || 'https://i.pravatar.cc/150?img=12'} alt={farm.farmName} fill className="object-cover" sizes="64px" />
         </div>
         <div>
-          <div className="font-h3 text-h3 text-primary">{mockOrder.farmer.name}</div>
-          <div className="font-body-md text-on-surface-variant">{mockOrder.farmer.farm}</div>
+          <div className="font-h3 text-h3 text-primary">{farm.user.name}</div>
+          <div className="font-body-md text-on-surface-variant">{farm.farmName}</div>
         </div>
       </div>
       <div className="flex flex-col gap-3">
         <button 
-          onClick={() => alert('Messaging coming soon!')}
           className="w-full py-3 px-4 rounded-xl bg-primary hover:bg-primary/90 text-on-primary font-label-md flex items-center justify-center gap-2 transition-colors"
         >
           <span className="material-symbols-outlined text-sm">chat_bubble</span>
           Message Farmer
         </button>
         <button 
-          onClick={() => alert('Calling coming soon!')}
           className="w-full py-3 px-4 rounded-xl bg-secondary-container hover:bg-secondary-container/80 text-on-secondary-container font-label-md flex items-center justify-center gap-2 transition-colors"
         >
           <span className="material-symbols-outlined text-sm">call</span>
@@ -249,20 +225,27 @@ function FarmerContactCard() {
   );
 }
 
-export default function OrderTrackingPage() {
+export default async function OrderTrackingPage(props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
+  const order = await getOrderAction(params.id);
+
+  if (!order) {
+    notFound();
+  }
+
   return (
     <>
       <TrackingHeader />
       <main className="flex-grow w-full max-w-[1280px] mx-auto px-[24px] py-[32px]">
-        <OrderPageHeader />
+        <OrderPageHeader order={order} />
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           <div className="lg:col-span-8 flex flex-col gap-8">
-            <ProgressStepper />
-            <HarvestSummaryCard />
+            <ProgressStepper status={order.orderStatus} />
+            <HarvestSummaryCard items={order.items} total={order.totalAmount} />
           </div>
           <div className="lg:col-span-4 flex flex-col gap-8">
-            <MapCard />
-            <FarmerContactCard />
+            <MapCard address={order.address} />
+            <FarmerContactCard items={order.items} />
           </div>
         </div>
       </main>

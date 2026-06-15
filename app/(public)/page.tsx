@@ -4,51 +4,11 @@ import Navbar from '@/components/layout/Navbar';
 import Footer from '@/components/layout/Footer';
 import ProductCard from '@/components/marketplace/ProductCard';
 import CategoryFilter from '@/components/marketplace/CategoryFilter';
+import { getFeaturedProductsAction } from '@/app/actions/search';
 
-const FEATURED_PRODUCTS = [
-  {
-    id: '1',
-    image: 'https://images.unsplash.com/photo-1546094096-0df4bcaaa337?w=400&q=80',
-    alt: 'Fresh Tomatoes',
-    badge: 'In Stock' as const,
-    farmerAvatar: 'https://i.pravatar.cc/150?img=11',
-    farmerName: "Mang Juan's Farm",
-    productName: 'Heirloom Tomatoes',
-    price: '₱120',
-  },
-  {
-    id: '3',
-    image: 'https://images.unsplash.com/photo-1447175008436-054170c2e979?w=400&q=80',
-    alt: 'Fresh Carrots',
-    badge: 'In Stock' as const,
-    farmerAvatar: 'https://i.pravatar.cc/150?img=45',
-    farmerName: 'Aling Maria Fields',
-    productName: 'Organic Carrots',
-    price: '₱85',
-  },
-  {
-    id: '7',
-    image: 'https://images.unsplash.com/photo-1586201375761-83865001e31c?w=400&q=80',
-    alt: 'Dinorado Rice',
-    badge: 'Low Stock' as const,
-    farmerAvatar: 'https://i.pravatar.cc/150?img=33',
-    farmerName: 'San Nicolas Coop',
-    productName: 'Dinorado Rice',
-    price: '₱65',
-  },
-  {
-    id: '5',
-    image: 'https://images.unsplash.com/photo-1540148426945-6cf22a6b2383?w=400&q=80',
-    alt: 'Fresh Eggplant',
-    badge: 'In Stock' as const,
-    farmerAvatar: 'https://i.pravatar.cc/150?img=22',
-    farmerName: 'Barangay Sta. Cruz Farm',
-    productName: 'Purple Eggplant',
-    price: '₱55',
-  },
-];
+export default async function HomePage() {
+  const featuredProducts = await getFeaturedProductsAction();
 
-export default function HomePage() {
   return (
     <>
       <Navbar />
@@ -74,10 +34,10 @@ export default function HomePage() {
             <p className="font-body-lg text-surface-container-lowest/90 max-w-xl">
               Connect directly with local farmers in La Union. Premium, freshly harvested produce delivered to your door while supporting sustainable local agriculture.
             </p>
-            <button className="bg-amber-500 text-white px-8 py-4 rounded-xl hover:bg-[#D97706] transition-colors shadow-lg active:scale-95 font-label-md flex items-center justify-center gap-2">
+            <Link href="/products" className="bg-amber-500 text-white px-8 py-4 rounded-xl hover:bg-[#D97706] transition-colors shadow-lg active:scale-95 font-label-md flex items-center justify-center gap-2">
               Shop Harvest
               <span className="material-symbols-outlined text-[20px]">arrow_forward</span>
-            </button>
+            </Link>
           </div>
         </section>
 
@@ -103,11 +63,28 @@ export default function HomePage() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              {FEATURED_PRODUCTS.map(({ id, ...product }) => (
-                <Link key={id} href={`/products/${id}`} className="block h-full">
-                  <ProductCard {...product} />
-                </Link>
-              ))}
+              {featuredProducts.length === 0 ? (
+                <div className="col-span-4 text-center py-12 text-on-surface-variant">
+                  No featured harvest available at the moment.
+                </div>
+              ) : (
+                featuredProducts.map((product) => {
+                  const badge = product.stockKg > 10 ? 'In Stock' : 'Low Stock';
+                  return (
+                    <Link key={product.id} href={`/products/${product.id}`} className="block h-full">
+                      <ProductCard
+                        image={product.photos[0] || 'https://images.unsplash.com/photo-1546094096-0df4bcaaa337?w=400&q=80'}
+                        alt={product.name}
+                        badge={badge}
+                        farmerAvatar={product.farm.user?.avatarUrl || 'https://i.pravatar.cc/150?img=11'}
+                        farmerName={product.farm.farmName}
+                        productName={product.name}
+                        price={`₱${product.pricePerKg.toLocaleString(undefined, { minimumFractionDigits: 2 })}`}
+                      />
+                    </Link>
+                  );
+                })
+              )}
             </div>
           </section>
 
