@@ -1,6 +1,8 @@
 import Link from 'next/link';
 
-export default function Footer() {
+import type { SessionUser } from '@/lib/dal';
+
+export default function Footer({ user }: { user?: SessionUser | null }) {
   return (
     <footer className="bg-stone-50 border-t border-stone-200 font-display text-sm uppercase tracking-widest mt-auto">
       <div className="max-w-screen-2xl mx-auto flex flex-col md:flex-row justify-between items-center px-12 py-16 gap-8">
@@ -19,9 +21,21 @@ export default function Footer() {
           <Link href="#" className="hover:text-emerald-600 hover:underline underline-offset-4 transition-all">
             Terms of Service
           </Link>
-          <Link href="/auth/login" className="text-amber-600 hover:text-amber-700 hover:underline underline-offset-4 transition-all font-bold">
-            Farmer Login
-          </Link>
+          {!user && (
+            <Link href="/auth/login" className="text-amber-600 hover:text-amber-700 hover:underline underline-offset-4 transition-all font-bold">
+              Farmer Login
+            </Link>
+          )}
+          {user && user.role === 'BUYER' && (
+            <Link href="/auth/register" className="text-amber-600 hover:text-amber-700 hover:underline underline-offset-4 transition-all font-bold">
+              Become a Farmer
+            </Link>
+          )}
+          {user && user.role === 'FARMER' && (
+            <Link href="/farmer/dashboard" className="text-amber-600 hover:text-amber-700 hover:underline underline-offset-4 transition-all font-bold">
+              Farmer Dashboard
+            </Link>
+          )}
           <Link href="#" className="hover:text-emerald-600 hover:underline underline-offset-4 transition-all">
             Support
           </Link>

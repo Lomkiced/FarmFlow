@@ -18,7 +18,7 @@ interface Address {
   barangay: string;
   city: string;
   province: string;
-  zipCode?: string | null;
+  zipCode: string | null;
   isDefault: boolean;
 }
 
@@ -52,11 +52,15 @@ export default function CheckoutClient({ addresses }: { addresses: Address[] }) 
       if (isNewAddress) {
         const addressFormData = new FormData(e.currentTarget);
         const addressResult = await createAddressAction({ success: false, error: '' }, addressFormData);
-        if (!addressResult.success || !(addressResult.data as any)?.id) {
-          toast.error((addressResult as any).error || 'Failed to save address');
+        if (!addressResult.success) {
+          toast.error(addressResult.error || 'Failed to save address');
           return;
         }
-        finalAddressId = (addressResult.data as any).id;
+        if (!addressResult.data?.id) {
+          toast.error('Failed to save address');
+          return;
+        }
+        finalAddressId = addressResult.data.id as string;
       }
 
       if (!finalAddressId) {

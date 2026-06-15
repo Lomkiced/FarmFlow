@@ -58,7 +58,8 @@ export default function AddProductClient({
         if (result.success && 'url' in result) {
           photoUrls.push(result.url);
         } else {
-          toast.error(`Failed to upload ${file.name}`);
+          console.error('[Upload Error]', result.error);
+          toast.error(`Failed to upload ${file.name}: ${result.error || 'Unknown error'}`);
         }
       }
 

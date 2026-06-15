@@ -10,5 +10,8 @@ export default defineConfig({
   },
   datasource: {
     url: process.env['DATABASE_URL']!,
+    // directUrl bypasses PgBouncer pooler for migrations
+    // @ts-expect-error - Prisma types might be outdated or missing directUrl
+    directUrl: process.env['DIRECT_URL'],
   },
 });

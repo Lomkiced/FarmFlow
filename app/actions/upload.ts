@@ -28,7 +28,8 @@ async function uploadToStorage(
   const supabase = createServiceClient();
   const path = `${folder}/${filename}`;
 
-  const { error } = await supabase.storage
+  // Try to upload the file
+  let { error } = await supabase.storage
     .from(BUCKET)
     .upload(path, buffer, {
       contentType: 'image/webp',
@@ -36,9 +37,38 @@ async function uploadToStorage(
       cacheControl: '3600',
     });
 
+  // If the bucket does not exist, Supabase returns a specific error.
+  const errorMsg = error ? String(error.message || (error as any).error || '').toLowerCase() : '';
+  if (errorMsg.includes('bucket') || errorMsg.includes('not found')) {
+    console.log(`[upload] Bucket '${BUCKET}' not found. Attempting to create it...`);
+    const { error: bucketError } = await supabase.storage.createBucket(BUCKET, {
+      public: true,
+      fileSizeLimit: 5242880, // 5MB
+    });
+
+    if (bucketError && !String(bucketError.message || '').includes('already exists')) {
+      console.error('[upload] Failed to create bucket:', bucketError);
+      return { success: false, error: 'Storage setup failed. Please contact support.' };
+    }
+
+    // Wait briefly for bucket propagation
+    await new Promise(resolve => setTimeout(resolve, 500));
+
+    // Retry upload after creating the bucket
+    const retry = await supabase.storage
+      .from(BUCKET)
+      .upload(path, buffer, {
+        contentType: 'image/webp',
+        upsert: true,
+        cacheControl: '3600',
+      });
+    
+    error = retry.error;
+  }
+
   if (error) {
     console.error('[upload] Supabase storage error:', error);
-    return { success: false, error: 'Failed to upload image. Please try again.' };
+    return { success: false, error: 'Failed to upload image. Please try again. Error: ' + error.message };
   }
 
   const { data } = supabase.storage.from(BUCKET).getPublicUrl(path);

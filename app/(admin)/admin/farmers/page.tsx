@@ -23,7 +23,12 @@ export default async function FarmersDirectoryPage({ searchParams }: Props) {
     location: f.barangay && f.municipality ? `${f.barangay}, ${f.municipality}` : (f.barangay || f.municipality || 'Not set'),
   }));
 
+  const formattedFarmers = farmers.map((f) => ({
+    ...f,
+    location: `${f.barangay}, ${f.municipality}, ${f.province}`,
+  }));
+
   return (
-    <FarmersClient initialFarmers={mappedFarmers as any} />
+    <FarmersClient initialFarmers={formattedFarmers} />
   );
 }

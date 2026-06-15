@@ -5,11 +5,11 @@ export const productSchema = z.object({
   category: z.string().min(1, 'Please select a category.').trim(),
   description: z.string().trim().optional(),
   pricePerKg: z.coerce
-    .number()
+    .number({ message: 'Price must be a number.' })
     .positive('Price must be greater than ₱0.')
     .multipleOf(0.01, 'Price can have at most 2 decimal places.'),
   stockKg: z.coerce
-    .number()
+    .number({ message: 'Stock must be a number.' })
     .positive('Stock must be greater than 0.')
     .multipleOf(0.1, 'Stock can have at most 1 decimal place.'),
   harvestDate: z.coerce.date().optional(),

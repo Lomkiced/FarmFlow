@@ -27,6 +27,7 @@ export default async function FarmProfilePage() {
 
   const chips = [
     { icon: 'landscape', label: `${farmProfile.landArea} Hectares` },
+    { icon: 'history', label: `Farming since ${new Date(farmProfile.createdAt).getFullYear()}` },
   ];
 
   // Derive primary crops from active products

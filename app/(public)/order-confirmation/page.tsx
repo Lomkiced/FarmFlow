@@ -1,11 +1,7 @@
 import Link from 'next/link';
-import Navbar from '@/components/layout/Navbar';
-import Footer from '@/components/layout/Footer';
-
 export default function OrderConfirmationPage() {
   return (
     <>
-      <Navbar />
       <main className="flex-grow w-full max-w-[1280px] mx-auto px-[24px] py-[80px] flex flex-col items-center justify-center text-center">
         <span
           className="material-symbols-outlined text-[80px] text-secondary mb-[24px]"
@@ -35,7 +31,6 @@ export default function OrderConfirmationPage() {
           </Link>
         </div>
       </main>
-      <Footer />
     </>
   );
 }

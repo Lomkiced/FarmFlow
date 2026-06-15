@@ -29,12 +29,15 @@ export async function loginAction(
   }
 
   const supabase = await createClient();
-  const { error } = await supabase.auth.signInWithPassword({
+  const { data: authData, error } = await supabase.auth.signInWithPassword({
     email: parsed.data.email,
     password: parsed.data.password,
   });
 
   if (error) {
+    if (error.message.includes('Email not confirmed')) {
+      return { message: 'Please check your email and confirm your account before logging in.' };
+    }
     return { message: error.message === 'Invalid login credentials'
       ? 'Invalid email or password. Please try again.'
       : error.message
@@ -42,7 +45,7 @@ export async function loginAction(
   }
 
   // Fetch the user's role to redirect correctly
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = authData?.user;
   if (!user) return { message: 'Authentication failed. Please try again.' };
 
   const profile = await prisma.user.findUnique({
@@ -50,7 +53,11 @@ export async function loginAction(
     select: { role: true },
   });
 
-  if (!profile) return { message: 'User profile not found. Please contact support.' };
+  if (!profile) {
+    // If auth succeeds but no DB profile is found, it's a corrupted state.
+    await supabase.auth.signOut();
+    return { message: 'Your account setup is incomplete. Please contact support.' };
+  }
 
   // Role-based redirect
   if (profile.role === 'ADMIN') redirect('/admin');
