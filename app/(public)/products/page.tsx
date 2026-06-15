@@ -35,7 +35,7 @@ export default async function ProductsPage(props: { searchParams: SearchParams }
       <main className="flex-grow max-w-screen-2xl mx-auto px-8 py-12 w-full">
         <div className="flex flex-col md:flex-row gap-[24px]">
           
-          <FilterSidebar categoriesList={categories} />
+          <FilterSidebar categoriesList={[...categories]} />
           
           <section className="flex-grow flex flex-col gap-6">
             
@@ -67,7 +67,7 @@ export default async function ProductsPage(props: { searchParams: SearchParams }
                         unit="/kg"
                         farmerName={product.farm.farmName}
                         rating={product.farm.rating || 5}
-                        reviewCount={product.orderItems?.length || 0} // Using order count as proxy for reviews for now
+                        reviewCount={0} // TODO: Implement real review count
                         distanceKm={Math.floor(Math.random() * 5) + 1} // Mapped for demonstration
                       />
                     </Link>
