@@ -47,6 +47,26 @@ enum FarmerStatus {
   SUSPENDED
 }
 
+enum NotificationType {
+  NEW_USER
+  PENDING_FARMER
+  NEW_LISTING
+  NEW_ORDER
+  ORDER_STATUS_CHANGE
+  PAYMENT_CONFIRMED
+}
+
+model Notification {
+  id          String           @id @default(uuid())
+  type        NotificationType
+  title       String
+  message     String
+  isRead      Boolean          @default(false)
+  relatedId   String?
+  relatedType String?
+  createdAt   DateTime         @default(now())
+}
+
 model User {
   id            String       @id @default(uuid())
   email         String       @unique

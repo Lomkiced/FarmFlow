@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import crypto from 'crypto';
+import { sendAdminNotification } from '@/lib/notifications';
 
 const PAYMONGO_WEBHOOK_SECRET = process.env.PAYMONGO_WEBHOOK_SECRET || '';
 
@@ -45,6 +46,15 @@ export async function POST(req: Request) {
           },
         });
         console.log(`[PayMongo Webhook] Order ${orderId} marked as PAID`);
+        
+        // Background notification doesn't wait
+        sendAdminNotification({
+          type: 'PAYMENT_CONFIRMED',
+          title: 'Payment Confirmed',
+          message: `Payment received for Order #${orderId.slice(0, 8)}.`,
+          relatedId: orderId,
+          relatedType: 'order',
+        });
       }
     }
 

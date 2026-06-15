@@ -5,6 +5,7 @@ import { redirect } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
 import { requireAuth, requireFarmer } from '@/lib/dal';
 import { checkoutSchema } from '@/lib/validations/order';
+import { sendAdminNotification } from '@/lib/notifications';
 import type { ActionState } from './crops';
 
 // ─── Create Order (Checkout) ──────────────────────────────────────────────────
@@ -137,6 +138,14 @@ export async function createOrderAction(
 
     revalidatePath('/products');
 
+    sendAdminNotification({
+      type: 'NEW_ORDER',
+      title: 'New Order Placed',
+      message: `Order #${order.id.slice(0, 8)} was placed for ₱${totalAmount}.`,
+      relatedId: order.id,
+      relatedType: 'order',
+    });
+
     // Redirect to order tracking on success
     redirect(`/orders/${order.id}`);
   } catch (err: unknown) {
@@ -263,6 +272,14 @@ export async function updateOrderStatusAction(
     await prisma.order.update({
       where: { id: orderId },
       data: { orderStatus: newStatus },
+    });
+
+    sendAdminNotification({
+      type: 'ORDER_STATUS_CHANGE',
+      title: 'Order Status Updated',
+      message: `Order #${orderId.slice(0, 8)} was marked as ${newStatus}.`,
+      relatedId: orderId,
+      relatedType: 'order',
     });
 
     revalidatePath('/farmer/orders');

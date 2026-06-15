@@ -26,7 +26,7 @@ export default function CheckoutClient({ addresses }: { addresses: Address[] }) 
   const router = useRouter();
   const { items, updateQuantity, removeItem, clearCart } = useCartStore();
 
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('gcash');
+  const [paymentMethod, setPaymentMethod] = useState<string>('gcash');
   const [selectedAddressId, setSelectedAddressId] = useState<string>(
     addresses.find(a => a.isDefault)?.id || addresses[0]?.id || ''
   );
@@ -79,7 +79,7 @@ export default function CheckoutClient({ addresses }: { addresses: Address[] }) 
       try {
         const result = await createOrderAction({ success: false, error: '' }, orderFormData);
         if (result && !result.success) {
-          toast.error(result.error || 'Failed to place order');
+          toast.error((result as any).error || 'Failed to place order');
         } else {
           // If successful, the action will throw a redirect, which we don't catch here.
           // We clear the cart first.

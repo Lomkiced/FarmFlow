@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useTransition } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import { approveFarmerAction, rejectFarmerAction } from '@/app/actions/admin';
 import toast from 'react-hot-toast';
@@ -25,9 +26,58 @@ type FarmerData = {
 };
 
 export default function FarmersClient({ initialFarmers }: { initialFarmers: FarmerData[] }) {
-  const [activeTab, setActiveTab] = useState<'ALL' | 'PENDING' | 'VERIFIED' | 'SUSPENDED'>('ALL');
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  const activeTab = (searchParams.get('status') || 'ALL') as 'ALL' | 'PENDING' | 'VERIFIED' | 'SUSPENDED';
+  const locationParam = searchParams.get('location') || '';
+  const dateFromParam = searchParams.get('dateFrom') || '';
+  const dateToParam = searchParams.get('dateTo') || '';
+
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [filterLocation, setFilterLocation] = useState(locationParam);
+  const [filterDateFrom, setFilterDateFrom] = useState(dateFromParam);
+  const [filterDateTo, setFilterDateTo] = useState(dateToParam);
+
   const [selectedFarmer, setSelectedFarmer] = useState<FarmerData | null>(null);
   const [isPending, startTransition] = useTransition();
+
+  const handleTabChange = (tab: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (tab === 'ALL') {
+      params.delete('status');
+    } else {
+      params.set('status', tab);
+    }
+    router.push(`?${params.toString()}`);
+  };
+
+  const applyFilters = () => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (filterLocation) params.set('location', filterLocation);
+    else params.delete('location');
+
+    if (filterDateFrom) params.set('dateFrom', filterDateFrom);
+    else params.delete('dateFrom');
+
+    if (filterDateTo) params.set('dateTo', filterDateTo);
+    else params.delete('dateTo');
+
+    router.push(`?${params.toString()}`);
+    setIsFilterOpen(false);
+  };
+
+  const clearFilters = () => {
+    setFilterLocation('');
+    setFilterDateFrom('');
+    setFilterDateTo('');
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete('location');
+    params.delete('dateFrom');
+    params.delete('dateTo');
+    router.push(`?${params.toString()}`);
+    setIsFilterOpen(false);
+  };
 
   const filteredFarmers = initialFarmers.filter((f) => activeTab === 'ALL' || f.status === activeTab);
   const pendingCount = initialFarmers.filter((f) => f.status === 'PENDING').length;
@@ -57,22 +107,32 @@ export default function FarmersClient({ initialFarmers }: { initialFarmers: Farm
   };
 
   return (
-    <div className="flex-1 overflow-x-hidden overflow-y-auto bg-admin-background p-[40px] flex gap-[20px]">
+    <div className="flex-1 bg-admin-background p-[40px] flex gap-[20px]">
       
       {/* LEFT CANVAS */}
       <div className="flex-1 flex flex-col min-w-0">
         
         {/* PAGE HEADER */}
-        <div className="mb-[24px] flex flex-col md:flex-row md:items-end justify-between gap-4">
+        <div className="mb-[24px] flex flex-col md:flex-row md:items-end justify-between gap-4 relative z-[100]">
           <div>
             <h2 className="font-admin-h1 text-admin-h1 text-admin-on-background mb-2">Farmer Directory</h2>
             <p className="font-admin-body-base text-admin-on-surface-variant">Manage and review farmer registrations.</p>
           </div>
 
           <div className="flex items-center gap-3">
-            <button className="bg-admin-surface-container-lowest border border-admin-outline-variant text-admin-on-surface font-admin-label-caps px-4 py-2 rounded flex items-center gap-2">
+            <button 
+              onClick={() => setIsFilterOpen(!isFilterOpen)}
+              className={`border border-admin-outline-variant font-admin-label-caps px-4 py-2 rounded flex items-center gap-2 transition-colors ${
+                (locationParam || dateFromParam || dateToParam) 
+                  ? 'bg-primary text-on-primary border-primary hover:bg-primary-container hover:text-on-primary-container' 
+                  : 'bg-admin-surface-container-lowest text-admin-on-surface hover:bg-admin-surface-container-low'
+              }`}
+            >
               <span className="material-symbols-outlined text-sm">filter_list</span>
               Filter
+              {(locationParam || dateFromParam || dateToParam) && (
+                <span className="w-2 h-2 rounded-full bg-error absolute -top-1 -right-1"></span>
+              )}
             </button>
           </div>
         </div>
@@ -82,7 +142,7 @@ export default function FarmersClient({ initialFarmers }: { initialFarmers: Farm
           {(['ALL', 'PENDING', 'VERIFIED', 'SUSPENDED'] as const).map((tab) => (
             <button 
               key={tab}
-              onClick={() => setActiveTab(tab)}
+              onClick={() => handleTabChange(tab)}
               className={`font-admin-label-caps pb-3 transition-colors uppercase tracking-wider flex items-center gap-2 ${activeTab === tab ? 'border-b-2 border-primary text-primary' : 'border-b-2 border-transparent text-admin-on-surface-variant hover:text-admin-on-background hover:border-admin-outline-variant'}`}
             >
               {tab === 'ALL' ? 'All Farmers' : tab === 'PENDING' ? 'Pending Approval' : tab}
@@ -92,6 +152,57 @@ export default function FarmersClient({ initialFarmers }: { initialFarmers: Farm
             </button>
           ))}
         </div>
+
+        {/* INLINE FILTER PANEL */}
+        {isFilterOpen && (
+          <div className="bg-admin-surface-container-lowest border border-admin-outline-variant rounded-lg p-4 mb-[16px] flex flex-wrap items-end gap-4 shadow-sm transition-all duration-300">
+            <div className="flex-1 min-w-[200px]">
+              <label className="block text-xs font-admin-label-caps text-admin-on-surface-variant mb-1">Location (Municipality/Barangay)</label>
+              <input 
+                type="text" 
+                value={filterLocation}
+                onChange={(e) => setFilterLocation(e.target.value)}
+                placeholder="e.g. Agoo"
+                className="w-full bg-admin-surface border border-admin-outline-variant rounded p-2 text-sm text-admin-on-surface focus:border-primary outline-none"
+              />
+            </div>
+            
+            <div className="w-[150px]">
+              <label className="block text-xs font-admin-label-caps text-admin-on-surface-variant mb-1">Date From</label>
+              <input 
+                type="date" 
+                value={filterDateFrom}
+                onChange={(e) => setFilterDateFrom(e.target.value)}
+                className="w-full bg-admin-surface border border-admin-outline-variant rounded p-2 text-sm text-admin-on-surface focus:border-primary outline-none"
+              />
+            </div>
+            
+            <div className="w-[150px]">
+              <label className="block text-xs font-admin-label-caps text-admin-on-surface-variant mb-1">Date To</label>
+              <input 
+                type="date" 
+                value={filterDateTo}
+                onChange={(e) => setFilterDateTo(e.target.value)}
+                className="w-full bg-admin-surface border border-admin-outline-variant rounded p-2 text-sm text-admin-on-surface focus:border-primary outline-none"
+              />
+            </div>
+
+            <div className="flex gap-2 ml-auto">
+              <button 
+                onClick={clearFilters}
+                className="px-6 py-2 border border-admin-outline-variant text-admin-on-surface-variant rounded text-sm font-medium hover:bg-admin-surface-container-low transition-colors"
+              >
+                Clear
+              </button>
+              <button 
+                onClick={applyFilters}
+                className="px-6 py-2 bg-primary text-on-primary rounded text-sm font-medium hover:bg-primary-container transition-colors shadow-sm"
+              >
+                Apply Filters
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* DATA TABLE CARD */}
         <div className="bg-admin-surface-container-lowest border border-admin-outline-variant rounded-lg overflow-hidden flex-1 flex flex-col">
