@@ -6,7 +6,7 @@ export const farmSchema = z.object({
   municipality: z.string().default('Agoo'),
   province: z.string().default('La Union'),
   landArea: z.coerce
-    .number({ invalid_type_error: 'Land area must be a number.' })
+    .number({ message: 'Land area must be a number.' })
     .positive('Land area must be greater than 0 hectares.'),
   bio: z.string().max(500, 'Bio must be at most 500 characters.').trim().optional(),
   // coverPhoto URL is set separately after upload action

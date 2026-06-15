@@ -38,7 +38,7 @@ export interface CheckoutForm {
   contact: string;
 }
 
-export type PaymentMethod = 'gcash' | 'maya' | 'card';
+export type PaymentMethod = 'cod' | 'gcash' | 'maya' | 'card';
 
 export interface OrderItem {
   id: string;

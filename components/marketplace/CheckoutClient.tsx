@@ -18,6 +18,7 @@ interface Address {
   barangay: string;
   city: string;
   province: string;
+  zipCode: string | null;
   isDefault: boolean;
 }
 
