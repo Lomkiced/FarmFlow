@@ -51,11 +51,15 @@ export default function CheckoutClient({ addresses }: { addresses: Address[] }) 
       if (isNewAddress) {
         const addressFormData = new FormData(e.currentTarget);
         const addressResult = await createAddressAction({ success: false, error: '' }, addressFormData);
-        if (!addressResult.success || !addressResult.data?.id) {
+        if (!addressResult.success) {
           toast.error(addressResult.error || 'Failed to save address');
           return;
         }
-        finalAddressId = addressResult.data.id;
+        if (!addressResult.data?.id) {
+          toast.error('Failed to save address');
+          return;
+        }
+        finalAddressId = addressResult.data.id as string;
       }
 
       if (!finalAddressId) {
