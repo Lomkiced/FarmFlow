@@ -1,4 +1,5 @@
 import { createServerClient } from '@supabase/ssr';
+import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
 
 // Next.js 16: cookies() is async — must be awaited
@@ -46,6 +47,31 @@ export async function createAdminClient() {
             );
           } catch {}
         },
+      },
+    }
+  );
+}
+
+/**
+ * Cookie-free service client for use in:
+ * - Webhook handlers (no request context)
+ * - Seed scripts
+ * - Background jobs / cron tasks
+ *
+ * Uses the service role key — bypasses RLS entirely.
+ * NEVER expose this client to the browser.
+ */
+export function createServiceClient() {
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    throw new Error('Missing Supabase service role credentials');
+  }
+  return createSupabaseClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL,
+    process.env.SUPABASE_SERVICE_ROLE_KEY,
+    {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
       },
     }
   );

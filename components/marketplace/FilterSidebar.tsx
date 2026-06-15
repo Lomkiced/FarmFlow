@@ -1,58 +1,41 @@
 'use client';
 
+import { useRouter, usePathname, useSearchParams } from 'next/navigation';
+
 interface FilterSidebarProps {
-  categories: { [key: string]: boolean };
-  setCategories: (cats: { [key: string]: boolean }) => void;
-  location: string;
-  setLocation: (loc: string) => void;
-  priceMin: string;
-  setPriceMin: (min: string) => void;
-  priceMax: string;
-  setPriceMax: (max: string) => void;
-  inStockOnly: boolean;
-  setInStockOnly: (val: boolean) => void;
-  harvestingSoon: boolean;
-  setHarvestingSoon: (val: boolean) => void;
-  searchQuery: string;
-  setSearchQuery: (q: string) => void;
+  categoriesList: string[];
 }
 
-export default function FilterSidebar({
-  categories,
-  setCategories,
-  location,
-  setLocation,
-  priceMin,
-  setPriceMin,
-  priceMax,
-  setPriceMax,
-  inStockOnly,
-  setInStockOnly,
-  harvestingSoon,
-  setHarvestingSoon,
-  searchQuery,
-  setSearchQuery,
-}: FilterSidebarProps) {
+export default function FilterSidebar({ categoriesList }: FilterSidebarProps) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
 
-  const handleCategoryChange = (category: string) => {
-    setCategories({
-      ...categories,
-      [category]: !categories[category],
-    });
+  // Create a new URLSearchParams to update and push
+  const createQueryString = (name: string, value: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (value) {
+      params.set(name, value);
+    } else {
+      params.delete(name);
+    }
+    // Reset page to 1 on filter change
+    params.set('page', '1');
+    return params.toString();
   };
 
+  const updateFilters = (name: string, value: string) => {
+    router.push(pathname + '?' + createQueryString(name, value));
+  };
+
+  const activeCategory = searchParams.get('category') || '';
+  const priceMin = searchParams.get('minPrice') || '';
+  const priceMax = searchParams.get('maxPrice') || '';
+  const inStockOnly = searchParams.get('inStockOnly') === 'true';
+  const searchQuery = searchParams.get('query') || '';
+
   const handleClearAll = () => {
-    setCategories({
-      "All Vegetables": false,
-      "Fruits": false,
-      "Root Crops": false,
-      "Herbs & Spices": false,
-    });
-    setLocation("Any Barangay");
-    setPriceMin("");
-    setPriceMax("");
-    setInStockOnly(false);
-    setHarvestingSoon(false);
+    router.push(pathname);
   };
 
   return (
@@ -66,7 +49,7 @@ export default function FilterSidebar({
             type="text" 
             placeholder="Search crops..."
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={(e) => updateFilters('query', e.target.value)}
             className="w-full pl-10 pr-4 py-2 bg-surface-container-lowest border border-outline-variant rounded-lg focus:border-primary focus:ring-1 outline-none"
           />
         </div>
@@ -85,34 +68,29 @@ export default function FilterSidebar({
       <div className="flex flex-col gap-[8px]">
         <h3 className="font-label-md text-on-surface-variant uppercase tracking-wider">Category</h3>
         <div className="flex flex-col gap-2">
-          {Object.entries(categories).map(([category, isChecked]) => (
+          {categoriesList.map((category) => (
             <label key={category} className="flex items-center gap-3 cursor-pointer group">
               <input 
-                type="checkbox" 
-                checked={isChecked}
-                onChange={() => handleCategoryChange(category)}
-                className="form-checkbox text-primary accent-primary rounded border-outline-variant focus:ring-primary w-5 h-5 cursor-pointer"
+                type="radio" 
+                name="category"
+                checked={activeCategory === category}
+                onChange={() => updateFilters('category', activeCategory === category ? '' : category)}
+                className="form-radio text-primary accent-primary border-outline-variant focus:ring-primary w-5 h-5 cursor-pointer"
               />
-              <span className="font-body-md text-on-surface group-hover:text-primary transition-colors">{category}</span>
+              <span className="font-body-md text-on-surface group-hover:text-primary transition-colors capitalize">{category.toLowerCase()}</span>
             </label>
           ))}
+          <label className="flex items-center gap-3 cursor-pointer group">
+            <input 
+              type="radio" 
+              name="category"
+              checked={activeCategory === ''}
+              onChange={() => updateFilters('category', '')}
+              className="form-radio text-primary accent-primary border-outline-variant focus:ring-primary w-5 h-5 cursor-pointer"
+            />
+            <span className="font-body-md text-on-surface group-hover:text-primary transition-colors">All Categories</span>
+          </label>
         </div>
-      </div>
-
-      {/* Filter Section 2 - Location */}
-      <div className="flex flex-col gap-[8px]">
-        <h3 className="font-label-md text-on-surface-variant uppercase tracking-wider">Location (Agoo)</h3>
-        <select 
-          value={location}
-          onChange={(e) => setLocation(e.target.value)}
-          className="w-full p-2 bg-surface-container-lowest border border-outline-variant rounded-lg focus:border-primary outline-none text-body-md text-on-surface appearance-none"
-        >
-          <option value="Any Barangay">Any Barangay</option>
-          <option value="San Nicolas">San Nicolas</option>
-          <option value="San Julian">San Julian</option>
-          <option value="San Roque">San Roque</option>
-          <option value="Consolacion">Consolacion</option>
-        </select>
       </div>
 
       {/* Filter Section 3 - Price Range */}
@@ -123,7 +101,7 @@ export default function FilterSidebar({
             type="number" 
             placeholder="Min"
             value={priceMin}
-            onChange={(e) => setPriceMin(e.target.value)}
+            onChange={(e) => updateFilters('minPrice', e.target.value)}
             className="w-1/2 p-2 bg-surface-container-lowest border border-outline-variant rounded-lg focus:border-primary outline-none text-body-md text-on-surface"
           />
           <span className="text-on-surface-variant">-</span>
@@ -131,7 +109,7 @@ export default function FilterSidebar({
             type="number" 
             placeholder="Max"
             value={priceMax}
-            onChange={(e) => setPriceMax(e.target.value)}
+            onChange={(e) => updateFilters('maxPrice', e.target.value)}
             className="w-1/2 p-2 bg-surface-container-lowest border border-outline-variant rounded-lg focus:border-primary outline-none text-body-md text-on-surface"
           />
         </div>
@@ -145,19 +123,10 @@ export default function FilterSidebar({
             <input 
               type="checkbox" 
               checked={inStockOnly}
-              onChange={(e) => setInStockOnly(e.target.checked)}
+              onChange={(e) => updateFilters('inStockOnly', e.target.checked ? 'true' : '')}
               className="form-checkbox text-primary accent-primary rounded border-outline-variant focus:ring-primary w-5 h-5 cursor-pointer"
             />
             <span className="font-body-md text-on-surface group-hover:text-primary transition-colors">In Stock Only</span>
-          </label>
-          <label className="flex items-center gap-3 cursor-pointer group">
-            <input 
-              type="checkbox" 
-              checked={harvestingSoon}
-              onChange={(e) => setHarvestingSoon(e.target.checked)}
-              className="form-checkbox text-primary accent-primary rounded border-outline-variant focus:ring-primary w-5 h-5 cursor-pointer"
-            />
-            <span className="font-body-md text-on-surface group-hover:text-primary transition-colors">Harvesting Soon</span>
           </label>
         </div>
       </div>
