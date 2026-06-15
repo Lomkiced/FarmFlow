@@ -1,7 +1,6 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { notFound } from 'next/navigation';
-import Footer from '@/components/layout/Footer';
 import { getOrderAction } from '@/app/actions/orders';
 
 const steps = [
@@ -11,27 +10,7 @@ const steps = [
   { label: 'Delivered', icon: 'home',        status: 'DELIVERED', index: 3 },
 ];
 
-function TrackingHeader() {
-  return (
-    <header className="sticky top-0 z-50 bg-[#FAFAF7]/90 backdrop-blur-md border-b border-stone-200 shadow-sm px-8 py-4">
-      <div className="max-w-screen-2xl mx-auto flex items-center justify-between">
-        <Link
-          href="/"
-          className="flex items-center gap-2 text-on-surface hover:text-primary transition-colors group"
-        >
-          <span className="material-symbols-outlined">arrow_back</span>
-          <span className="font-label-md font-medium">Home</span>
-        </Link>
 
-        <div className="font-display font-black text-2xl text-emerald-900 tracking-tighter">
-          FarmFlow Track
-        </div>
-
-        <div className="w-[120px]" />
-      </div>
-    </header>
-  );
-}
 
 function OrderPageHeader({ order }: { order: any }) {
   return (
@@ -235,7 +214,6 @@ export default async function OrderTrackingPage(props: { params: Promise<{ id: s
 
   return (
     <>
-      <TrackingHeader />
       <main className="flex-grow w-full max-w-[1280px] mx-auto px-[24px] py-[32px]">
         <OrderPageHeader order={order} />
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
@@ -249,7 +227,6 @@ export default async function OrderTrackingPage(props: { params: Promise<{ id: s
           </div>
         </div>
       </main>
-      <Footer />
     </>
   );
 }

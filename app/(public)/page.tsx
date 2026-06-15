@@ -1,7 +1,5 @@
 import Image from 'next/image';
 import Link from 'next/link';
-import Navbar from '@/components/layout/Navbar';
-import Footer from '@/components/layout/Footer';
 import ProductCard from '@/components/marketplace/ProductCard';
 import CategoryFilter from '@/components/marketplace/CategoryFilter';
 import { getFeaturedProductsAction } from '@/app/actions/search';
@@ -11,7 +9,6 @@ export default async function HomePage() {
 
   return (
     <>
-      <Navbar />
       <main className="flex-grow">
         {/* Hero Section */}
         <section className="w-full h-[600px] relative overflow-hidden">
@@ -90,7 +87,6 @@ export default async function HomePage() {
 
         </div>
       </main>
-      <Footer />
     </>
   );
 }

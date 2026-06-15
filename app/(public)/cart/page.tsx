@@ -3,8 +3,6 @@
 import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import Navbar from '@/components/layout/Navbar';
-import Footer from '@/components/layout/Footer';
 import { useCartStore } from '@/store/cartStore';
 
 export default function CartPage() {
@@ -18,11 +16,9 @@ export default function CartPage() {
   if (!mounted) {
     return (
       <>
-        <Navbar />
         <main className="flex-grow w-full max-w-[1280px] mx-auto px-[24px] py-[48px] flex justify-center items-center">
           <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
         </main>
-        <Footer />
       </>
     );
   }
@@ -33,7 +29,6 @@ export default function CartPage() {
 
   return (
     <>
-      <Navbar />
       <main className="flex-grow w-full max-w-[1280px] mx-auto px-[24px] py-[48px]">
         <h1 className="font-display text-[40px] font-bold text-on-background mb-[32px]">Your Harvest Cart</h1>
         
@@ -160,7 +155,6 @@ export default function CartPage() {
           </div>
         )}
       </main>
-      <Footer />
     </>
   );
 }

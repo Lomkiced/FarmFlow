@@ -1,5 +1,4 @@
-import Navbar from '@/components/layout/Navbar';
-import Footer from '@/components/layout/Footer';
+
 import FilterSidebar from '@/components/marketplace/FilterSidebar';
 import ProductListingCard from '@/components/marketplace/ProductListingCard';
 import Pagination from '@/components/marketplace/Pagination';
@@ -33,7 +32,6 @@ export default async function ProductsPage(props: { searchParams: SearchParams }
 
   return (
     <>
-      <Navbar />
       <main className="flex-grow max-w-screen-2xl mx-auto px-8 py-12 w-full">
         <div className="flex flex-col md:flex-row gap-[24px]">
           
@@ -82,11 +80,9 @@ export default async function ProductsPage(props: { searchParams: SearchParams }
               currentPage={page}
               totalPages={totalPages}
             />
-
           </section>
         </div>
       </main>
-      <Footer />
     </>
   );
 }

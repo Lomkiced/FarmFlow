@@ -1,9 +1,12 @@
 interface CropStageBadgeProps {
-  stage: 'seedling' | 'growing' | 'ready' | 'harvested'
+  stage: string
 }
 
 export default function CropStageBadge({ stage }: CropStageBadgeProps) {
-  const badges = {
+  // Normalize the stage string to match our keys
+  const normalizedStage = stage.toLowerCase().replace('_to_harvest', '');
+  
+  const badges: Record<string, { bg: string, text: string, icon: string, label: string }> = {
     seedling: {
       bg: 'bg-[#E3F2FD]', text: 'text-[#1565C0]',
       icon: 'grass', label: 'Seedling'
@@ -22,7 +25,10 @@ export default function CropStageBadge({ stage }: CropStageBadgeProps) {
     },
   }
 
-  const badge = badges[stage];
+  const badge = badges[normalizedStage] || {
+    bg: 'bg-surface-variant', text: 'text-on-surface-variant',
+    icon: 'help', label: stage
+  };
 
   return (
     <span className={`${badge.bg} ${badge.text} px-2.5 py-1 rounded-full text-[12px] font-semibold tracking-[0.03em] flex items-center gap-1 shadow-sm w-fit`}>
