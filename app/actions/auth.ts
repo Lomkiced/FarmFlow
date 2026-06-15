@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { prisma } from '@/lib/prisma';
 import { loginSchema, buyerRegisterSchema, farmerRegisterSchema } from '@/lib/validations/auth';
+import { sendAdminNotification } from '@/lib/notifications';
 
 // ─────────────────────────────────────────────────
 // LOGIN
@@ -118,6 +119,15 @@ export async function registerBuyerAction(
     return { message: 'Failed to create account. Please try again.' };
   }
 
+  // Trigger notification in background
+  sendAdminNotification({
+    type: 'NEW_USER',
+    title: 'New Buyer Registration',
+    message: `${parsed.data.name} just registered as a Buyer.`,
+    relatedId: data.user.id,
+    relatedType: 'user',
+  });
+
   redirect('/auth/register/success?role=buyer');
 }
 
@@ -196,6 +206,22 @@ export async function registerFarmerAction(
     await (await adminClient).auth.admin.deleteUser(data.user.id);
     return { message: 'Failed to create account. Please try again.' };
   }
+
+  // Trigger notifications
+  sendAdminNotification({
+    type: 'NEW_USER',
+    title: 'New Farmer Registration',
+    message: `${parsed.data.name} just registered on the platform.`,
+    relatedId: data.user.id,
+    relatedType: 'user',
+  });
+  sendAdminNotification({
+    type: 'PENDING_FARMER',
+    title: 'Farmer Pending Verification',
+    message: `${parsed.data.farmName} requires your verification to activate.`,
+    relatedId: data.user.id, // we could use farm ID, but user ID is also fine
+    relatedType: 'farmer',
+  });
 
   redirect('/auth/register/success?role=farmer');
 }

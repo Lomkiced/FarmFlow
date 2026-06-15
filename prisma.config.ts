@@ -10,7 +10,5 @@ export default defineConfig({
   },
   datasource: {
     url: process.env['DATABASE_URL']!,
-    // directUrl bypasses PgBouncer pooler for migrations
-    directUrl: process.env['DIRECT_URL'],
   },
 });

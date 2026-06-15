@@ -1,29 +1,11 @@
+import AnalyticsHeader from '@/components/admin/AnalyticsHeader';
+
 export default function AnalyticsPage() {
   return (
     <div className="flex-1 p-[32px] overflow-x-hidden">
       
       {/* PAGE HEADER */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between mb-[24px] gap-4">
-        <div>
-          <h2 className="font-admin-h1 text-admin-h1 text-admin-on-background">Analytics</h2>
-          <p className="font-admin-body-sm text-admin-on-surface-variant mt-1">Deep dive into marketplace performance and trends.</p>
-        </div>
-        <div className="flex items-center gap-3">
-          <div className="relative">
-            <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[16px] text-admin-outline-variant">calendar_today</span>
-            <select className="border border-admin-outline-variant rounded-lg pl-9 pr-8 py-2 font-admin-body-sm bg-admin-surface-container-lowest text-admin-on-surface outline-none appearance-none">
-              <option>This Month</option>
-              <option>Last Month</option>
-              <option>This Quarter</option>
-              <option>Year to Date</option>
-            </select>
-          </div>
-          <button className="bg-primary-container text-on-primary-container flex items-center gap-2 font-admin-body-sm font-medium px-4 py-2 rounded-lg hover:bg-primary-container/90 transition-colors">
-            <span className="material-symbols-outlined text-[18px]">download</span>
-            Export to CSV
-          </button>
-        </div>
-      </div>
+      <AnalyticsHeader />
 
       {/* DASHBOARD GRID */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-[24px]">
