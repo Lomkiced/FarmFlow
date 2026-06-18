@@ -6,6 +6,7 @@ import { getFarmProfileAction, getFarmerDashboardStatsAction } from '@/app/actio
 import { getFarmerProductsAction } from '@/app/actions/products';
 import { getActivitiesAction } from '@/app/actions/activities';
 import { redirect } from 'next/navigation';
+import EditProfileModal from '@/components/farmer/EditProfileModal';
 
 export default async function FarmProfilePage() {
   const [farmProfile, stats, products, activities] = await Promise.all([
@@ -62,9 +63,7 @@ export default async function FarmProfilePage() {
                 </span>
               </div>
             </div>
-            <button className="mb-2 bg-secondary-container text-on-secondary-container text-[14px] font-medium px-4 py-2 rounded-lg hover:bg-secondary-fixed transition-colors border border-outline-variant">
-              Edit Profile
-            </button>
+            <EditProfileModal farmProfile={farmProfile} />
           </div>
         </div>
 

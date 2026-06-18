@@ -1,6 +1,5 @@
 import Image from 'next/image';
 import Link from 'next/link';
-import ProductCard from '@/components/marketplace/ProductCard';
 import CategoryFilter from '@/components/marketplace/CategoryFilter';
 import { getFeaturedProductsAction } from '@/app/actions/search';
 
@@ -41,49 +40,8 @@ export default async function HomePage() {
         {/* Main Content Wrapper */}
         <div className="max-w-[1280px] mx-auto px-[24px] py-[48px] flex flex-col gap-[48px]">
           
-          {/* Section 3A: Category Filter Chips */}
-          <section>
-            <CategoryFilter />
-          </section>
-
-          {/* Section 3B: Featured Products Grid */}
-          <section className="flex flex-col gap-6">
-            <div className="flex justify-between items-end">
-              <div>
-                <h2 className="font-display font-semibold text-h2 text-primary">Featured Harvest</h2>
-                <p className="font-sans text-[16px] text-on-surface-variant mt-1">Freshly picked within the last 24 hours.</p>
-              </div>
-              <Link href="/products" className="hidden md:flex items-center gap-1 text-primary font-label-md hover:underline">
-                View all
-                <span className="material-symbols-outlined text-[20px]">arrow_forward</span>
-              </Link>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              {featuredProducts.length === 0 ? (
-                <div className="col-span-4 text-center py-12 text-on-surface-variant">
-                  No featured harvest available at the moment.
-                </div>
-              ) : (
-                featuredProducts.map((product) => {
-                  const badge = product.stockKg > 10 ? 'In Stock' : 'Low Stock';
-                  return (
-                    <Link key={product.id} href={`/products/${product.id}`} className="block h-full">
-                      <ProductCard
-                        image={product.photos[0] || 'https://images.unsplash.com/photo-1546094096-0df4bcaaa337?w=400&q=80'}
-                        alt={product.name}
-                        badge={badge}
-                        farmerAvatar={product.farm.user?.avatarUrl || 'https://i.pravatar.cc/150?img=11'}
-                        farmerName={product.farm.farmName}
-                        productName={product.name}
-                        price={`₱${product.pricePerKg.toLocaleString(undefined, { minimumFractionDigits: 2 })}`}
-                      />
-                    </Link>
-                  );
-                })
-              )}
-            </div>
-          </section>
+          {/* Section 3: Featured Harvest & Category Filter */}
+          <CategoryFilter products={featuredProducts} />
 
         </div>
       </main>

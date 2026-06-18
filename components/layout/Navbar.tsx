@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useCartStore } from '@/store/cartStore';
 import type { SessionUser } from '@/lib/dal';
 import { logoutAction } from '@/app/actions/auth';
@@ -14,7 +14,20 @@ export default function Navbar({ user }: { user?: SessionUser | null }) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const pathname = usePathname();
+  const router = useRouter();
+
+  const handleSearch = (e?: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e && e.key !== 'Enter') return;
+    
+    const trimmed = searchQuery.trim();
+    if (!trimmed) return;
+    
+    router.push(`/products?query=${encodeURIComponent(trimmed)}`);
+    setSearchQuery('');
+    setIsMobileSearchOpen(false);
+  };
 
   // Close mobile menu when route changes
   useEffect(() => {
@@ -50,6 +63,9 @@ export default function Navbar({ user }: { user?: SessionUser | null }) {
             type="text"
             placeholder="Search fresh produce..."
             className="w-full bg-surface-container-lowest border border-outline-variant rounded-full py-2 pl-10 pr-4 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary font-inter text-on-surface"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            onKeyDown={handleSearch}
           />
         </div>
 
@@ -194,6 +210,9 @@ export default function Navbar({ user }: { user?: SessionUser | null }) {
               autoFocus
               placeholder="Search fresh produce..."
               className="w-full bg-surface-container-lowest border border-outline-variant rounded-full py-3 pl-10 pr-4 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary font-inter text-on-surface text-[16px]"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={handleSearch}
             />
           </div>
         </div>

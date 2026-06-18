@@ -21,6 +21,8 @@ export default function AddProductClient({
   const [description, setDescription] = useState('');
   const [cropId, setCropId] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [priceError, setPriceError] = useState('');
+  const [stockError, setStockError] = useState('');
 
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
@@ -34,10 +36,31 @@ export default function AddProductClient({
   };
 
   const handleSubmit = async () => {
+    setPriceError('');
+    setStockError('');
+    let hasError = false;
+
     if (!productName || !price || !stock) {
       toast.error('Please fill in all required fields.');
       return;
     }
+
+    const priceNum = parseFloat(price);
+    if (isNaN(priceNum) || priceNum <= 0) {
+      setPriceError('Price must be greater than 0.');
+      hasError = true;
+    } else if (!/^\d+(\.\d{1,2})?$/.test(price)) {
+      setPriceError('Price can accept up to 2 decimal places only.');
+      hasError = true;
+    }
+
+    const stockNum = Number(stock);
+    if (isNaN(stockNum) || stockNum <= 0 || !Number.isInteger(stockNum)) {
+      setStockError('Stock must be a positive whole number.');
+      hasError = true;
+    }
+
+    if (hasError) return;
 
     if (photos.length === 0) {
       toast.error('Please upload at least one photo.');
@@ -178,12 +201,14 @@ export default function AddProductClient({
               <label className="block text-[14px] font-medium text-on-background mb-[8px]">Price per kg *</label>
               <div className="relative">
                 <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[16px] text-outline">₱</span>
-                <input type="number" required placeholder="0.00" value={price} onChange={(e) => setPrice(e.target.value)} className="w-full bg-background border border-outline-variant rounded-lg pl-8 pr-4 py-3 text-[16px] text-on-background focus:outline-none focus:border-primary-container focus:ring-1 focus:ring-primary-container transition-colors placeholder:text-outline" />
+                <input type="number" required placeholder="0.00" value={price} onChange={(e) => { setPrice(e.target.value); setPriceError(''); }} className="w-full bg-background border border-outline-variant rounded-lg pl-8 pr-4 py-3 text-[16px] text-on-background focus:outline-none focus:border-primary-container focus:ring-1 focus:ring-primary-container transition-colors placeholder:text-outline" />
               </div>
+              {priceError && <p className="text-error text-[12px] mt-1">{priceError}</p>}
             </div>
             <div>
               <label className="block text-[14px] font-medium text-on-background mb-[8px]">Available stock (kg) *</label>
-              <input type="number" required placeholder="100" value={stock} onChange={(e) => setStock(e.target.value)} className="w-full bg-background border border-outline-variant rounded-lg px-4 py-3 text-[16px] text-on-background focus:outline-none focus:border-primary-container focus:ring-1 focus:ring-primary-container transition-colors placeholder:text-outline" />
+              <input type="number" required placeholder="100" value={stock} onChange={(e) => { setStock(e.target.value); setStockError(''); }} className="w-full bg-background border border-outline-variant rounded-lg px-4 py-3 text-[16px] text-on-background focus:outline-none focus:border-primary-container focus:ring-1 focus:ring-primary-container transition-colors placeholder:text-outline" />
+              {stockError && <p className="text-error text-[12px] mt-1">{stockError}</p>}
             </div>
           </div>
         </div>

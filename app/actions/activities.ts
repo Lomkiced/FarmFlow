@@ -4,6 +4,9 @@ import { revalidatePath } from 'next/cache';
 import { prisma } from '@/lib/prisma';
 import { requireFarmer } from '@/lib/dal';
 import { activitySchema } from '@/lib/validations/activity';
+import { fromZonedTime } from 'date-fns-tz';
+
+const TZ = 'Asia/Manila';
 import type { ActionState } from './crops';
 
 // ─── Get Activities ───────────────────────────────────────────────────────────
@@ -72,7 +75,7 @@ export async function createActivityAction(
         inputsUsed: parsed.data.inputsUsed,
         quantity: parsed.data.quantity,
         unit: parsed.data.unit,
-        activityDate: parsed.data.activityDate,
+        activityDate: fromZonedTime(parsed.data.activityDate, TZ),
         cropId: parsed.data.cropId,
       },
     });
