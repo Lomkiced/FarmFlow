@@ -43,7 +43,7 @@ export async function proxy(request: NextRequest) {
   if (!user) {
     // Block protected routes
     const isProtected = Object.keys(PROTECTED_ROUTES).some(prefix =>
-      pathname.startsWith(prefix)
+      pathname === prefix || pathname.startsWith(`${prefix}/`)
     );
     if (isProtected) {
       const loginUrl = new URL('/auth/login', request.url);
@@ -68,7 +68,7 @@ export async function proxy(request: NextRequest) {
 
   // Enforce role-based access for protected routes
   for (const [prefix, allowedRoles] of Object.entries(PROTECTED_ROUTES)) {
-    if (pathname.startsWith(prefix)) {
+    if (pathname === prefix || pathname.startsWith(`${prefix}/`)) {
       if (!role || !allowedRoles.includes(role)) {
         // Wrong role — send to their own dashboard
         if (role === 'ADMIN') return NextResponse.redirect(new URL('/admin', request.url));

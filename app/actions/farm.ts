@@ -236,6 +236,59 @@ export async function getFarmerDashboardStatsAction() {
   };
 }
 
+
+// ─── Public Farm Queries ──────────────────────────────────────────────────────
+
+export async function getPublicFarmersAction() {
+  const farms = await prisma.farm.findMany({
+    where: {
+      status: { in: ['VERIFIED', 'PENDING'] },
+    },
+    include: {
+      user: {
+        select: { avatarUrl: true, name: true },
+      },
+      products: {
+        where: { status: 'ACTIVE' },
+        select: { id: true, name: true, photos: true, pricePerKg: true },
+        take: 3,
+      },
+      _count: {
+        select: { products: { where: { status: 'ACTIVE' } } }
+      }
+    },
+    orderBy: {
+      rating: 'desc',
+    },
+  });
+
+  return farms;
+}
+
+export async function getPublicFarmerByIdAction(id: string) {
+  const farm = await prisma.farm.findUnique({
+    where: { id },
+    include: {
+      user: {
+        select: { avatarUrl: true, name: true },
+      },
+      products: {
+        where: { status: 'ACTIVE' },
+        include: {
+          farm: {
+            select: { farmName: true, user: { select: { avatarUrl: true } } }
+          }
+        }
+      },
+      _count: {
+        select: { products: { where: { status: 'ACTIVE' } } }
+      }
+    },
+  });
+
+  return farm;
+}
+
 // ─── Get Farmer Notifications ──────────────────────────────────────────────────
 
 export async function getFarmerNotificationsAction() {
@@ -268,4 +321,5 @@ export async function markNotificationAsReadAction(id: string) {
   } catch (error) {
     return { success: false, error: 'Failed to mark notification.' };
   }
+
 }
