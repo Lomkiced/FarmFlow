@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useState, useTransition, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
@@ -24,34 +24,44 @@ interface Address {
 
 export default function CheckoutClient({ addresses }: { addresses: Address[] }) {
   const router = useRouter();
-  const { items, updateQuantity, removeItem, clearCart } = useCartStore();
+  const { selectedItems, clearCart, items } = useCartStore();
+
+  // Use selected items if any, otherwise fall back to all items
+  const checkoutItems = selectedItems().length > 0 ? selectedItems() : items;
 
   const [paymentMethod, setPaymentMethod] = useState<string>('gcash');
   const [selectedAddressId, setSelectedAddressId] = useState<string>(
     addresses.find(a => a.isDefault)?.id || addresses[0]?.id || ''
   );
-  
+
   const [isNewAddress, setIsNewAddress] = useState(addresses.length === 0);
   const [isPending, startTransition] = useTransition();
+  const [mounted, setMounted] = useState(false);
 
-  const subtotal = items.reduce((sum, item) => sum + item.pricePerKg * item.quantityKg, 0);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const subtotal = checkoutItems.reduce((sum, item) => sum + item.pricePerKg * item.quantityKg, 0);
   const deliveryFee = 50;
   const total = subtotal + deliveryFee;
 
   const handlePlaceOrder = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (items.length === 0) {
+    if (checkoutItems.length === 0) {
       toast.error('Your cart is empty');
       return;
     }
+
+    const formData = new FormData(e.currentTarget);
+    const notes = formData.get('notes') as string;
 
     startTransition(async () => {
       let finalAddressId = selectedAddressId;
 
       // Create new address if requested
       if (isNewAddress) {
-        const addressFormData = new FormData(e.currentTarget);
-        const addressResult = await createAddressAction({ success: false, error: '' }, addressFormData);
+        const addressResult = await createAddressAction({ success: false, error: '' }, formData);
         if (!addressResult.success) {
           toast.error(addressResult.error || 'Failed to save address');
           return;
@@ -71,9 +81,8 @@ export default function CheckoutClient({ addresses }: { addresses: Address[] }) 
       // Create Order
       const orderFormData = new FormData();
       orderFormData.append('addressId', finalAddressId);
-      orderFormData.append('items', JSON.stringify(items.map(i => ({ productId: i.productId, quantityKg: i.quantityKg }))));
-      
-      const notes = (e.currentTarget.elements.namedItem('notes') as HTMLTextAreaElement)?.value;
+      orderFormData.append('items', JSON.stringify(checkoutItems.map(i => ({ productId: i.productId, quantityKg: i.quantityKg }))));
+
       if (notes) orderFormData.append('notes', notes);
 
       try {
@@ -81,13 +90,10 @@ export default function CheckoutClient({ addresses }: { addresses: Address[] }) 
         if (result && !result.success) {
           toast.error((result as any).error || 'Failed to place order');
         } else {
-          // If successful, the action will throw a redirect, which we don't catch here.
-          // We clear the cart first.
           clearCart();
           toast.success('Order placed successfully!');
         }
       } catch (error: any) {
-        // Handle redirect throw
         if (error.message === 'NEXT_REDIRECT') {
           clearCart();
         } else {
@@ -97,15 +103,15 @@ export default function CheckoutClient({ addresses }: { addresses: Address[] }) 
     });
   };
 
-  const handleQuantityDecrement = (productId: string, currentQuantity: number) => {
-    if (currentQuantity > 1) {
-      updateQuantity(productId, currentQuantity - 1);
-    } else {
-      removeItem(productId);
-    }
-  };
+  if (!mounted) {
+    return (
+      <div className="flex justify-center items-center py-20 w-full min-h-[50vh]">
+        <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    );
+  }
 
-  if (items.length === 0) {
+  if (checkoutItems.length === 0) {
     return (
       <div className="text-center py-20 bg-surface-container-lowest rounded-xl shadow-sm">
         <span className="material-symbols-outlined text-[64px] text-primary/40 mb-4">shopping_cart</span>
@@ -119,10 +125,10 @@ export default function CheckoutClient({ addresses }: { addresses: Address[] }) 
 
   return (
     <form onSubmit={handlePlaceOrder} className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-      
+
       {/* LEFT COLUMN */}
       <div className="lg:col-span-8 flex flex-col gap-[32px]">
-        
+
         {/* SECTION 1: DELIVERY DETAILS */}
         <div className="bg-surface-container-lowest rounded-xl p-[24px] md:p-[32px] shadow-level-1">
           <div className="flex justify-between items-center mb-[16px]">
@@ -136,7 +142,7 @@ export default function CheckoutClient({ addresses }: { addresses: Address[] }) 
               </button>
             )}
           </div>
-          
+
           {addresses.length > 0 && !isNewAddress ? (
             <div className="flex flex-col gap-4">
               {addresses.map(address => (
@@ -175,7 +181,7 @@ export default function CheckoutClient({ addresses }: { addresses: Address[] }) 
               </div>
               <input type="hidden" name="province" value="La Union" />
               <input type="hidden" name="isDefault" value="true" />
-              
+
               {addresses.length > 0 && (
                 <button type="button" onClick={() => setIsNewAddress(false)} className="mt-2 text-on-surface-variant underline md:col-span-2 text-left">Cancel</button>
               )}
@@ -189,7 +195,7 @@ export default function CheckoutClient({ addresses }: { addresses: Address[] }) 
             <span className="material-symbols-outlined text-secondary">payments</span>
             Payment Method
           </h2>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-3 gap-[8px]">
             {[
               { id: 'cod', title: 'Cash on Delivery', subtitle: 'Pay when it arrives' },
@@ -197,12 +203,12 @@ export default function CheckoutClient({ addresses }: { addresses: Address[] }) 
             ].map((method) => {
               const isSelected = paymentMethod === method.id;
               return (
-                <div 
+                <div
                   key={method.id}
                   onClick={() => setPaymentMethod(method.id as PaymentMethod)}
                   className={`flex items-center justify-between p-4 rounded-lg cursor-pointer transition-colors ${
-                    isSelected 
-                      ? 'border-primary ring-1 ring-primary bg-primary-container/5' 
+                    isSelected
+                      ? 'border-primary ring-1 ring-primary bg-primary-container/5'
                       : 'border border-outline-variant bg-background hover:border-secondary'
                   }`}
                 >
@@ -210,7 +216,7 @@ export default function CheckoutClient({ addresses }: { addresses: Address[] }) 
                     <span className="font-body-md font-semibold text-on-surface">{method.title}</span>
                     <span className="text-[12px] text-on-surface-variant">{method.subtitle}</span>
                   </div>
-                  <span 
+                  <span
                     className={`material-symbols-outlined ${isSelected ? 'text-primary' : 'text-transparent'}`}
                     style={{ fontVariationSettings: "'FILL' 1" }}
                   >
@@ -227,7 +233,7 @@ export default function CheckoutClient({ addresses }: { addresses: Address[] }) 
 
         {/* SECTION 3: NOTES */}
         <div className="bg-surface-container-lowest rounded-xl p-[24px] md:p-[32px] shadow-level-1">
-           <label className="flex items-center gap-2 font-['Manrope'] text-[20px] font-semibold tracking-[-0.01em] text-primary mb-[16px]">
+          <label className="flex items-center gap-2 font-['Manrope'] text-[20px] font-semibold tracking-[-0.01em] text-primary mb-[16px]">
             <span className="material-symbols-outlined text-secondary">note_alt</span>
             Delivery Notes (Optional)
           </label>
@@ -236,35 +242,38 @@ export default function CheckoutClient({ addresses }: { addresses: Address[] }) 
 
       </div>
 
-      {/* RIGHT COLUMN - ORDER SUMMARY */}
+      {/* RIGHT COLUMN - READ-ONLY ORDER SUMMARY */}
       <div className="lg:col-span-4 relative">
         <div className="sticky top-[100px] bg-surface-container-lowest rounded-xl p-[24px] md:p-[32px] shadow-level-1 flex flex-col gap-[24px]">
-          
-          <div className="font-['Manrope'] text-[24px] font-semibold text-primary border-b border-surface-variant pb-[16px]">
-            Order Summary
+
+          <div className="flex items-center justify-between border-b border-surface-variant pb-[16px]">
+            <div className="font-['Manrope'] text-[20px] font-semibold text-primary">
+              Order Review
+            </div>
+            <Link
+              href="/cart"
+              className="text-sm text-primary hover:underline font-medium flex items-center gap-1"
+            >
+              <span className="material-symbols-outlined text-[15px]">edit</span>
+              Edit Cart
+            </Link>
           </div>
 
-          <div className="flex flex-col gap-[16px] max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
-            {items.map(item => (
-              <div key={item.productId} className="flex gap-4 items-start">
-                <div className="w-16 h-16 rounded-lg overflow-hidden shrink-0 bg-surface-container relative">
-                  <Image src={item.photo} alt={item.name} fill className="object-cover" sizes="64px" />
+          {/* Read-only item list */}
+          <div className="flex flex-col gap-[12px] max-h-[280px] overflow-y-auto pr-1 no-scrollbar">
+            {checkoutItems.map(item => (
+              <div key={item.productId} className="flex gap-3 items-center">
+                <div className="w-12 h-12 rounded-lg overflow-hidden shrink-0 bg-surface-container relative border border-surface-variant">
+                  <Image src={item.photo} alt={item.name} fill className="object-cover" sizes="48px" />
                 </div>
-                
-                <div className="flex-grow flex flex-col justify-between py-1">
-                  <div>
-                    <div className="font-label-md text-on-surface line-clamp-1">{item.name}</div>
-                    <div className="font-body-md text-on-surface-variant text-sm">
-                      ₱{item.pricePerKg.toFixed(2)} / kg
-                    </div>
+                <div className="flex-grow min-w-0">
+                  <div className="font-medium text-on-surface text-sm line-clamp-1">{item.name}</div>
+                  <div className="text-on-surface-variant text-xs">
+                    {item.quantityKg} kg × ₱{item.pricePerKg.toFixed(2)}
                   </div>
-                  
-                  <div className="flex justify-between items-center mt-1">
-                    <span className="text-sm font-medium">Qty: {item.quantityKg}kg</span>
-                    <div className="font-label-md text-primary">
-                      ₱{(item.pricePerKg * item.quantityKg).toFixed(2)}
-                    </div>
-                  </div>
+                </div>
+                <div className="font-semibold text-primary text-sm flex-shrink-0">
+                  ₱{(item.pricePerKg * item.quantityKg).toFixed(2)}
                 </div>
               </div>
             ))}
@@ -272,7 +281,7 @@ export default function CheckoutClient({ addresses }: { addresses: Address[] }) 
 
           <div className="flex flex-col gap-[8px] border-t border-surface-variant pt-[16px]">
             <div className="flex justify-between font-body-md text-on-surface-variant">
-              <span>Subtotal</span>
+              <span>Subtotal ({checkoutItems.length} item{checkoutItems.length !== 1 ? 's' : ''})</span>
               <span>₱{subtotal.toFixed(2)}</span>
             </div>
             <div className="flex justify-between font-body-md text-on-surface-variant">

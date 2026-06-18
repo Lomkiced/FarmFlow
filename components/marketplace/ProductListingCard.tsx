@@ -2,6 +2,7 @@
 
 import Image from 'next/image';
 import { useCartStore } from '@/store/cartStore';
+import toast from 'react-hot-toast';
 
 interface ProductListingCardProps {
   id: string;
@@ -16,6 +17,7 @@ interface ProductListingCardProps {
   rating: number;
   reviewCount: number;
   distanceKm: number;
+  stockKg?: number;
 }
 
 export default function ProductListingCard({
@@ -31,6 +33,7 @@ export default function ProductListingCard({
   rating,
   reviewCount,
   distanceKm,
+  stockKg = 0,
 }: ProductListingCardProps) {
   const addItem = useCartStore((state) => state.addItem);
 
@@ -40,9 +43,11 @@ export default function ProductListingCard({
       name: productName,
       pricePerKg: parseFloat(price.replace('₱', '')),
       quantityKg: 1,
+      stockKg,
       photo: image,
       farmerName: farmerName,
     });
+    toast.success(`${productName} added to cart!`, { icon: '🛒', duration: 2000 });
   };
 
   const badgeStyles = {

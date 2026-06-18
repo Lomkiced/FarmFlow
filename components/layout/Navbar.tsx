@@ -88,7 +88,7 @@ export default function Navbar({ user }: { user?: SessionUser | null }) {
 
           <div className="flex items-center gap-2 md:gap-4">
             <Link 
-              href="/checkout" 
+              href="/cart" 
               className="relative flex items-center justify-center w-10 h-10 rounded-full text-on-surface hover:bg-surface-variant transition-colors active:scale-95"
               aria-label="Cart"
             >

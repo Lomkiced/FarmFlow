@@ -4,6 +4,7 @@ import { useState, useRef } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useCartStore } from '@/store/cartStore';
+import toast from 'react-hot-toast';
 
 interface ProductDetailClientProps {
   product: {
@@ -83,8 +84,13 @@ export default function ProductDetailClient({ product, relatedProducts }: Produc
       name: product.name,
       pricePerKg: product.pricePerKg,
       quantityKg: quantity,
+      stockKg: product.stockKg,
       photo: product.photos[0] || 'https://images.unsplash.com/photo-1546094096-0df4bcaaa337?w=800&q=80',
       farmerName: product.farm.farmName,
+    });
+    toast.success(`${product.name} added to cart!`, {
+      icon: '🛒',
+      duration: 2000,
     });
   };
 
@@ -95,9 +101,11 @@ export default function ProductDetailClient({ product, relatedProducts }: Produc
       name: related.name,
       pricePerKg: related.pricePerKg,
       quantityKg: 1,
+      stockKg: related.stockKg ?? 0,
       photo: related.photos[0] || 'https://images.unsplash.com/photo-1546094096-0df4bcaaa337?w=800&q=80',
       farmerName: related.farm.farmName,
     });
+    toast.success(`${related.name} added to cart!`, { icon: '🛒', duration: 2000 });
   };
 
   const scroll = (dir: 'left' | 'right') => {
@@ -223,7 +231,7 @@ export default function ProductDetailClient({ product, relatedProducts }: Produc
                 <span className="material-symbols-outlined text-[16px]" style={{ fontVariationSettings: "'FILL' 1" }}>star</span>
                 <span className="font-label-md">{product.farm.rating || 5.0}</span>
               </div>
-              <Link href={`/farmer/${product.farm.id}`} className="font-label-md text-primary hover:text-primary-container font-semibold transition-colors">
+              <Link href={`/farmers/${product.farm.id}`} className="font-label-md text-primary hover:text-primary-container font-semibold transition-colors">
                 View Farm
               </Link>
             </div>
