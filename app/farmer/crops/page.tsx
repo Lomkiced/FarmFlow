@@ -9,6 +9,26 @@ import AddCropButton from '@/components/farmer/AddCropButton';
 import { getCropsAction } from '@/app/actions/crops';
 import { getFarmProfileAction } from '@/app/actions/farm';
 
+const cropImageMap: Record<string, string> = {
+  rice: 'https://images.unsplash.com/photo-1586201375761-83865001e8ac?w=400&q=80',
+  corn: 'https://images.unsplash.com/photo-1616058054992-d38a0c20ab9a?w=400&q=80',
+  tomato: 'https://images.unsplash.com/photo-1592924357228-91a4daadcfea?w=400&q=80',
+  eggplant: 'https://images.unsplash.com/photo-1627914619728-6a52fddaa6cd?w=400&q=80',
+  cabbage: 'https://images.unsplash.com/photo-1518972554766-3dcdd68bc4cb?w=400&q=80',
+  kangkong: 'https://images.unsplash.com/photo-1622319082594-e39d1b0d2dcb?w=400&q=80',
+  ampalaya: 'https://images.unsplash.com/photo-1621217631336-d7a86cbf5dfa?w=400&q=80',
+  kamote: 'https://images.unsplash.com/photo-1596647395015-3733074092b3?w=400&q=80',
+  pechay: 'https://images.unsplash.com/photo-1615486511484-954f9ccbe9d5?w=400&q=80',
+  banana: 'https://images.unsplash.com/photo-1571501679680-de32f1e7aad4?w=400&q=80',
+  mango: 'https://images.unsplash.com/photo-1553279768-865429fa0078?w=400&q=80',
+  coconut: 'https://images.unsplash.com/photo-1583091157434-dcefa8b301c3?w=400&q=80',
+  garlic: 'https://images.unsplash.com/photo-1540148426945-0441d6be4979?w=400&q=80',
+  onion: 'https://images.unsplash.com/photo-1518977822534-7049a61ee0c2?w=400&q=80',
+  carrots: 'https://images.unsplash.com/photo-1598170845058-32b9d6a5da37?w=400&q=80',
+};
+
+const GENERIC_CROP_IMAGE = 'https://images.unsplash.com/photo-1500937386664-56d1dfef4e0e?w=400&q=80';
+
 export default async function CropsPage() {
   const [crops, farmProfile] = await Promise.all([
     getCropsAction(),
@@ -51,8 +71,22 @@ export default async function CropsPage() {
             
             const harvestDue = crop.stage !== 'HARVESTED' && Date.now() > new Date(crop.expectedHarvest).getTime();
 
-            // Dummy image for crops without specific images in this version
-            const image = 'https://images.unsplash.com/photo-1546094096-0df4bcaaa337?w=400&q=80';
+            // Find matching image based on crop name or variety
+            const searchKeys = [crop.cropName.toLowerCase(), (crop.variety || '').toLowerCase()];
+            let mappedImage = null;
+            for (const key of searchKeys) {
+              for (const mapKey in cropImageMap) {
+                if (key.includes(mapKey)) {
+                  mappedImage = cropImageMap[mapKey];
+                  break;
+                }
+              }
+              if (mappedImage) break;
+            }
+
+            // @ts-ignore - Safety check in case image fields are added to the model later
+            const storedImage = crop.image || crop.photo || crop.imageUrl;
+            const image = storedImage || mappedImage || GENERIC_CROP_IMAGE;
             
             return (
               <Link href={`/farmer/crops/${crop.id}`} key={crop.id} className="bg-surface-container-lowest rounded-2xl overflow-hidden shadow-[0_4px_20px_rgba(27,67,50,0.04)] hover:shadow-[0_12px_32px_rgba(27,67,50,0.08)] transition-shadow duration-300 flex flex-col group relative">

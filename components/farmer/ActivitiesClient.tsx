@@ -37,14 +37,17 @@ export default function ActivitiesClient({
   const [activeFilter, setActiveFilter] = useState('All');
   const [showAddModal, setShowAddModal] = useState(false);
 
-  const filters = ['All', 'Watering', 'Fertilizing', 'Pest Control', 'Harvesting'];
+  const filters = ['All', 'Planting', 'Watering', 'Fertilizing', 'Pest Control', 'Weeding', 'Harvesting', 'Other'];
 
   const filteredActivities = activities.filter((act) => {
     if (activeFilter === 'All') return true;
+    if (activeFilter === 'Planting' && act.activityType === 'PLANTING') return true;
     if (activeFilter === 'Watering' && act.activityType === 'WATERING') return true;
     if (activeFilter === 'Fertilizing' && act.activityType === 'FERTILIZING') return true;
     if (activeFilter === 'Pest Control' && act.activityType === 'PEST_CONTROL') return true;
+    if (activeFilter === 'Weeding' && act.activityType === 'WEEDING') return true;
     if (activeFilter === 'Harvesting' && act.activityType === 'HARVESTING') return true;
+    if (activeFilter === 'Other' && act.activityType === 'OTHER') return true;
     return false;
   });
 

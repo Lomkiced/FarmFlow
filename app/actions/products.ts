@@ -58,6 +58,16 @@ export async function createProductAction(
     }
   }
 
+  const priceNum = Number(formData.get('pricePerKg'));
+  if (isNaN(priceNum) || priceNum <= 0) {
+    return { success: false, error: 'Price must be greater than 0.' };
+  }
+
+  const stockNum = Number(formData.get('stockKg'));
+  if (isNaN(stockNum) || stockNum <= 0 || !Number.isInteger(stockNum)) {
+    return { success: false, error: 'Stock must be a positive whole number.' };
+  }
+
   const raw = {
     name: formData.get('name'),
     category: formData.get('category'),
@@ -214,15 +224,34 @@ export async function deleteProductAction(productId: string): Promise<ActionStat
   }
 
   try {
-    await prisma.product.delete({ where: { id: productId } });
+    const totalLinkedOrders = await prisma.orderItem.count({
+      where: { productId },
+    });
 
-    revalidatePath('/farmer/products');
-    revalidatePath('/products');
+    if (totalLinkedOrders > 0) {
+      await prisma.product.update({
+        where: { id: productId },
+        data: { status: 'REMOVED' },
+      });
 
-    return { success: true, message: 'Product deleted successfully.' };
+      revalidatePath('/farmer/products');
+      revalidatePath('/products');
+
+      return { 
+        success: true, 
+        message: 'Product removed from your listings. It will remain in order history.' 
+      };
+    } else {
+      await prisma.product.delete({ where: { id: productId } });
+
+      revalidatePath('/farmer/products');
+      revalidatePath('/products');
+
+      return { success: true, message: 'Product permanently deleted.' };
+    }
   } catch (err) {
     console.error('[deleteProduct]', err);
-    return { success: false, error: 'Failed to delete product.' };
+    return { success: false, error: 'Failed to process deletion. Please try again.' };
   }
 }
 

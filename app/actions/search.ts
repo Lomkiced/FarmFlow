@@ -128,6 +128,7 @@ export async function getFeaturedProductsAction() {
     select: {
       id: true,
       name: true,
+      category: true,
       pricePerKg: true,
       stockKg: true,
       photos: true,

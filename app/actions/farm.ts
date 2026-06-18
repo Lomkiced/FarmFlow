@@ -4,6 +4,9 @@ import { revalidatePath } from 'next/cache';
 import { prisma } from '@/lib/prisma';
 import { requireFarmer } from '@/lib/dal';
 import { farmSchema } from '@/lib/validations/farm';
+import { toZonedTime, fromZonedTime } from 'date-fns-tz';
+
+const TZ = 'Asia/Manila';
 import type { ActionState } from './crops';
 
 // ─── Get Farm Profile ─────────────────────────────────────────────────────────
@@ -94,6 +97,7 @@ export async function getFarmerDashboardStatsAction() {
     upcomingHarvests,
     recentOrders,
     totalProducts,
+    readyForPayout,
   ] = await Promise.all([
     // Active crops (not yet harvested)
     prisma.crop.count({
@@ -109,16 +113,22 @@ export async function getFarmerDashboardStatsAction() {
     }),
 
     // This month's earnings (DELIVERED orders)
-    prisma.order.aggregate({
+    prisma.orderItem.aggregate({
       where: {
-        items: { some: { product: { farmId } } },
-        orderStatus: 'DELIVERED',
-        paymentStatus: 'PAID',
-        createdAt: {
-          gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
+        product: { farmId },
+        order: {
+          orderStatus: 'DELIVERED',
+          paymentStatus: 'PAID',
+          createdAt: {
+            gte: (() => {
+              const nowZoned = toZonedTime(new Date(), TZ);
+              const startOfMonthZoned = new Date(nowZoned.getFullYear(), nowZoned.getMonth(), 1);
+              return fromZonedTime(startOfMonthZoned, TZ);
+            })(),
+          },
         },
       },
-      _sum: { totalAmount: true },
+      _sum: { subtotal: true },
     }),
 
     // Crops with expected harvest in next 14 days
@@ -127,8 +137,15 @@ export async function getFarmerDashboardStatsAction() {
         farmId,
         stage: { in: ['GROWING', 'READY_TO_HARVEST'] },
         expectedHarvest: {
-          lte: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
-          gte: new Date(),
+          lte: (() => {
+            const nowZoned = toZonedTime(new Date(), TZ);
+            const in14Days = new Date(nowZoned.getTime() + 14 * 24 * 60 * 60 * 1000);
+            return fromZonedTime(in14Days, TZ);
+          })(),
+          gte: (() => {
+            const nowZoned = toZonedTime(new Date(), TZ);
+            return fromZonedTime(nowZoned, TZ);
+          })(),
         },
       },
       orderBy: { expectedHarvest: 'asc' },
@@ -156,17 +173,69 @@ export async function getFarmerDashboardStatsAction() {
     prisma.product.count({
       where: { farmId, status: 'ACTIVE' },
     }),
+
+    // Ready for payout (all time delivered and paid orders)
+    prisma.orderItem.aggregate({
+      where: {
+        product: { farmId },
+        order: {
+          orderStatus: 'DELIVERED',
+          paymentStatus: 'PAID',
+        },
+      },
+      _sum: { subtotal: true },
+    }),
   ]);
+
+  // Weekly breakdown
+  const nowZoned = toZonedTime(new Date(), TZ);
+  const startOfWeekZoned = new Date(nowZoned.getTime());
+  startOfWeekZoned.setDate(startOfWeekZoned.getDate() - (startOfWeekZoned.getDay() === 0 ? 6 : startOfWeekZoned.getDay() - 1));
+  startOfWeekZoned.setHours(0, 0, 0, 0);
+
+  const startOfWeekUtc = fromZonedTime(startOfWeekZoned, TZ);
+
+  const weekOrderItems = await prisma.orderItem.findMany({
+    where: {
+      product: { farmId },
+      order: {
+        orderStatus: 'DELIVERED',
+        createdAt: { gte: startOfWeekUtc },
+      },
+    },
+    include: { order: { select: { createdAt: true } } },
+  });
+
+  const weekDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  const rawWeekData = weekDays.map(day => ({ day, total: 0 }));
+
+  weekOrderItems.forEach(item => {
+    const itemZoned = toZonedTime(item.order.createdAt, TZ);
+    let dayIndex = itemZoned.getDay() - 1;
+    if (dayIndex === -1) dayIndex = 6;
+    rawWeekData[dayIndex].total += item.subtotal;
+  });
+
+  const maxTotal = Math.max(...rawWeekData.map(d => d.total), 1);
+  const weekData = rawWeekData.map(d => ({
+    day: d.day,
+    height: `${Math.round((d.total / maxTotal) * 100)}%`,
+    highlight: d.total === maxTotal && d.total > 0,
+    total: d.total, // keep actual total for reference if needed
+  }));
 
   return {
     activeCropsCount,
     pendingOrdersCount,
-    thisMonthEarnings: thisMonthEarnings._sum.totalAmount ?? 0,
+    thisMonthEarnings: thisMonthEarnings._sum.subtotal ?? 0,
+    readyForPayout: readyForPayout._sum.subtotal ?? 0,
+    weekData,
     upcomingHarvests,
     recentOrders,
     totalProducts,
   };
 }
+
 
 // ─── Public Farm Queries ──────────────────────────────────────────────────────
 
@@ -218,4 +287,38 @@ export async function getPublicFarmerByIdAction(id: string) {
   });
 
   return farm;
+
+// ─── Get Farmer Notifications ──────────────────────────────────────────────────
+
+export async function getFarmerNotificationsAction() {
+  const farmerUser = await requireFarmer();
+  const farmId = farmerUser.farmId;
+
+  const notifications = await prisma.notification.findMany({
+    where: {
+      OR: [
+        { relatedId: farmId },
+        { relatedId: farmerUser.id },
+      ]
+    },
+    orderBy: { createdAt: 'desc' },
+  });
+
+  return notifications;
+}
+
+// ─── Mark Notification As Read ────────────────────────────────────────────────
+
+export async function markNotificationAsReadAction(id: string) {
+  await requireFarmer();
+  try {
+    await prisma.notification.update({
+      where: { id },
+      data: { isRead: true },
+    });
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: 'Failed to mark notification.' };
+  }
+
 }

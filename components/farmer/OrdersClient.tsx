@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useRouter } from 'next/navigation';
+import { useState, useTransition, useEffect } from 'react';
 import { updateOrderStatusAction } from '@/app/actions/orders';
 import toast from 'react-hot-toast';
 
@@ -39,16 +40,20 @@ export default function OrdersClient({
 }) {
   const [activeTab, setActiveTab] = useState<'active' | 'completed' | 'earnings'>('earnings');
   const [isPending, startTransition] = useTransition();
+  const [isRefreshing, startRefreshTransition] = useTransition();
+  const router = useRouter();
 
-  const weekData = [
-    { day: 'Mon', height: '30%', highlight: false },
-    { day: 'Tue', height: '50%', highlight: false },
-    { day: 'Wed', height: '90%', highlight: true },
-    { day: 'Thu', height: '40%', highlight: false },
-    { day: 'Fri', height: '70%', highlight: false },
-    { day: 'Sat', height: '20%', highlight: false },
-    { day: 'Sun', height: '10%', highlight: false },
-  ];
+  useEffect(() => {
+    const interval = setInterval(() => {
+      startRefreshTransition(() => {
+        router.refresh();
+      });
+    }, 30000);
+    return () => clearInterval(interval);
+  }, [router]);
+
+  const weekData = stats?.weekData || [];
+  const readyForPayout = stats?.readyForPayout || 0;
 
   const handleUpdateStatus = (orderId: string, currentStatus: string) => {
     let newStatus: 'CONFIRMED' | 'READY' | 'DELIVERED' | 'CANCELLED';
@@ -157,27 +162,35 @@ export default function OrdersClient({
                 ₱{stats?.thisMonthEarnings.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}
               </div>
               <div className="text-[14px] font-medium text-on-surface-variant">
-                Ready for Payout: <span className="text-primary font-semibold">₱0.00</span>
+                Ready for Payout: <span className="text-primary font-semibold">₱{readyForPayout.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
               </div>
             </div>
           </div>
 
           {/* WEEKLY OVERVIEW chart */}
           <div className="bg-surface-container-lowest rounded-xl p-[16px] shadow-[0_4px_20px_rgba(27,67,50,0.04)]">
-            <div className="text-[14px] font-medium text-on-surface-variant mb-[16px]">Weekly Overview</div>
-            <div className="flex items-end justify-between h-32 gap-2">
-              {weekData.map((data, idx) => (
-                <div key={idx} className="flex flex-col items-center gap-2 flex-1">
-                  <div 
-                    className={`w-full rounded-t-sm ${data.highlight ? 'bg-[#D97706] shadow-[0_0_10px_rgba(217,119,6,0.3)]' : 'bg-surface-container'}`} 
-                    style={{ height: data.height }} 
-                  />
-                  <div className={`text-[10px] ${data.highlight ? 'text-primary font-bold' : 'text-outline'}`}>
-                    {data.day}
-                  </div>
-                </div>
-              ))}
+            <div className="text-[14px] font-medium text-on-surface-variant mb-[16px]">
+              Weekly Overview {isRefreshing && <span className="material-symbols-outlined animate-spin text-[14px] inline-block ml-1">progress_activity</span>}
             </div>
+            {weekData.length === 0 || weekData.every((d: any) => d.total === 0) ? (
+              <div className="h-32 flex items-center justify-center text-on-surface-variant text-[14px]">
+                No earnings recorded this week.
+              </div>
+            ) : (
+              <div className="flex items-end justify-between h-32 gap-2">
+                {weekData.map((data: any, idx: number) => (
+                  <div key={idx} className="flex flex-col items-center gap-2 flex-1">
+                    <div 
+                      className={`w-full rounded-t-sm ${data.highlight ? 'bg-[#D97706] shadow-[0_0_10px_rgba(217,119,6,0.3)]' : 'bg-surface-container'}`} 
+                      style={{ height: data.height }} 
+                    />
+                    <div className={`text-[10px] ${data.highlight ? 'text-primary font-bold' : 'text-outline'}`}>
+                      {data.day}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* TRANSACTION HISTORY */}
