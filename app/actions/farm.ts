@@ -287,6 +287,7 @@ export async function getPublicFarmerByIdAction(id: string) {
   });
 
   return farm;
+}
 
 // ─── Get Farmer Notifications ──────────────────────────────────────────────────
 
