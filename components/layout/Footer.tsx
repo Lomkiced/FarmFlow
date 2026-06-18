@@ -1,8 +1,18 @@
+'use client';
+
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 
 import type { SessionUser } from '@/lib/dal';
 
 export default function Footer({ user }: { user?: SessionUser | null }) {
+  const pathname = usePathname();
+
+  const getLinkClass = (path: string) => {
+    const baseClass = "hover:text-emerald-600 hover:underline underline-offset-4 transition-all";
+    return pathname === path ? `${baseClass} text-emerald-600 font-bold underline` : baseClass;
+  };
+
   return (
     <footer className="bg-stone-50 border-t border-stone-200 font-display text-sm uppercase tracking-widest mt-auto">
       <div className="max-w-screen-2xl mx-auto flex flex-col md:flex-row justify-between items-center px-12 py-16 gap-8">
@@ -15,35 +25,35 @@ export default function Footer({ user }: { user?: SessionUser | null }) {
 
         {/* CENTER: Links */}
         <div className="flex flex-wrap justify-center gap-6 text-stone-500">
-          <Link href="#" className="hover:text-emerald-600 hover:underline underline-offset-4 transition-all">
+          <Link href="/privacy-policy" className={getLinkClass('/privacy-policy')}>
             Privacy Policy
           </Link>
-          <Link href="#" className="hover:text-emerald-600 hover:underline underline-offset-4 transition-all">
+          <Link href="/terms-of-service" className={getLinkClass('/terms-of-service')}>
             Terms of Service
           </Link>
           {!user && (
-            <Link href="/auth/login" className="text-amber-600 hover:text-amber-700 hover:underline underline-offset-4 transition-all font-bold">
+            <Link href="/auth/login" className={getLinkClass('/auth/login')}>
               Farmer Login
             </Link>
           )}
           {user && user.role === 'BUYER' && (
-            <Link href="/auth/register" className="text-amber-600 hover:text-amber-700 hover:underline underline-offset-4 transition-all font-bold">
+            <Link href="/auth/register" className={getLinkClass('/auth/register')}>
               Become a Farmer
             </Link>
           )}
           {user && user.role === 'FARMER' && (
-            <Link href="/farmer/dashboard" className="text-amber-600 hover:text-amber-700 hover:underline underline-offset-4 transition-all font-bold">
+            <Link href="/farmer/dashboard" className={getLinkClass('/farmer/dashboard')}>
               Farmer Dashboard
             </Link>
           )}
-          <Link href="#" className="hover:text-emerald-600 hover:underline underline-offset-4 transition-all">
+          <Link href="/support" className={getLinkClass('/support')}>
             Support
           </Link>
         </div>
 
         {/* RIGHT: Copyright */}
         <div className="text-stone-500 text-xs text-center md:text-right normal-case tracking-normal">
-          &copy; 2024 FarmFlow Agoo. Premium Agricultural Commerce.
+          &copy; 2026 FarmFlow Agoo. Premium Agricultural Commerce.
         </div>
       </div>
     </footer>

@@ -4,6 +4,7 @@ import ProductListingCard from '@/components/marketplace/ProductListingCard';
 import Pagination from '@/components/marketplace/Pagination';
 import ProductsTopBar from '@/components/marketplace/ProductsTopBar';
 import { getPublicProductsAction } from '@/app/actions/search';
+import { getProductStockBadge } from '@/lib/utils';
 import Link from 'next/link';
 
 type SearchParams = Promise<{ [key: string]: string | string[] | undefined }>;
@@ -33,6 +34,12 @@ export default async function ProductsPage(props: { searchParams: SearchParams }
   return (
     <>
       <main className="flex-grow max-w-screen-2xl mx-auto px-8 py-12 w-full">
+        <div className="mb-8">
+          <Link href="/" className="inline-flex items-center gap-2 text-stone-500 hover:text-primary transition-colors font-label-md">
+            <span className="material-symbols-outlined text-[20px]">arrow_back</span>
+            Back to Home
+          </Link>
+        </div>
         <div className="flex flex-col md:flex-row gap-[24px]">
           
           <FilterSidebar categoriesList={[...categories]} />
@@ -43,7 +50,7 @@ export default async function ProductsPage(props: { searchParams: SearchParams }
 
             {/* Product Grid */}
             {products.length === 0 ? (
-              <div className="text-center py-20 text-on-surface-variant bg-surface-container-lowest rounded-xl border border-surface-variant">
+              <div className="text-center py-20 text-on-surface-variant bg-surface-container-lowest rounded-xl border border-surface-variant flex flex-col items-center justify-center">
                 <span className="material-symbols-outlined text-[48px] mb-4 text-outline">search_off</span>
                 <h3 className="text-[20px] font-semibold text-on-surface">No harvest found</h3>
                 <p className="mt-2 text-[14px]">Try adjusting your filters or search term to find what you're looking for.</p>
@@ -51,8 +58,9 @@ export default async function ProductsPage(props: { searchParams: SearchParams }
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                 {products.map((product) => {
-                  const badgeVariant = product.category === 'VEGETABLES' ? 'organic' : product.stockKg > 10 ? 'instock' : 'lowstock';
-                  const badge = badgeVariant === 'organic' ? 'Organic' : badgeVariant === 'lowstock' ? 'Low Stock' : 'In Stock';
+                  const stockStatus = getProductStockBadge(product.stockKg, product.category);
+                  const badgeVariant = product.category === 'Vegetables' || product.category === 'VEGETABLES' ? 'organic' : stockStatus === 'Low Stock' ? 'lowstock' : 'instock';
+                  const badge = badgeVariant === 'organic' ? 'Organic' : stockStatus;
                   
                   return (
                     <Link key={product.id} href={`/products/${product.id}`} className="block h-full cursor-pointer hover:no-underline">

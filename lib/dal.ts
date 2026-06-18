@@ -121,8 +121,13 @@ export async function requireFarmer(): Promise<SessionUser & { farmId: string }>
   const user = await requireRole('FARMER');
   if (!user.farmId) {
     // Farmer account exists but no farm row — data integrity issue
-    redirect('/farmer/dashboard');
+    redirect('/auth/login');
   }
+
+  if (user.farmStatus !== 'VERIFIED') {
+    redirect('/auth/login');
+  }
+
   return { ...user, farmId: user.farmId! };
 }
 

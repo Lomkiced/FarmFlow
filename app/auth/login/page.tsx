@@ -15,21 +15,21 @@ export default function LoginPage() {
   );
 
   return (
-    <div className="flex flex-col lg:flex-row w-full min-h-screen overflow-hidden bg-[#fcf9f2] lg:bg-auth-surface">
+    <div className="flex flex-col lg:flex-row w-full h-screen overflow-hidden bg-[#fcf9f2] lg:bg-auth-surface">
       <AuthLeftPanel variant="login" />
 
-      <div className="w-full lg:w-1/2 h-full overflow-y-auto flex items-center justify-center p-[16px] md:p-[32px]">
+      <div className="w-full lg:w-1/2 h-full flex flex-col items-center justify-center px-4 py-6 md:p-[32px]">
 
         {/* Mobile top section */}
-        <div className="lg:hidden text-center mb-8 flex flex-col items-center mt-8">
-          <span className="material-symbols-outlined text-[48px] text-primary mb-4" style={{ fontVariationSettings: "'FILL' 1" }}>eco</span>
-          <h2 className="text-[30px] font-semibold leading-[38px] tracking-[-0.02em] text-auth-on-surface mb-1">Welcome back</h2>
+        <div className="lg:hidden text-center mb-6 flex flex-col items-center mt-2">
+          <span className="material-symbols-outlined text-[40px] text-primary mb-2" style={{ fontVariationSettings: "'FILL' 1" }}>eco</span>
+          <h2 className="text-[24px] font-semibold leading-tight tracking-[-0.02em] text-auth-on-surface mb-1">Welcome back</h2>
           <p className="text-[14px] text-auth-on-surface-variant">Sign in to your FarmFlow account</p>
         </div>
 
-        <div className="w-full max-w-md bg-white border border-auth-secondary-fixed rounded-xl p-[32px] shadow-sm">
+        <div className="w-full max-w-md bg-white border border-auth-secondary-fixed rounded-xl p-[24px] md:p-[32px] shadow-sm">
 
-          <Link href="/" className="inline-flex items-center gap-1 text-auth-secondary hover:text-primary mb-[24px] group">
+          <Link href="/" className="inline-flex items-center gap-1 text-auth-secondary hover:text-primary mb-[20px] md:mb-[24px] group py-1">
             <span className="material-symbols-outlined text-[18px] group-hover:-translate-x-1 transition-transform">chevron_left</span>
             <span className="text-[14px]">Back to Marketplace</span>
           </Link>
@@ -49,14 +49,14 @@ export default function LoginPage() {
               <button
                 type="button"
                 onClick={() => setRole('buyer')}
-                className={`flex-1 py-2 px-[16px] text-center rounded text-[14px] transition-all ${role === 'buyer' ? 'bg-white text-auth-on-surface font-semibold shadow-[0_1px_2px_rgba(0,0,0,0.05)] border border-auth-secondary-fixed' : 'text-auth-on-surface-variant hover:text-auth-on-surface'}`}
+                className={`flex-1 py-2 px-[16px] text-center rounded text-[14px] transition-all ${role === 'buyer' ? 'bg-white text-auth-on-surface font-semibold shadow-[0_1px_2px_rgba(0,0,0,0.05)] border border-auth-on-surface' : 'text-auth-on-surface-variant hover:text-auth-on-surface'}`}
               >
                 Buyer
               </button>
               <button
                 type="button"
                 onClick={() => setRole('farmer')}
-                className={`flex-1 py-2 px-[16px] text-center rounded text-[14px] transition-all ${role === 'farmer' ? 'bg-white text-auth-on-surface font-semibold shadow-[0_1px_2px_rgba(0,0,0,0.05)] border border-auth-secondary-fixed' : 'text-auth-on-surface-variant hover:text-auth-on-surface'}`}
+                className={`flex-1 py-2 px-[16px] text-center rounded text-[14px] transition-all ${role === 'farmer' ? 'bg-white text-auth-on-surface font-semibold shadow-[0_1px_2px_rgba(0,0,0,0.05)] border border-auth-on-surface' : 'text-auth-on-surface-variant hover:text-auth-on-surface'}`}
               >
                 Farmer / Admin
               </button>
@@ -67,19 +67,19 @@ export default function LoginPage() {
               <button
                 type="button"
                 onClick={() => setRole('buyer')}
-                className={`flex-1 py-2 text-[14px] text-center z-10 relative font-semibold transition-colors ${role === 'buyer' ? 'text-primary' : 'text-auth-on-surface-variant'}`}
+                className={`flex-1 py-2.5 text-[13px] sm:text-[14px] text-center z-10 relative font-semibold transition-colors ${role === 'buyer' ? 'text-primary' : 'text-auth-on-surface-variant'}`}
               >
                 Buyer
               </button>
               <button
                 type="button"
                 onClick={() => setRole('farmer')}
-                className={`flex-1 py-2 text-[14px] text-center z-10 relative font-semibold transition-colors ${role === 'farmer' ? 'text-primary' : 'text-auth-on-surface-variant'}`}
+                className={`flex-1 py-2.5 text-[13px] sm:text-[14px] text-center z-10 relative font-semibold transition-colors ${role === 'farmer' ? 'text-primary' : 'text-auth-on-surface-variant'}`}
               >
                 Farmer / Admin
               </button>
               <div
-                className="absolute top-1 bottom-1 w-[calc(50%-4px)] bg-white rounded-full shadow-[0_2px_8px_-2px_rgba(0,0,0,0.1)] border border-outline-variant/20 transition-all duration-300 ease-in-out"
+                className="absolute top-1 bottom-1 w-[calc(50%-4px)] bg-white rounded-full shadow-[0_2px_8px_-2px_rgba(0,0,0,0.1)] border border-auth-on-surface transition-all duration-300 ease-in-out"
                 style={{ transform: role === 'buyer' ? 'translateX(0)' : 'translateX(calc(100% + 4px))', left: '4px' }}
               />
             </div>
@@ -115,7 +115,7 @@ export default function LoginPage() {
             />
 
             <div className="flex justify-end">
-              <Link href="/auth/forgot-password" className="text-[14px] text-primary hover:underline font-medium">
+              <Link href="/auth/forgot-password" className="text-[14px] text-primary hover:underline font-medium py-2 min-h-[44px] flex items-center">
                 Forgot password?
               </Link>
             </div>
@@ -123,7 +123,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={isPending}
-              className="w-full bg-primary-container text-on-primary text-[16px] font-medium py-[16px] rounded-lg hover:bg-primary transition-colors flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
+              className="w-full bg-primary-container text-on-primary text-[16px] font-medium py-[14px] md:py-[16px] min-h-[48px] rounded-lg hover:bg-primary transition-colors flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
             >
               {isPending ? (
                 <>
@@ -136,16 +136,16 @@ export default function LoginPage() {
             </button>
           </form>
 
-          <div className="text-center text-[14px] text-auth-on-surface-variant mt-[32px] mb-[32px]">
+          <div className="text-center text-[14px] text-auth-on-surface-variant my-[24px]">
             Don&apos;t have an account?{' '}
-            <Link href="/auth/register" className="text-primary hover:underline font-medium">Register here</Link>
+            <Link href="/auth/register" className="text-primary hover:underline font-medium inline-block py-2 min-h-[44px]">Register here</Link>
           </div>
 
-          <div className="text-center text-[13px] text-auth-secondary px-[32px]">
+          <div className="text-center text-[12px] md:text-[13px] text-auth-secondary px-[16px] md:px-[32px]">
             By signing in, you agree to our{' '}
-            <a href="#" className="hover:underline text-auth-on-surface">Terms</a>{' '}
+            <a href="#" className="hover:underline text-auth-on-surface inline-block py-1 min-h-[44px]">Terms</a>{' '}
             and{' '}
-            <a href="#" className="hover:underline text-auth-on-surface">Privacy Policy</a>.
+            <a href="#" className="hover:underline text-auth-on-surface inline-block py-1 min-h-[44px]">Privacy Policy</a>.
           </div>
 
         </div>
