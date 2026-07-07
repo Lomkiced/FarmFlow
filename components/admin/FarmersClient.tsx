@@ -107,7 +107,7 @@ export default function FarmersClient({ initialFarmers }: { initialFarmers: Farm
   };
 
   return (
-    <div className="flex-1 bg-admin-background p-[40px] flex gap-[20px]">
+    <div className="flex-1 bg-admin-background p-4 md:p-[40px] flex flex-col xl:flex-row gap-[20px]">
       
       {/* LEFT CANVAS */}
       <div className="flex-1 flex flex-col min-w-0">
@@ -205,7 +205,7 @@ export default function FarmersClient({ initialFarmers }: { initialFarmers: Farm
         )}
 
         {/* DATA TABLE CARD */}
-        <div className="bg-admin-surface-container-lowest border border-admin-outline-variant rounded-lg overflow-hidden flex-1 flex flex-col">
+        <div className="bg-admin-surface-container-lowest border border-admin-outline-variant rounded-lg overflow-hidden flex-1 flex flex-col w-full max-w-full">
           <div className="overflow-x-auto w-full">
             <table className="w-full text-left border-collapse min-w-[700px]">
               <thead className="bg-admin-surface border-b border-admin-outline-variant">
@@ -264,7 +264,7 @@ export default function FarmersClient({ initialFarmers }: { initialFarmers: Farm
 
       {/* RIGHT CANVAS — DETAIL PANEL */}
       {selectedFarmer && (
-        <div className="w-[400px] flex-shrink-0 bg-admin-surface-container-lowest border border-admin-outline-variant rounded-xl shadow-[0px_10px_15px_-3px_rgba(0,0,0,0.05)] flex flex-col h-[calc(100vh-144px)] overflow-hidden self-start sticky top-[40px]">
+        <div className="w-full xl:w-[400px] flex-shrink-0 bg-admin-surface-container-lowest border border-admin-outline-variant rounded-xl shadow-[0px_10px_15px_-3px_rgba(0,0,0,0.05)] flex flex-col h-auto xl:h-[calc(100vh-144px)] xl:max-h-[calc(100vh-144px)] overflow-hidden self-start xl:sticky top-[40px]">
           
           <div className="p-[24px] border-b border-admin-outline-variant bg-admin-surface flex justify-between items-start">
             <div className="flex items-center gap-4">
