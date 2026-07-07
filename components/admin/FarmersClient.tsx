@@ -98,10 +98,10 @@ export default function FarmersClient({ initialFarmers }: { initialFarmers: Farm
     startTransition(async () => {
       const res = await rejectFarmerAction(id);
       if (res.success) {
-        toast.success(res.message || 'Farmer suspended');
+        toast.success(res.message || 'Farmer permanently deleted');
         setSelectedFarmer(null);
       } else {
-        toast.error(res.error || 'Failed to suspend farmer');
+        toast.error(res.error || 'Failed to delete farmer');
       }
     });
   };
@@ -340,10 +340,14 @@ export default function FarmersClient({ initialFarmers }: { initialFarmers: Farm
             {selectedFarmer.status !== 'SUSPENDED' && (
               <button 
                 disabled={isPending}
-                onClick={() => handleReject(selectedFarmer.id)}
+                onClick={() => {
+                  if (confirm('Are you sure you want to permanently reject and delete this farmer? This action cannot be undone.')) {
+                    handleReject(selectedFarmer.id);
+                  }
+                }}
                 className="flex-1 bg-admin-surface-container-lowest border border-error text-error font-admin-body-sm font-medium py-2 rounded hover:bg-error-container/20 transition-colors disabled:opacity-50"
               >
-                Suspend
+                Reject & Delete
               </button>
             )}
             {selectedFarmer.status !== 'VERIFIED' && (
