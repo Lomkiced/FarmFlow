@@ -107,14 +107,17 @@ export async function registerBuyerAction(
   });
 
   if (signUpError) {
-    const errorMsg = signUpError.message.toLowerCase();
+    const errorMsg = signUpError.message?.toLowerCase() || '';
     if (errorMsg.includes('already registered')) {
       return { errors: { email: ['An account with this email already exists.'] } };
     }
     if (errorMsg.includes('rate limit') || errorMsg.includes('email rate limit exceeded')) {
       return { message: 'We are experiencing high registration volume. Please wait a moment and try again.' };
     }
-    return { message: signUpError.message };
+    if (errorMsg === '{}' || signUpError.message === '{}') {
+      return { message: 'Failed to send confirmation email. Please ensure your SMTP settings are correct.' };
+    }
+    return { message: signUpError.message || 'An unknown error occurred during registration.' };
   }
 
   if (!data.user) return { message: 'Registration failed. Please try again.' };
@@ -194,14 +197,17 @@ export async function registerFarmerAction(
   });
 
   if (signUpError) {
-    const errorMsg = signUpError.message.toLowerCase();
+    const errorMsg = signUpError.message?.toLowerCase() || '';
     if (errorMsg.includes('already registered')) {
       return { errors: { email: ['An account with this email already exists.'] } };
     }
     if (errorMsg.includes('rate limit') || errorMsg.includes('email rate limit exceeded')) {
       return { message: 'We are experiencing high registration volume. Please wait a moment and try again.' };
     }
-    return { message: signUpError.message };
+    if (errorMsg === '{}' || signUpError.message === '{}') {
+      return { message: 'Failed to send confirmation email. Please ensure your SMTP settings are correct.' };
+    }
+    return { message: signUpError.message || 'An unknown error occurred during registration.' };
   }
 
   if (!data.user) return { message: 'Registration failed. Please try again.' };
