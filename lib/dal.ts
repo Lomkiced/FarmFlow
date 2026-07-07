@@ -124,6 +124,14 @@ export async function requireFarmer(): Promise<SessionUser & { farmId: string }>
     redirect('/auth/login');
   }
 
+  if (user.farmStatus === 'PENDING') {
+    redirect('/farmer/pending');
+  }
+
+  if (user.farmStatus === 'SUSPENDED') {
+    redirect('/farmer/suspended');
+  }
+
   if (user.farmStatus !== 'VERIFIED') {
     redirect('/auth/login');
   }
