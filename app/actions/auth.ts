@@ -133,11 +133,11 @@ export async function registerBuyerAction(
         role: 'BUYER',
       },
     });
-  } catch (dbError) {
+  } catch (dbError: any) {
     // Rollback: delete auth user if DB insert fails
     const adminClient = await import('@/lib/supabase/server').then(m => m.createAdminClient());
     await (await adminClient).auth.admin.deleteUser(data.user.id);
-    return { message: 'Failed to create account. Please try again.' };
+    return { message: `Failed to create account in database: ${dbError?.message || 'Unknown error'}` };
   }
 
   // Trigger notification in background
@@ -235,10 +235,10 @@ export async function registerFarmerAction(
         },
       });
     });
-  } catch {
+  } catch (dbError: any) {
     const adminClient = await import('@/lib/supabase/server').then(m => m.createAdminClient());
     await (await adminClient).auth.admin.deleteUser(data.user.id);
-    return { message: 'Failed to create account. Please try again.' };
+    return { message: `Failed to create account in database: ${dbError?.message || 'Unknown error'}` };
   }
 
   // Trigger notifications
