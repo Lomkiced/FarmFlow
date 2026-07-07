@@ -1,6 +1,7 @@
 import { getAdminDashboardStatsAction } from '@/app/actions/admin';
 import Link from 'next/link';
 import { formatDistanceToNow } from 'date-fns';
+import RecentRegistrationsClient from './RecentRegistrationsClient';
 
 export const dynamic = 'force-dynamic';
 
@@ -117,44 +118,8 @@ export default async function AdminDashboardPage() {
       {/* CHARTS & ACTIVITY ROW */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-[24px]">
         
-        {/* RECENT REGISTRATIONS (Replacing Sales Trend placeholder for now) */}
-        <div className="lg:col-span-2 bg-admin-surface-container-lowest border border-admin-outline-variant rounded-xl h-[400px] flex flex-col">
-          <div className="p-[16px] border-b border-admin-outline-variant flex justify-between items-center bg-admin-surface-bright/50">
-            <h3 className="font-admin-h3 text-admin-h3 text-admin-on-surface">Recent Registrations</h3>
-            <button className="text-secondary"><span className="material-symbols-outlined">more_horiz</span></button>
-          </div>
-          
-          <div className="p-[16px] flex-1 overflow-auto">
-             <table className="w-full text-left border-collapse">
-              <thead className="bg-admin-surface-container-low border-b border-admin-outline-variant">
-                <tr>
-                  <th className="font-admin-label-caps text-admin-label-caps text-secondary font-semibold tracking-wider p-[8px]">User</th>
-                  <th className="font-admin-label-caps text-admin-label-caps text-secondary font-semibold tracking-wider p-[8px]">Role</th>
-                  <th className="font-admin-label-caps text-admin-label-caps text-secondary font-semibold tracking-wider p-[8px]">Joined</th>
-                </tr>
-              </thead>
-              <tbody className="font-admin-table-data text-admin-table-data text-admin-on-surface">
-                {stats.recentRegistrations.map(user => (
-                  <tr key={user.id} className="border-b border-admin-outline-variant/50 hover:bg-admin-surface-bright transition-colors">
-                    <td className="p-[12px]">
-                      <div className="font-medium text-admin-on-surface">{user.name}</div>
-                      <div className="text-secondary text-sm">{user.email}</div>
-                    </td>
-                    <td className="p-[12px] capitalize">{user.role.toLowerCase()}</td>
-                    <td className="p-[12px] text-secondary">
-                      {formatDistanceToNow(new Date(user.createdAt), { addSuffix: true })}
-                    </td>
-                  </tr>
-                ))}
-                {stats.recentRegistrations.length === 0 && (
-                  <tr>
-                    <td colSpan={3} className="p-[16px] text-center text-secondary">No recent registrations</td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
+        {/* RECENT REGISTRATIONS (Interactive Component) */}
+        <RecentRegistrationsClient initialUsers={stats.recentRegistrations} />
 
         {/* RIGHT COLUMN */}
         <div className="flex flex-col gap-[24px] h-[400px]">
