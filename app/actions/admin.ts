@@ -158,18 +158,37 @@ export async function rejectFarmerAction(
   if (!farm) return { success: false, error: 'Farm not found.' };
 
   try {
-    await prisma.farm.update({
-      where: { id: farmId },
-      data: { status: 'SUSPENDED' },
+    const adminClient = await import('@/lib/supabase/server').then(m => m.createAdminClient());
+    
+    // 1. Delete from Supabase Auth
+    const { error: authError } = await adminClient.auth.admin.deleteUser(farm.userId);
+    if (authError) {
+      console.error('[rejectFarmer] Supabase Auth Error:', authError);
+      // We log but continue, in case the auth user is already gone
+    }
+
+    // 2. Cascade delete in Prisma DB
+    await prisma.$transaction(async (tx) => {
+      await tx.activity.deleteMany({ where: { farmId } });
+      await tx.orderItem.deleteMany({ where: { product: { farmId } } });
+      await tx.product.deleteMany({ where: { farmId } });
+      await tx.crop.deleteMany({ where: { farmId } });
+      await tx.farm.delete({ where: { id: farmId } });
+      
+      await tx.address.deleteMany({ where: { userId: farm.userId } });
+      await tx.notification.deleteMany({ 
+        where: { OR: [{ relatedId: farm.userId }, { relatedId: farmId }] } 
+      });
+      await tx.user.delete({ where: { id: farm.userId } });
     });
 
     revalidatePath('/admin/farmers');
     revalidatePath('/admin');
 
-    return { success: true, message: `${farm.farmName} has been suspended.` };
+    return { success: true, message: `${farm.farmName} has been permanently rejected and deleted.` };
   } catch (err) {
     console.error('[rejectFarmer]', err);
-    return { success: false, error: 'Failed to reject farmer.' };
+    return { success: false, error: 'Failed to permanently delete farmer.' };
   }
 }
 
