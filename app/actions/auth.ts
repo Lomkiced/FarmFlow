@@ -93,6 +93,14 @@ export async function registerBuyerAction(
   const protocol = process.env.NODE_ENV === 'development' ? 'http' : 'https';
   const origin = `${protocol}://${host}`;
 
+  // Pre-flight check: ensure email doesn't already exist in Prisma DB
+  const existingUser = await prisma.user.findUnique({
+    where: { email: parsed.data.email.toLowerCase() },
+  });
+  if (existingUser) {
+    return { errors: { email: ['An account with this email already exists.'] } };
+  }
+
   // 1. Create auth user in Supabase Auth
   const { data, error: signUpError } = await supabase.auth.signUp({
     email: parsed.data.email,
@@ -182,6 +190,14 @@ export async function registerFarmerAction(
   const host = headersList.get('host');
   const protocol = process.env.NODE_ENV === 'development' ? 'http' : 'https';
   const origin = `${protocol}://${host}`;
+
+  // Pre-flight check: ensure email doesn't already exist in Prisma DB
+  const existingUser = await prisma.user.findUnique({
+    where: { email: parsed.data.email.toLowerCase() },
+  });
+  if (existingUser) {
+    return { errors: { email: ['An account with this email already exists.'] } };
+  }
 
   // 1. Create Supabase Auth user
   const { data, error: signUpError } = await supabase.auth.signUp({
