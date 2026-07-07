@@ -6,7 +6,7 @@ import { createClient } from '@/lib/supabase/server';
 import { prisma } from '@/lib/prisma';
 import { loginSchema, buyerRegisterSchema, farmerRegisterSchema } from '@/lib/validations/auth';
 import { sendAdminNotification } from '@/lib/notifications';
-
+import { headers } from 'next/headers';
 // ─────────────────────────────────────────────────
 // LOGIN
 // ─────────────────────────────────────────────────
@@ -88,6 +88,11 @@ export async function registerBuyerAction(
 
   const supabase = await createClient();
 
+  const headersList = await headers();
+  const host = headersList.get('host');
+  const protocol = process.env.NODE_ENV === 'development' ? 'http' : 'https';
+  const origin = `${protocol}://${host}`;
+
   // 1. Create auth user in Supabase Auth
   const { data, error: signUpError } = await supabase.auth.signUp({
     email: parsed.data.email,
@@ -97,6 +102,7 @@ export async function registerBuyerAction(
         name: parsed.data.name,
         role: 'BUYER',
       },
+      emailRedirectTo: `${origin}/auth/callback`,
     },
   });
 
@@ -165,6 +171,11 @@ export async function registerFarmerAction(
 
   const supabase = await createClient();
 
+  const headersList = await headers();
+  const host = headersList.get('host');
+  const protocol = process.env.NODE_ENV === 'development' ? 'http' : 'https';
+  const origin = `${protocol}://${host}`;
+
   // 1. Create Supabase Auth user
   const { data, error: signUpError } = await supabase.auth.signUp({
     email: parsed.data.email,
@@ -174,6 +185,7 @@ export async function registerFarmerAction(
         name: parsed.data.name,
         role: 'FARMER',
       },
+      emailRedirectTo: `${origin}/auth/callback`,
     },
   });
 
