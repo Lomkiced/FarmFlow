@@ -107,8 +107,12 @@ export async function registerBuyerAction(
   });
 
   if (signUpError) {
-    if (signUpError.message.toLowerCase().includes('already registered')) {
+    const errorMsg = signUpError.message.toLowerCase();
+    if (errorMsg.includes('already registered')) {
       return { errors: { email: ['An account with this email already exists.'] } };
+    }
+    if (errorMsg.includes('rate limit') || errorMsg.includes('email rate limit exceeded')) {
+      return { message: 'We are experiencing high registration volume. Please wait a moment and try again.' };
     }
     return { message: signUpError.message };
   }
@@ -190,8 +194,12 @@ export async function registerFarmerAction(
   });
 
   if (signUpError) {
-    if (signUpError.message.toLowerCase().includes('already registered')) {
+    const errorMsg = signUpError.message.toLowerCase();
+    if (errorMsg.includes('already registered')) {
       return { errors: { email: ['An account with this email already exists.'] } };
+    }
+    if (errorMsg.includes('rate limit') || errorMsg.includes('email rate limit exceeded')) {
+      return { message: 'We are experiencing high registration volume. Please wait a moment and try again.' };
     }
     return { message: signUpError.message };
   }
