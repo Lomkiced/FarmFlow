@@ -98,7 +98,16 @@ export async function registerBuyerAction(
     where: { email: parsed.data.email.toLowerCase() },
   });
   if (existingUser) {
-    return { errors: { email: ['An account with this email already exists.'] } };
+    // Advanced Ghost User Detection
+    const adminClient = await import('@/lib/supabase/server').then(m => m.createAdminClient());
+    const { data: authUser, error: authError } = await (await adminClient).auth.admin.getUserById(existingUser.id);
+    
+    if (authError || !authUser?.user) {
+      // User is a ghost (deleted in Supabase but stuck in Prisma). Self-heal by deleting from Prisma.
+      await prisma.user.delete({ where: { id: existingUser.id } });
+    } else {
+      return { errors: { email: ['An account with this email already exists.'] } };
+    }
   }
 
   // 1. Create auth user in Supabase Auth
@@ -196,7 +205,16 @@ export async function registerFarmerAction(
     where: { email: parsed.data.email.toLowerCase() },
   });
   if (existingUser) {
-    return { errors: { email: ['An account with this email already exists.'] } };
+    // Advanced Ghost User Detection
+    const adminClient = await import('@/lib/supabase/server').then(m => m.createAdminClient());
+    const { data: authUser, error: authError } = await (await adminClient).auth.admin.getUserById(existingUser.id);
+    
+    if (authError || !authUser?.user) {
+      // User is a ghost (deleted in Supabase but stuck in Prisma). Self-heal by deleting from Prisma.
+      await prisma.user.delete({ where: { id: existingUser.id } });
+    } else {
+      return { errors: { email: ['An account with this email already exists.'] } };
+    }
   }
 
   // 1. Create Supabase Auth user

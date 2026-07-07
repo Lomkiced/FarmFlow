@@ -84,7 +84,7 @@ model User {
 model Farm {
   id           String       @id @default(uuid())
   userId       String       @unique
-  user         User         @relation(fields: [userId], references: [id])
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   farmName     String
   barangay     String
   municipality String       @default("Agoo")
@@ -105,7 +105,7 @@ model Farm {
 model Crop {
   id              String     @id @default(uuid())
   farmId          String
-  farm            Farm       @relation(fields: [farmId], references: [id])
+  farm            Farm       @relation(fields: [farmId], references: [id], onDelete: Cascade)
   cropName        String
   variety         String?
   datePlanted     DateTime
@@ -123,9 +123,9 @@ model Crop {
 model Product {
   id            String        @id @default(uuid())
   farmId        String
-  farm          Farm          @relation(fields: [farmId], references: [id])
+  farm          Farm          @relation(fields: [farmId], references: [id], onDelete: Cascade)
   cropId        String?
-  crop          Crop?         @relation(fields: [cropId], references: [id])
+  crop          Crop?         @relation(fields: [cropId], references: [id], onDelete: SetNull)
   name          String
   category      String
   description   String?
@@ -143,14 +143,14 @@ model Product {
 model Order {
   id            String        @id @default(uuid())
   buyerId       String
-  buyer         User          @relation("BuyerOrders", fields: [buyerId], references: [id])
+  buyer         User          @relation("BuyerOrders", fields: [buyerId], references: [id], onDelete: Cascade)
   totalAmount   Float
   deliveryFee   Float         @default(0)
   orderStatus   OrderStatus   @default(PENDING)
   paymentStatus PaymentStatus @default(PENDING)
   paymentRef    String?
   addressId     String
-  address       Address       @relation(fields: [addressId], references: [id])
+  address       Address       @relation(fields: [addressId], references: [id], onDelete: Cascade)
   notes         String?
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
@@ -160,9 +160,9 @@ model Order {
 model OrderItem {
   id         String   @id @default(uuid())
   orderId    String
-  order      Order    @relation(fields: [orderId], references: [id])
+  order      Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
   productId  String
-  product    Product  @relation(fields: [productId], references: [id])
+  product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
   quantityKg Float
   pricePerKg Float
   subtotal   Float
@@ -171,7 +171,7 @@ model OrderItem {
 model Address {
   id        String   @id @default(uuid())
   userId    String
-  user      User     @relation(fields: [userId], references: [id])
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   label     String?
   fullName  String
   phone     String
@@ -188,9 +188,9 @@ model Address {
 model Activity {
   id           String   @id @default(uuid())
   farmId       String
-  farm         Farm     @relation(fields: [farmId], references: [id])
+  farm         Farm     @relation(fields: [farmId], references: [id], onDelete: Cascade)
   cropId       String?
-  crop         Crop?    @relation(fields: [cropId], references: [id])
+  crop         Crop?    @relation(fields: [cropId], references: [id], onDelete: SetNull)
   activityType String
   description  String?
   inputsUsed   String?
