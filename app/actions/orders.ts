@@ -5,7 +5,7 @@ import { redirect } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
 import { requireAuth, requireFarmer } from '@/lib/dal';
 import { checkoutSchema } from '@/lib/validations/order';
-import { sendAdminNotification } from '@/lib/notifications';
+import { sendAdminNotification, sendFarmerNotification } from '@/lib/notifications';
 import type { ActionState } from './crops';
 
 // ─── Create Order (Checkout) ──────────────────────────────────────────────────
@@ -138,13 +138,35 @@ export async function createOrderAction(
 
     revalidatePath('/products');
 
-    sendAdminNotification({
-      type: 'NEW_ORDER',
-      title: 'New Order Placed',
-      message: `Order #${order.id.slice(0, 8)} was placed for ₱${totalAmount}.`,
-      relatedId: order.id,
-      relatedType: 'order',
-    });
+    // Notify each farmer whose product(s) were ordered
+    const farmerProductMap = new Map<string, { userId: string; productNames: string[] }>();
+    for (const item of orderItems) {
+      const product = productMap.get(item.productId);
+      if (!product) continue;
+      // Fetch farm userId for this product's farmId
+      if (!farmerProductMap.has(product.farmId)) {
+        const farm = await prisma.farm.findUnique({
+          where: { id: product.farmId },
+          select: { userId: true },
+        });
+        if (farm) farmerProductMap.set(product.farmId, { userId: farm.userId, productNames: [] });
+      }
+      const entry = farmerProductMap.get(product.farmId);
+      if (entry) {
+        entry.productNames.push(product.name);
+      }
+    }
+
+    for (const [, { userId, productNames }] of farmerProductMap) {
+      const itemsSummary = productNames.slice(0, 2).join(', ') + (productNames.length > 2 ? ` +${productNames.length - 2} more` : '');
+      sendFarmerNotification(userId, {
+        type: 'NEW_CUSTOMER_ORDER',
+        title: '🛍️ New Order Received!',
+        message: `A customer placed an order for ${itemsSummary}. Order #${order.id.slice(0, 8)} — ₱${totalAmount.toLocaleString()}.`,
+        relatedId: order.id,
+        relatedType: 'order',
+      });
+    }
 
     // Redirect to order confirmation page on success
     redirect(`/order-confirmation?orderId=${order.id}`);

@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { prisma } from '@/lib/prisma';
 import { requireAdmin } from '@/lib/dal';
-import { sendAdminNotification } from '@/lib/notifications';
+import { sendAdminNotification, sendFarmerNotification } from '@/lib/notifications';
 import type { ActionState } from './crops';
 
 // ─── Dashboard Stats ──────────────────────────────────────────────────────────
@@ -138,6 +138,15 @@ export async function approveFarmerAction(farmId: string): Promise<ActionState> 
       data: { status: 'VERIFIED' },
     });
 
+    // Notify the farmer their account has been approved
+    sendFarmerNotification(farm.userId, {
+      type: 'ACCOUNT_APPROVED',
+      title: '🎉 Account Approved!',
+      message: `Congratulations! Your farm "${farm.farmName}" has been verified. You can now list products on the marketplace.`,
+      relatedId: farmId,
+      relatedType: 'farm',
+    });
+
     revalidatePath('/admin/farmers');
     revalidatePath('/admin');
 
@@ -244,7 +253,10 @@ export async function getAllListingsAction(page = 1, pageSize = 20) {
 export async function approveListingAction(productId: string): Promise<ActionState> {
   await requireAdmin();
 
-  const product = await prisma.product.findUnique({ where: { id: productId } });
+  const product = await prisma.product.findUnique({
+    where: { id: productId },
+    include: { farm: { select: { userId: true, farmName: true } } },
+  });
   if (!product) return { success: false, error: 'Product not found.' };
 
   try {
@@ -252,6 +264,17 @@ export async function approveListingAction(productId: string): Promise<ActionSta
       where: { id: productId },
       data: { status: 'ACTIVE' },
     });
+
+    // Notify the farmer their listing is now live
+    if (product.farm?.userId) {
+      sendFarmerNotification(product.farm.userId, {
+        type: 'LISTING_APPROVED',
+        title: '✅ Listing Approved',
+        message: `Your product "${product.name}" has been approved and is now live on the marketplace.`,
+        relatedId: productId,
+        relatedType: 'product',
+      });
+    }
 
     revalidatePath('/admin/listings');
     revalidatePath('/products');
@@ -269,7 +292,10 @@ export async function removeListingAction(
 ): Promise<ActionState> {
   await requireAdmin();
 
-  const product = await prisma.product.findUnique({ where: { id: productId } });
+  const product = await prisma.product.findUnique({
+    where: { id: productId },
+    include: { farm: { select: { userId: true, farmName: true } } },
+  });
   if (!product) return { success: false, error: 'Product not found.' };
 
   try {
@@ -277,6 +303,17 @@ export async function removeListingAction(
       where: { id: productId },
       data: { status: 'REMOVED' },
     });
+
+    // Notify the farmer their listing was removed
+    if (product.farm?.userId) {
+      sendFarmerNotification(product.farm.userId, {
+        type: 'LISTING_REMOVED',
+        title: '❌ Listing Removed',
+        message: `Your product "${product.name}" has been removed from the marketplace${reason ? `: ${reason}` : '. Please review our listing guidelines.'}.`,
+        relatedId: productId,
+        relatedType: 'product',
+      });
+    }
 
     revalidatePath('/admin/listings');
     revalidatePath('/products');

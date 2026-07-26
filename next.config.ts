@@ -6,6 +6,9 @@ import type { NextConfig } from 'next';
 const nextConfig: NextConfig = {
   // Suppress Turbopack webpack-config warning from PWA plugins
   turbopack: {},
+  // sharp uses native binaries — must NOT be bundled by webpack/Turbopack
+  serverExternalPackages: ['sharp'],
+
   images: {
     remotePatterns: [
       {

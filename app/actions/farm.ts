@@ -85,6 +85,55 @@ export async function updateFarmProfileAction(
   }
 }
 
+// ─── Update Avatar URL ────────────────────────────────────────────────────────
+
+export async function updateAvatarUrlAction(avatarUrl: string): Promise<ActionState> {
+  const { id: userId } = await requireFarmer();
+
+  if (!avatarUrl || !avatarUrl.startsWith('http')) {
+    return { success: false, error: 'Invalid avatar URL.' };
+  }
+
+  try {
+    await prisma.user.update({
+      where: { id: userId },
+      data: { avatarUrl },
+    });
+
+    revalidatePath('/farmer/farm-profile');
+    revalidatePath('/farmer/dashboard');
+
+    return { success: true, message: 'Avatar updated successfully!' };
+  } catch (err) {
+    console.error('[updateAvatarUrl]', err);
+    return { success: false, error: 'Failed to update avatar.' };
+  }
+}
+
+// ─── Update Cover Photo URL ───────────────────────────────────────────────────
+
+export async function updateCoverPhotoUrlAction(coverPhotoUrl: string): Promise<ActionState> {
+  const { farmId } = await requireFarmer();
+
+  if (!coverPhotoUrl || !coverPhotoUrl.startsWith('http')) {
+    return { success: false, error: 'Invalid cover photo URL.' };
+  }
+
+  try {
+    await prisma.farm.update({
+      where: { id: farmId },
+      data: { coverPhoto: coverPhotoUrl },
+    });
+
+    revalidatePath('/farmer/farm-profile');
+
+    return { success: true, message: 'Cover photo updated successfully!' };
+  } catch (err) {
+    console.error('[updateCoverPhotoUrl]', err);
+    return { success: false, error: 'Failed to update cover photo.' };
+  }
+}
+
 // ─── Get Farmer Dashboard Stats ───────────────────────────────────────────────
 
 export async function getFarmerDashboardStatsAction() {
@@ -315,17 +364,12 @@ export async function getPublicFarmerByIdAction(id: string) {
 // ─── Get Farmer Notifications ──────────────────────────────────────────────────
 
 export async function getFarmerNotificationsAction() {
-  const farmerUser = await requireFarmer();
-  const farmId = farmerUser.farmId;
+  const { id: userId } = await requireFarmer();
 
   const notifications = await prisma.notification.findMany({
-    where: {
-      OR: [
-        { relatedId: farmId },
-        { relatedId: farmerUser.id },
-      ]
-    },
+    where: { recipientId: userId },
     orderBy: { createdAt: 'desc' },
+    take: 50,
   });
 
   return notifications;
@@ -334,15 +378,32 @@ export async function getFarmerNotificationsAction() {
 // ─── Mark Notification As Read ────────────────────────────────────────────────
 
 export async function markNotificationAsReadAction(id: string) {
-  await requireFarmer();
+  const { id: userId } = await requireFarmer();
   try {
-    await prisma.notification.update({
-      where: { id },
+    // Security: ensure this notification belongs to this user
+    await prisma.notification.updateMany({
+      where: { id, recipientId: userId },
       data: { isRead: true },
     });
     return { success: true };
   } catch (error) {
     return { success: false, error: 'Failed to mark notification.' };
   }
-
 }
+
+// ─── Mark All Farmer Notifications As Read ────────────────────────────────────
+
+export async function markAllFarmerNotificationsReadAction() {
+  const { id: userId } = await requireFarmer();
+  try {
+    await prisma.notification.updateMany({
+      where: { recipientId: userId, isRead: false },
+      data: { isRead: true },
+    });
+    revalidatePath('/farmer/farm-profile');
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: 'Failed to mark all notifications as read.' };
+  }
+}
+
