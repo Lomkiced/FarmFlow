@@ -146,8 +146,9 @@ export async function createOrderAction(
       relatedType: 'order',
     });
 
-    // Redirect to order tracking on success
-    redirect(`/orders/${order.id}`);
+    // Redirect to order confirmation page on success
+    redirect(`/order-confirmation?orderId=${order.id}`);
+
   } catch (err: unknown) {
     // redirect() throws a special error — re-throw it
     if (err instanceof Error && err.message === 'NEXT_REDIRECT') throw err;

@@ -53,7 +53,8 @@ export default async function FarmProfilePage() {
         
         {/* Cover + Avatar */}
         <div className="relative bg-surface">
-          <div className="h-48 w-full bg-cover bg-center" style={{ backgroundImage: `url('https://images.unsplash.com/photo-1500382017468-9049fed747ef?w=800&q=80')` }} />
+          <div className="h-48 w-full bg-cover bg-center relative overflow-hidden" style={{ backgroundImage: `url('${farmProfile.coverPhoto || 'https://images.unsplash.com/photo-1500382017468-9049fed747ef?w=800&q=80'}')` }} />
+
           <div className="px-[16px] relative -mt-12 flex items-end justify-between">
             <div className="relative">
               <img src={avatarUrl || "https://i.pravatar.cc/150?img=12"} alt="Avatar" className="w-24 h-24 rounded-full border-4 border-surface object-cover shadow-sm bg-surface" />

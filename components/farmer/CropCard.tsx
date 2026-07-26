@@ -1,1 +1,0 @@
-export default function CropCard() { return null; }

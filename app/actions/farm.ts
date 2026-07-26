@@ -239,11 +239,36 @@ export async function getFarmerDashboardStatsAction() {
 
 // ─── Public Farm Queries ──────────────────────────────────────────────────────
 
-export async function getPublicFarmersAction() {
+export async function getPublicFarmersAction(params?: {
+  search?: string;
+  sort?: 'rating' | 'products' | 'name';
+}) {
+  const search = params?.search?.trim();
+  const sort = params?.sort ?? 'rating';
+
+  const whereClause: any = {
+    status: 'VERIFIED',
+    ...(search
+      ? {
+          OR: [
+            { farmName: { contains: search, mode: 'insensitive' } },
+            { barangay: { contains: search, mode: 'insensitive' } },
+            { municipality: { contains: search, mode: 'insensitive' } },
+            { user: { name: { contains: search, mode: 'insensitive' } } },
+          ],
+        }
+      : {}),
+  };
+
+  const orderBy: any =
+    sort === 'name'
+      ? { farmName: 'asc' }
+      : sort === 'products'
+      ? { products: { _count: 'desc' } }
+      : { rating: 'desc' };
+
   const farms = await prisma.farm.findMany({
-    where: {
-      status: { in: ['VERIFIED', 'PENDING'] },
-    },
+    where: whereClause,
     include: {
       user: {
         select: { avatarUrl: true, name: true },
@@ -257,9 +282,7 @@ export async function getPublicFarmersAction() {
         select: { products: { where: { status: 'ACTIVE' } } }
       }
     },
-    orderBy: {
-      rating: 'desc',
-    },
+    orderBy,
   });
 
   return farms;

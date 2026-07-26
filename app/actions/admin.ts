@@ -385,6 +385,227 @@ export async function updateOrderStatusAdminAction(
   }
 }
 
+// ─── Analytics ────────────────────────────────────────────────────────────────
+
+export async function getAnalyticsStatsAction() {
+  await requireAdmin();
+
+  const startOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+  const startOfLastMonth = new Date(new Date().getFullYear(), new Date().getMonth() - 1, 1);
+  const endOfLastMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 0);
+
+  const [
+    totalRevenueAgg,
+    thisMonthRevenueAgg,
+    lastMonthRevenueAgg,
+    activeFarmerCount,
+    newFarmerCount,
+    totalHarvestVolumeAgg,
+    avgOrderValueAgg,
+    topCropsByCategory,
+    mostActiveFarmers,
+    revenueByBarangay,
+    monthlyRevenueTrend,
+  ] = await Promise.all([
+    // Total all-time revenue from delivered + paid orders
+    prisma.order.aggregate({
+      where: { orderStatus: 'DELIVERED', paymentStatus: 'PAID' },
+      _sum: { totalAmount: true },
+    }),
+    // This month revenue
+    prisma.order.aggregate({
+      where: {
+        orderStatus: 'DELIVERED',
+        paymentStatus: 'PAID',
+        createdAt: { gte: startOfMonth },
+      },
+      _sum: { totalAmount: true },
+    }),
+    // Last month revenue (for growth calc)
+    prisma.order.aggregate({
+      where: {
+        orderStatus: 'DELIVERED',
+        paymentStatus: 'PAID',
+        createdAt: { gte: startOfLastMonth, lte: endOfLastMonth },
+      },
+      _sum: { totalAmount: true },
+    }),
+    // Active (VERIFIED) farmer count
+    prisma.farm.count({ where: { status: 'VERIFIED' } }),
+    // New farmers this month
+    prisma.farm.count({ where: { createdAt: { gte: startOfMonth } } }),
+    // Total harvest volume in stock (kg) across all ACTIVE products
+    prisma.product.aggregate({
+      where: { status: 'ACTIVE' },
+      _sum: { stockKg: true },
+    }),
+    // Average order value (all delivered paid orders)
+    prisma.order.aggregate({
+      where: { orderStatus: 'DELIVERED', paymentStatus: 'PAID' },
+      _avg: { totalAmount: true },
+    }),
+    // Top 5 product categories by number of active listings
+    prisma.product.groupBy({
+      by: ['category'],
+      where: { status: 'ACTIVE' },
+      _count: { id: true },
+      _sum: { stockKg: true },
+      orderBy: { _count: { id: 'desc' } },
+      take: 5,
+    }),
+    // Most active farmers by number of delivered orders
+    prisma.farm.findMany({
+      take: 5,
+      include: {
+        user: { select: { name: true, avatarUrl: true } },
+        products: {
+          where: { status: 'ACTIVE' },
+          select: {
+            orderItems: {
+              include: {
+                order: {
+                  select: { orderStatus: true, totalAmount: true },
+                },
+              },
+            },
+          },
+        },
+        _count: {
+          select: { products: true },
+        },
+      },
+      orderBy: {
+        totalSales: 'desc',
+      },
+    }),
+    // Revenue grouped by barangay (from farm locations of fulfilled orders)
+    prisma.orderItem.findMany({
+      where: {
+        order: { orderStatus: 'DELIVERED', paymentStatus: 'PAID' },
+      },
+      select: {
+        subtotal: true,
+        product: {
+          select: {
+            farm: { select: { barangay: true } },
+          },
+        },
+      },
+    }),
+    // Monthly revenue for the last 6 months
+    prisma.order.findMany({
+      where: {
+        orderStatus: 'DELIVERED',
+        paymentStatus: 'PAID',
+        createdAt: {
+          gte: new Date(new Date().setMonth(new Date().getMonth() - 5, 1)),
+        },
+      },
+      select: { totalAmount: true, createdAt: true },
+    }),
+  ]);
+
+  // --- Process Top Crops ---
+  const topCrops = topCropsByCategory.map((c) => ({
+    category: c.category,
+    count: c._count.id,
+    volumeKg: c._sum.stockKg ?? 0,
+  }));
+
+  // Calculate percentages for the chart (relative to the highest count)
+  const maxCount = Math.max(...topCrops.map((c) => c.count), 1);
+  const topCropsWithPercent = topCrops.map((c) => ({
+    ...c,
+    percent: Math.round((c.count / maxCount) * 100),
+  }));
+
+  // --- Process Most Active Farmers ---
+  const processedFarmers = mostActiveFarmers.map((farm) => {
+    let completedOrderCount = 0;
+    let totalSalesAmount = 0;
+    for (const product of farm.products) {
+      for (const item of product.orderItems) {
+        if (item.order.orderStatus === 'DELIVERED') {
+          completedOrderCount++;
+          totalSalesAmount += item.order.totalAmount;
+        }
+      }
+    }
+    return {
+      id: farm.id,
+      farmName: farm.farmName,
+      barangay: farm.barangay,
+      userName: farm.user?.name ?? 'Unknown',
+      avatarUrl: farm.user?.avatarUrl ?? null,
+      completedOrderCount,
+      totalSalesAmount,
+      productsListed: farm._count.products,
+    };
+  }).sort((a, b) => b.totalSalesAmount - a.totalSalesAmount);
+
+  // --- Process Revenue by Barangay ---
+  const barangayMap = new Map<string, number>();
+  for (const item of revenueByBarangay) {
+    const barangay = item.product.farm.barangay ?? 'Unknown';
+    barangayMap.set(barangay, (barangayMap.get(barangay) ?? 0) + item.subtotal);
+  }
+  const sortedBarangays = Array.from(barangayMap.entries())
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5);
+  const maxBarangayRevenue = Math.max(...sortedBarangays.map((b) => b[1]), 1);
+  const revenueByBarangayProcessed = sortedBarangays.map(([name, revenue]) => ({
+    name,
+    revenue,
+    percent: Math.round((revenue / maxBarangayRevenue) * 100),
+  }));
+
+  // --- Process Monthly Trend (last 6 months) ---
+  const trendMap = new Map<string, number>();
+  const monthLabels: string[] = [];
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date();
+    d.setMonth(d.getMonth() - i, 1);
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    const label = d.toLocaleString('en-PH', { month: 'short' });
+    trendMap.set(key, 0);
+    monthLabels.push(label);
+  }
+  for (const order of monthlyRevenueTrend) {
+    const d = new Date(order.createdAt);
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    if (trendMap.has(key)) {
+      trendMap.set(key, (trendMap.get(key) ?? 0) + order.totalAmount);
+    }
+  }
+  const trendValues = Array.from(trendMap.values());
+  const maxTrendValue = Math.max(...trendValues, 1);
+  const monthlyTrend = trendValues.map((val, idx) => ({
+    label: monthLabels[idx],
+    value: val,
+    percent: Math.round((val / maxTrendValue) * 100),
+  }));
+
+  // --- Revenue growth calc ---
+  const thisMonth = thisMonthRevenueAgg._sum.totalAmount ?? 0;
+  const lastMonth = lastMonthRevenueAgg._sum.totalAmount ?? 0;
+  const revenueGrowth =
+    lastMonth > 0 ? (((thisMonth - lastMonth) / lastMonth) * 100).toFixed(1) : null;
+
+  return {
+    totalRevenue: totalRevenueAgg._sum.totalAmount ?? 0,
+    thisMonthRevenue: thisMonth,
+    revenueGrowth,
+    activeFarmerCount,
+    newFarmerCount,
+    totalHarvestVolumeKg: totalHarvestVolumeAgg._sum.stockKg ?? 0,
+    avgOrderValue: avgOrderValueAgg._avg.totalAmount ?? 0,
+    topCrops: topCropsWithPercent,
+    mostActiveFarmers: processedFarmers,
+    revenueByBarangay: revenueByBarangayProcessed,
+    monthlyTrend,
+  };
+}
+
 // ─── Global Search ────────────────────────────────────────────────────────────
 
 export async function globalSearchAdminAction(query: string) {
