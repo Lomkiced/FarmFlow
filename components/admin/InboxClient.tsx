@@ -9,10 +9,27 @@ import {
   deleteAllReadNotificationsAction 
 } from '@/app/actions/notifications';
 
-type NotificationType = 'NEW_USER' | 'PENDING_FARMER' | 'NEW_LISTING' | 'NEW_ORDER' | 'ORDER_STATUS_CHANGE' | 'PAYMENT_CONFIRMED';
+type NotificationType =
+  // Admin-facing
+  | 'NEW_USER'
+  | 'PENDING_FARMER'
+  | 'NEW_LISTING'
+  | 'NEW_ORDER'
+  | 'ORDER_STATUS_CHANGE'
+  | 'PAYMENT_CONFIRMED'
+  // Farmer-facing
+  | 'ACCOUNT_APPROVED'
+  | 'LISTING_APPROVED'
+  | 'LISTING_REMOVED'
+  | 'NEW_CUSTOMER_ORDER'
+  | 'ORDER_CONFIRMED'
+  | 'ORDER_READY'
+  | 'ORDER_DELIVERED'
+  | 'ORDER_CANCELLED';
 
 type Notification = {
   id: string;
+  recipientId: string | null;
   type: NotificationType;
   title: string;
   message: string;
