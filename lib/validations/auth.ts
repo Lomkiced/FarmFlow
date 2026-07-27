@@ -35,6 +35,24 @@ export const farmerRegisterSchema = z.object({
   crops: z.array(z.string()).min(1, { message: 'Please select at least one primary crop.' }),
 });
 
+export const forgotPasswordSchema = z.object({
+  email: z.string().email({ message: 'Please enter a valid email address.' }).trim(),
+});
+
+export const updatePasswordSchema = z.object({
+  password: z
+    .string()
+    .min(8, { message: 'Password must be at least 8 characters.' })
+    .regex(/[a-zA-Z]/, { message: 'Password must contain at least one letter.' })
+    .regex(/[0-9]/, { message: 'Password must contain at least one number.' }),
+  confirmPassword: z.string(),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: 'Passwords do not match.',
+  path: ['confirmPassword'],
+});
+
 export type LoginFormValues = z.infer<typeof loginSchema>;
 export type BuyerRegisterFormValues = z.infer<typeof buyerRegisterSchema>;
 export type FarmerRegisterFormValues = z.infer<typeof farmerRegisterSchema>;
+export type ForgotPasswordFormValues = z.infer<typeof forgotPasswordSchema>;
+export type UpdatePasswordFormValues = z.infer<typeof updatePasswordSchema>;

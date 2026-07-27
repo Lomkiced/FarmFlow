@@ -20,6 +20,11 @@ export async function GET(request: Request) {
         select: { role: true },
       });
 
+      // Crucial: Intercept password reset flow before dropping into role-based dashboard
+      if (next.startsWith('/auth/update-password')) {
+        return NextResponse.redirect(new URL(next, requestUrl.origin));
+      }
+
       if (profile?.role === 'ADMIN') {
         return NextResponse.redirect(new URL('/admin', requestUrl.origin));
       }

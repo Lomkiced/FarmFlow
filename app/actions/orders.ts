@@ -168,8 +168,8 @@ export async function createOrderAction(
       });
     }
 
-    // Redirect to order tracking on success
-    redirect(`/orders/${order.id}`);
+    // Redirect to order confirmation page on success
+    redirect(`/order-confirmation?orderId=${order.id}`);
 
   } catch (err: unknown) {
     // redirect() throws a special error — re-throw it

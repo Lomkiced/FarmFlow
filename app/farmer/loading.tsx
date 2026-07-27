@@ -1,5 +1,3 @@
-import { Sprout } from 'lucide-react';
-
 export default function FarmerPortalLoading() {
   return (
     <div className="flex-1 flex flex-col items-center justify-center min-h-[80vh] gap-6 w-full">
@@ -15,7 +13,7 @@ export default function FarmerPortalLoading() {
 
         {/* Inner icon container */}
         <div className="relative bg-surface w-14 h-14 rounded-full flex items-center justify-center shadow-level-2 border border-outline-variant/30 z-10 transition-transform hover:scale-105 duration-300">
-          <Sprout className="w-7 h-7 text-primary animate-pulse" />
+          <span className="material-symbols-outlined text-primary text-3xl animate-pulse">eco</span>
         </div>
       </div>
       

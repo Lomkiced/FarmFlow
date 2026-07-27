@@ -3,6 +3,8 @@ import Link from 'next/link';
 import CategoryFilter from '@/components/marketplace/CategoryFilter';
 import { getFeaturedProductsAction } from '@/app/actions/search';
 
+export const dynamic = 'force-dynamic';
+
 export default async function HomePage() {
   const featuredProducts = await getFeaturedProductsAction();
 

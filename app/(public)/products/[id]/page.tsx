@@ -2,6 +2,8 @@ import { notFound } from 'next/navigation';
 import ProductDetailClient from '@/components/marketplace/ProductDetailClient';
 import { getPublicProductAction } from '@/app/actions/search';
 
+export const dynamic = 'force-dynamic';
+
 export default async function ProductDetailPage(props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
   const data = await getPublicProductAction(params.id);

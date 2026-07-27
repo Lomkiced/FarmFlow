@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Confirm Your FarmFlow Account</title>
+  <style>
+    /* CSS Reset and base styles */
+    body { 
+      margin: 0; 
+      padding: 0; 
+      background-color: #FAFAF7; /* FarmFlow Cream */
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; 
+      -webkit-font-smoothing: antialiased; 
+    }
+    table { border-collapse: collapse; }
+    
+    /* Hover effects don't work in all email clients, but good for those that support it */
+    .button:hover { background-color: #F59E0B !important; }
+    
+    /* Responsive styles */
+    @media screen and (max-width: 600px) {
+      .container {
+        width: 100% !important;
+        border-radius: 0 !important;
+      }
+      .content-padding {
+        padding: 32px 24px !important;
+      }
+      h1 { font-size: 28px !important; }
+      h2 { font-size: 22px !important; }
+    }
+  </style>
+</head>
+<body style="margin: 0; padding: 0; background-color: #FAFAF7; width: 100%; -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%;">
+  
+  <!-- Outer Wrapper to set background color -->
+  <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #FAFAF7; padding: 40px 20px;">
+    <tr>
+      <td align="center">
+        
+        <!-- Main Content Container -->
+        <table class="container" width="600" border="0" cellspacing="0" cellpadding="0" style="max-width: 600px; width: 100%; background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 25px rgba(27, 67, 50, 0.06);">
+          
+          <!-- Header Area -->
+          <tr>
+            <td align="center" style="background-color: #1B4332; padding: 48px 20px; border-bottom: 4px solid #D97706;">
+              <!-- Logo / Brand Name -->
+              <h1 style="margin: 0; color: #ffffff; font-size: 34px; font-weight: 800; font-family: 'Inter', Arial, sans-serif; letter-spacing: -0.5px;">
+                Farm<span style="color: #D97706;">Flow</span>
+              </h1>
+              <!-- Subtitle -->
+              <p style="color: #C6E6D4; margin: 10px 0 0 0; font-size: 15px; font-weight: 500; font-family: 'Inter', Arial, sans-serif; letter-spacing: 0.5px; text-transform: uppercase;">
+                Empowering Local Agriculture
+              </p>
+            </td>
+          </tr>
+
+          <!-- Body Content -->
+          <tr>
+            <td class="content-padding" align="center" style="padding: 56px 48px; font-family: 'Inter', Arial, sans-serif;">
+              
+              <!-- Greeting -->
+              <h2 style="font-size: 26px; margin: 0 0 20px 0; font-weight: 700; color: #1B4332;">
+                Welcome to the Community! 🌾
+              </h2>
+              
+              <!-- Message -->
+              <p style="font-size: 16px; line-height: 1.6; color: #4b5563; margin: 0 0 36px 0; text-align: center;">
+                We're thrilled to have you join FarmFlow. Whether you're here to share your harvest or discover fresh, local produce, you're now part of a movement to sustain local farming in La Union.
+                <br><br>
+                Please verify your email address to activate your account and gain full access to the platform.
+              </p>
+              
+              <!-- CTA Button -->
+              <table border="0" cellspacing="0" cellpadding="0" style="margin: 0 auto;">
+                <tr>
+                  <td align="center" style="border-radius: 8px; background-color: #D97706;">
+                    <a href="{{ .ConfirmationURL }}" class="button" target="_blank" style="display: inline-block; padding: 16px 40px; font-family: 'Inter', Arial, sans-serif; font-size: 16px; color: #ffffff; text-decoration: none; font-weight: 600; border-radius: 8px; border: 1px solid #D97706;">
+                      Verify Email Address
+                    </a>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Divider -->
+              <table width="100%" border="0" cellspacing="0" cellpadding="0">
+                <tr>
+                  <td style="padding: 40px 0 32px 0;">
+                    <div style="border-top: 1px solid #e5e7eb;"></div>
+                  </td>
+                </tr>
+              </table>
+              
+              <!-- Fallback Link -->
+              <p style="font-size: 13px; color: #9ca3af; line-height: 1.6; margin: 0; text-align: center;">
+                If the button above doesn't work, copy and paste this link into your web browser:<br>
+                <a href="{{ .ConfirmationURL }}" style="color: #84A98C; text-decoration: underline; word-break: break-all; margin-top: 8px; display: inline-block;">
+                  {{ .ConfirmationURL }}
+                </a>
+              </p>
+              
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td align="center" style="padding: 32px 24px; background-color: #FAFAF7; border-top: 1px solid #e5e7eb; font-family: 'Inter', Arial, sans-serif;">
+              <p style="margin: 0 0 8px 0; font-size: 14px; color: #4b5563; font-weight: 600;">
+                FarmFlow &copy; 2026
+              </p>
+              <p style="margin: 0; font-size: 13px; color: #9ca3af; line-height: 1.5;">
+                Agoo, La Union, Philippines<br>
+                Need help? Contact our <a href="mailto:support@farmflow.ph" style="color: #D97706; text-decoration: none;">support team</a>.
+              </p>
+            </td>
+          </tr>
+          
+        </table>
+        
+        <!-- Spacing at the bottom -->
+        <table width="100%" border="0" cellspacing="0" cellpadding="0">
+          <tr><td height="40"></td></tr>
+        </table>
+        
+      </td>
+    </tr>
+  </table>
+</body>
+</html>

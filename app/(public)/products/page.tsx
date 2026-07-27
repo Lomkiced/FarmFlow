@@ -9,6 +9,8 @@ import Link from 'next/link';
 
 type SearchParams = Promise<{ [key: string]: string | string[] | undefined }>;
 
+export const dynamic = 'force-dynamic';
+
 export default async function ProductsPage(props: { searchParams: SearchParams }) {
   const searchParams = await props.searchParams;
 
@@ -74,12 +76,11 @@ export default async function ProductsPage(props: { searchParams: SearchParams }
                         price={`₱${product.pricePerKg.toLocaleString(undefined, { minimumFractionDigits: 2 })}`}
                         unit="/kg"
                         farmerName={product.farm.farmName}
-                        rating={product.farm.rating || 5}
-                        reviewCount={0} // TODO: Implement real review count
-                        distanceKm={Math.floor(Math.random() * 5) + 1} // Mapped for demonstration
+                        rating={product.farm.rating || 0}
                       />
                     </Link>
                   );
+
                 })}
               </div>
             )}

@@ -5,9 +5,13 @@ import { createServerClient } from '@supabase/ssr';
 const PROTECTED_ROUTES: Record<string, string[]> = {
   '/admin': ['ADMIN'],
   '/farmer': ['FARMER'],
+  '/buyer': ['BUYER', 'ADMIN'],
+  '/checkout': ['BUYER', 'ADMIN', 'FARMER'],
+  '/order-confirmation': ['BUYER', 'ADMIN', 'FARMER'],
 };
 
 const AUTH_ROUTES = ['/auth/login', '/auth/register'];
+
 
 export async function proxy(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });

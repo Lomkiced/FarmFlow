@@ -4,6 +4,8 @@ import { notFound } from 'next/navigation';
 import { getPublicFarmerByIdAction } from '@/app/actions/farm';
 import ProductListingCard from '@/components/marketplace/ProductListingCard';
 
+export const dynamic = 'force-dynamic';
+
 export default async function FarmerProfilePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const farm = await getPublicFarmerByIdAction(id);
@@ -139,9 +141,7 @@ export default async function FarmerProfilePage({ params }: { params: Promise<{ 
                   price={`₱${product.pricePerKg.toFixed(2)}`}
                   unit="/ kg"
                   farmerName={farm.farmName}
-                  rating={5.0} // Placeholder until product ratings exist
-                  reviewCount={12} // Placeholder
-                  distanceKm={5.2} // Placeholder
+                  rating={farm.rating || 0}
                   stockKg={product.stockKg}
                 />
               </Link>
