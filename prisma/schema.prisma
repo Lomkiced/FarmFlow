@@ -86,6 +86,7 @@ model User {
   phone         String?
   avatarUrl     String?
   role          Role         @default(BUYER)
+  isSuspended   Boolean      @default(false)
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
   farm          Farm?
