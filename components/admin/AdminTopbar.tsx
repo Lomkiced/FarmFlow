@@ -351,8 +351,8 @@ export default function AdminTopbar() {
         </div>
 
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-full overflow-hidden border border-admin-outline-variant">
-            <Image src="https://i.pravatar.cc/150?img=3" width={32} height={32} className="object-cover" alt="Admin" />
+          <div className="w-10 h-10 rounded-full flex items-center justify-center bg-secondary-container text-on-secondary-container">
+            <span className="material-symbols-outlined text-[20px]">admin_panel_settings</span>
           </div>
           <div className="hidden md:block">
             <div className="font-admin-body-sm font-medium text-admin-on-surface">Admin User</div>
