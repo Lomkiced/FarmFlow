@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import toast from 'react-hot-toast';
+import { addAdminAction } from '@/app/actions/admin';
 
 type AdminUser = {
   id: string;
@@ -30,6 +31,30 @@ export default function AdminSettingsClient({ adminUsers }: Props) {
     pendingListings: true,
   });
   const [isSaving, setIsSaving] = useState(false);
+
+  // Add Admin State
+  const [isAddAdminOpen, setIsAddAdminOpen] = useState(false);
+  const [newAdminName, setNewAdminName] = useState('');
+  const [newAdminEmail, setNewAdminEmail] = useState('');
+  const [isAddingAdmin, setIsAddingAdmin] = useState(false);
+
+  const handleAddAdmin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newAdminName || !newAdminEmail) return;
+
+    setIsAddingAdmin(true);
+    const res = await addAdminAction(newAdminName, newAdminEmail);
+    setIsAddingAdmin(false);
+
+    if (res.success) {
+      toast.success(res.message || 'Admin added successfully!');
+      setNewAdminName('');
+      setNewAdminEmail('');
+      setIsAddAdminOpen(false);
+    } else {
+      toast.error(res.error || 'Failed to add admin.');
+    }
+  };
 
   const handleSave = async () => {
     setIsSaving(true);
@@ -126,12 +151,85 @@ export default function AdminSettingsClient({ adminUsers }: Props) {
                   <span className="material-symbols-outlined text-primary">manage_accounts</span>
                   Administrator Accounts
                 </h2>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-medium text-admin-on-surface-variant bg-admin-surface-container px-3 py-1 rounded-full border border-admin-outline-variant">
+                <div className="flex items-center gap-3">
+                  <span className="text-xs font-medium text-admin-on-surface-variant bg-admin-surface-container px-3 py-1.5 rounded-full border border-admin-outline-variant">
                     {adminUsers.length} admin{adminUsers.length !== 1 ? 's' : ''}
                   </span>
+                  <button 
+                    onClick={() => setIsAddAdminOpen(true)}
+                    className="bg-primary text-on-primary text-xs font-bold px-3 py-1.5 rounded-lg flex items-center gap-1 hover:bg-primary/90 transition-colors shadow-sm"
+                  >
+                    <span className="material-symbols-outlined text-[16px]">person_add</span>
+                    Add Admin
+                  </button>
                 </div>
               </div>
+
+              {isAddAdminOpen && (
+                <div className="mb-6 bg-admin-surface-bright border border-admin-outline-variant rounded-xl p-5 shadow-sm">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="font-admin-body-base font-semibold text-admin-on-surface flex items-center gap-2">
+                      <span className="material-symbols-outlined text-primary text-[20px]">person_add</span>
+                      Invite New Administrator
+                    </h3>
+                    <button 
+                      onClick={() => setIsAddAdminOpen(false)}
+                      className="text-admin-on-surface-variant hover:text-error transition-colors"
+                    >
+                      <span className="material-symbols-outlined text-[20px]">close</span>
+                    </button>
+                  </div>
+                  <form onSubmit={handleAddAdmin} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <label className="font-admin-label-caps text-admin-label-caps text-admin-on-surface-variant block">
+                        Full Name
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={newAdminName}
+                        onChange={(e) => setNewAdminName(e.target.value)}
+                        placeholder="e.g. Juan Dela Cruz"
+                        className="w-full border border-admin-outline-variant rounded-lg px-4 py-2.5 font-admin-body-sm text-admin-on-surface focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-shadow bg-white"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="font-admin-label-caps text-admin-label-caps text-admin-on-surface-variant block">
+                        Email Address
+                      </label>
+                      <input
+                        type="email"
+                        required
+                        value={newAdminEmail}
+                        onChange={(e) => setNewAdminEmail(e.target.value)}
+                        placeholder="e.g. juan@agoo.gov.ph"
+                        className="w-full border border-admin-outline-variant rounded-lg px-4 py-2.5 font-admin-body-sm text-admin-on-surface focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-shadow bg-white"
+                      />
+                    </div>
+                    <div className="md:col-span-2 flex justify-end gap-2 mt-2">
+                      <button
+                        type="button"
+                        onClick={() => setIsAddAdminOpen(false)}
+                        className="px-4 py-2 text-sm font-medium text-admin-on-surface hover:bg-admin-surface-container-low rounded-lg transition-colors border border-transparent"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="submit"
+                        disabled={isAddingAdmin}
+                        className="px-4 py-2 text-sm font-medium bg-primary text-on-primary rounded-lg hover:bg-primary/90 transition-colors shadow-sm disabled:opacity-70 disabled:cursor-not-allowed flex items-center gap-2"
+                      >
+                        {isAddingAdmin ? (
+                          <>
+                            <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                            Inviting...
+                          </>
+                        ) : 'Send Invite'}
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              )}
 
               {adminUsers.length === 0 ? (
                 <div className="text-center py-12 text-admin-on-surface-variant">
