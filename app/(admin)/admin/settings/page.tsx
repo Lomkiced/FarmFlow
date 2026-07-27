@@ -5,7 +5,7 @@ import AdminSettingsClient from '@/components/admin/AdminSettingsClient';
 export const dynamic = 'force-dynamic';
 
 export default async function SettingsPage() {
-  await requireAdmin();
+  const session = await requireAdmin();
 
   // Fetch real admin users from the database
   const adminUsers = await prisma.user.findMany({
@@ -20,5 +20,5 @@ export default async function SettingsPage() {
     orderBy: { createdAt: 'asc' },
   });
 
-  return <AdminSettingsClient adminUsers={adminUsers} />;
+  return <AdminSettingsClient adminUsers={adminUsers} currentUserId={session.id} />;
 }
