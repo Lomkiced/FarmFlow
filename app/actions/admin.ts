@@ -793,3 +793,44 @@ export async function addAdminAction(name: string, email: string): Promise<Actio
     return { success: false, error: 'An unexpected error occurred.' };
   }
 }
+
+export async function deleteAdminAction(adminId: string): Promise<ActionState> {
+  const session = await requireAdmin();
+
+  if (session.id === adminId) {
+    return { success: false, error: 'You cannot delete your own account.' };
+  }
+
+  try {
+    const adminCount = await prisma.user.count({ where: { role: 'ADMIN' } });
+    if (adminCount <= 1) {
+      return { success: false, error: 'Cannot delete the last administrator.' };
+    }
+
+    const adminClient = await import('@/lib/supabase/server').then(m => m.createAdminClient());
+
+    // 1. Delete from Supabase Auth
+    const { error: authError } = await adminClient.auth.admin.deleteUser(adminId);
+    if (authError) {
+      console.error('[deleteAdmin] Supabase Auth Error:', authError);
+      if (!authError.message.includes('User not found')) {
+        return { success: false, error: 'Failed to delete user from authentication system.' };
+      }
+    }
+
+    // 2. Cascade delete in Prisma DB
+    await prisma.$transaction(async (tx) => {
+      await tx.notification.deleteMany({ 
+        where: { OR: [{ relatedId: adminId }, { recipientId: adminId }] } 
+      });
+      await tx.user.delete({ where: { id: adminId } });
+    });
+
+    revalidatePath('/admin/settings');
+    
+    return { success: true, message: 'Administrator successfully deleted.' };
+  } catch (err: any) {
+    console.error('[deleteAdmin]', err);
+    return { success: false, error: 'An unexpected error occurred.' };
+  }
+}
