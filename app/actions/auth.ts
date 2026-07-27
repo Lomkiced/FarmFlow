@@ -4,7 +4,7 @@ import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { prisma } from '@/lib/prisma';
-import { loginSchema, buyerRegisterSchema, farmerRegisterSchema } from '@/lib/validations/auth';
+import { loginSchema, buyerRegisterSchema, farmerRegisterSchema, forgotPasswordSchema, updatePasswordSchema } from '@/lib/validations/auth';
 import { sendAdminNotification } from '@/lib/notifications';
 import { headers } from 'next/headers';
 // ─────────────────────────────────────────────────
@@ -292,6 +292,76 @@ export async function registerFarmerAction(
   });
 
   redirect('/auth/register/success?role=farmer');
+}
+
+// ─────────────────────────────────────────────────
+// FORGOT PASSWORD
+// ─────────────────────────────────────────────────
+export async function forgotPasswordAction(
+  _prevState: AuthActionState | undefined,
+  formData: FormData
+): Promise<AuthActionState> {
+  const raw = {
+    email: formData.get('email') as string,
+  };
+
+  const parsed = forgotPasswordSchema.safeParse(raw);
+  if (!parsed.success) {
+    return { errors: parsed.error.flatten().fieldErrors };
+  }
+
+  const supabase = await createClient();
+  const headersList = await headers();
+  const host = headersList.get('host');
+  const protocol = process.env.NODE_ENV === 'development' ? 'http' : 'https';
+  const origin = `${protocol}://${host}`;
+
+  const { error } = await supabase.auth.resetPasswordForEmail(parsed.data.email, {
+    redirectTo: `${origin}/auth/callback?next=/auth/update-password`,
+  });
+
+  if (error) {
+    // For security, don't reveal if email exists, just say "Check your email" or a generic message.
+    // However, if rate limited, we should tell them.
+    if (error.message.includes('rate limit')) {
+      return { message: 'Too many requests. Please try again later.' };
+    }
+    // We return success anyway to prevent email enumeration, but here we can just pass the error if we want.
+    // Let's just return success message.
+  }
+
+  return { message: 'success' };
+}
+
+// ─────────────────────────────────────────────────
+// UPDATE PASSWORD
+// ─────────────────────────────────────────────────
+export async function updatePasswordAction(
+  _prevState: AuthActionState | undefined,
+  formData: FormData
+): Promise<AuthActionState> {
+  const raw = {
+    password: formData.get('password') as string,
+    confirmPassword: formData.get('confirmPassword') as string,
+  };
+
+  const parsed = updatePasswordSchema.safeParse(raw);
+  if (!parsed.success) {
+    return { errors: parsed.error.flatten().fieldErrors };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase.auth.updateUser({
+    password: parsed.data.password,
+  });
+
+  if (error) {
+    return { message: error.message || 'Failed to update password. Please try again.' };
+  }
+
+  // Force revalidation and redirect to login
+  await supabase.auth.signOut();
+  redirect('/auth/login?reset=success');
 }
 
 // ─────────────────────────────────────────────────
