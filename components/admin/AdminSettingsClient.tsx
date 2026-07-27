@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import toast from 'react-hot-toast';
-import { addAdminAction } from '@/app/actions/admin';
+import { addAdminAction, deleteAdminAction } from '@/app/actions/admin';
 
 type AdminUser = {
   id: string;
@@ -14,6 +14,7 @@ type AdminUser = {
 
 type Props = {
   adminUsers: AdminUser[];
+  currentUserId: string;
 };
 
 const SECTIONS = [
@@ -23,7 +24,7 @@ const SECTIONS = [
   { id: 'payment', label: 'Payment Integration', icon: 'payments' },
 ];
 
-export default function AdminSettingsClient({ adminUsers }: Props) {
+export default function AdminSettingsClient({ adminUsers, currentUserId }: Props) {
   const [activeSection, setActiveSection] = useState('general');
   const [notifications, setNotifications] = useState({
     newRegistrations: true,
@@ -62,6 +63,18 @@ export default function AdminSettingsClient({ adminUsers }: Props) {
     await new Promise((r) => setTimeout(r, 800));
     setIsSaving(false);
     toast.success('Settings saved successfully!');
+  };
+
+  const handleDeleteAdmin = async (id: string, name: string) => {
+    if (confirm(`Are you sure you want to permanently delete administrator ${name}? This action cannot be undone.`)) {
+      const loadingToast = toast.loading('Deleting administrator...');
+      const res = await deleteAdminAction(id);
+      if (res.success) {
+        toast.success(res.message || 'Administrator deleted.', { id: loadingToast });
+      } else {
+        toast.error(res.error || 'Failed to delete administrator.', { id: loadingToast });
+      }
+    }
   };
 
   const scrollTo = (id: string) => {
@@ -241,7 +254,7 @@ export default function AdminSettingsClient({ adminUsers }: Props) {
                   <table className="w-full text-left border-collapse">
                     <thead className="bg-admin-surface-container-low border-b border-admin-outline-variant">
                       <tr>
-                        {['Name', 'Email', 'Role', 'Joined', 'Status'].map((h) => (
+                        {['Name', 'Email', 'Role', 'Joined', 'Status', 'Actions'].map((h) => (
                           <th key={h} className="px-[16px] py-[10px] font-admin-label-caps text-admin-label-caps text-admin-on-surface-variant uppercase">
                             {h}
                           </th>
@@ -260,7 +273,9 @@ export default function AdminSettingsClient({ adminUsers }: Props) {
                                   {user.name.substring(0, 2).toUpperCase()}
                                 </div>
                               )}
-                              <span className="font-medium">{user.name}</span>
+                              <span className="font-medium">
+                                {user.name} {user.id === currentUserId && <span className="text-xs font-normal text-admin-on-surface-variant ml-1">(You)</span>}
+                              </span>
                             </div>
                           </td>
                           <td className="px-[16px] py-[12px] text-admin-on-surface-variant">{user.email}</td>
@@ -277,6 +292,16 @@ export default function AdminSettingsClient({ adminUsers }: Props) {
                               <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full" />
                               Active
                             </span>
+                          </td>
+                          <td className="px-[16px] py-[12px]">
+                            <button
+                              onClick={() => handleDeleteAdmin(user.id, user.name)}
+                              disabled={user.id === currentUserId || adminUsers.length <= 1}
+                              title={user.id === currentUserId ? 'You cannot delete yourself' : (adminUsers.length <= 1 ? 'Cannot delete the last admin' : 'Delete Administrator')}
+                              className="p-1.5 rounded-lg text-admin-on-surface-variant hover:bg-error/10 hover:text-error transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                            >
+                              <span className="material-symbols-outlined text-[20px]">delete</span>
+                            </button>
                           </td>
                         </tr>
                       ))}

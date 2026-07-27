@@ -749,18 +749,15 @@ export async function addAdminAction(name: string, email: string): Promise<Actio
 
     const adminClient = await import('@/lib/supabase/server').then(m => m.createAdminClient());
 
-    // Generate a highly secure random password for the initial creation
-    const randomPassword = Array(32)
-      .fill('0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz!@#$%^&*()_+')
-      .map((x) => x[Math.floor(Math.random() * x.length)])
-      .join('');
+    const headersList = await import('next/headers').then(m => m.headers());
+    const host = headersList.get('host');
+    const protocol = process.env.NODE_ENV === 'development' ? 'http' : 'https';
+    const origin = `${protocol}://${host}`;
 
-    // 1. Create the user in Supabase Auth bypassing sign-up rules
-    const { data: authData, error: authError } = await adminClient.auth.admin.createUser({
-      email,
-      password: randomPassword,
-      email_confirm: true,
-      user_metadata: {
+    // 1. Invite the user in Supabase Auth (This securely sends the Invite User email template)
+    const { data: authData, error: authError } = await adminClient.auth.admin.inviteUserByEmail(email, {
+      redirectTo: `${origin}/auth/callback?next=/auth/update-password`,
+      data: {
         name,
         role: 'ADMIN',
       },
@@ -768,7 +765,7 @@ export async function addAdminAction(name: string, email: string): Promise<Actio
 
     if (authError || !authData.user) {
       console.error('[addAdmin] Auth Error:', authError);
-      return { success: false, error: authError?.message || 'Failed to create user in Auth system.' };
+      return { success: false, error: authError?.message || 'Failed to send invite.' };
     }
 
     // 2. Insert into Prisma database
@@ -788,26 +785,52 @@ export async function addAdminAction(name: string, email: string): Promise<Actio
       return { success: false, error: 'Failed to create admin in database.' };
     }
 
-    // 3. Trigger a password reset email so they can set their real password
-    const headersList = await import('next/headers').then(m => m.headers());
-    const host = headersList.get('host');
-    const protocol = process.env.NODE_ENV === 'development' ? 'http' : 'https';
-    const origin = `${protocol}://${host}`;
-
-    const { error: resetError } = await adminClient.auth.resetPasswordForEmail(email, {
-      redirectTo: `${origin}/auth/callback?next=/auth/update-password`,
-    });
-
-    if (resetError) {
-      console.error('[addAdmin] Reset Password Error:', resetError);
-      // We still return success but maybe with a note, but it's fine.
-    }
-
     revalidatePath('/admin/settings');
     
     return { success: true, message: `Administrator ${name} has been created and invited!` };
   } catch (err: any) {
     console.error('[addAdmin]', err);
+    return { success: false, error: 'An unexpected error occurred.' };
+  }
+}
+
+export async function deleteAdminAction(adminId: string): Promise<ActionState> {
+  const session = await requireAdmin();
+
+  if (session.id === adminId) {
+    return { success: false, error: 'You cannot delete your own account.' };
+  }
+
+  try {
+    const adminCount = await prisma.user.count({ where: { role: 'ADMIN' } });
+    if (adminCount <= 1) {
+      return { success: false, error: 'Cannot delete the last administrator.' };
+    }
+
+    const adminClient = await import('@/lib/supabase/server').then(m => m.createAdminClient());
+
+    // 1. Delete from Supabase Auth
+    const { error: authError } = await adminClient.auth.admin.deleteUser(adminId);
+    if (authError) {
+      console.error('[deleteAdmin] Supabase Auth Error:', authError);
+      if (!authError.message.includes('User not found')) {
+        return { success: false, error: 'Failed to delete user from authentication system.' };
+      }
+    }
+
+    // 2. Cascade delete in Prisma DB
+    await prisma.$transaction(async (tx) => {
+      await tx.notification.deleteMany({ 
+        where: { OR: [{ relatedId: adminId }, { recipientId: adminId }] } 
+      });
+      await tx.user.delete({ where: { id: adminId } });
+    });
+
+    revalidatePath('/admin/settings');
+    
+    return { success: true, message: 'Administrator successfully deleted.' };
+  } catch (err: any) {
+    console.error('[deleteAdmin]', err);
     return { success: false, error: 'An unexpected error occurred.' };
   }
 }
