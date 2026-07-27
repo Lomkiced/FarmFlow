@@ -169,16 +169,7 @@ export async function rejectFarmerAction(
   try {
     const adminClient = await import('@/lib/supabase/server').then(m => m.createServiceClient());
     
-    // 1. Delete from Supabase Auth
-    const { error: authError } = await adminClient.auth.admin.deleteUser(farm.userId);
-    if (authError) {
-      console.error('[rejectFarmer] Supabase Auth Error:', authError);
-      if (authError.status !== 404) {
-        return { success: false, error: `Auth Error: ${authError.message}` };
-      }
-    }
-
-    // 2. Cascade delete in Prisma DB
+    // 1. Cascade delete in Prisma DB first to remove foreign key dependencies
     await prisma.$transaction(async (tx) => {
       await tx.activity.deleteMany({ where: { farmId } });
       await tx.orderItem.deleteMany({ where: { product: { farmId } } });
@@ -192,6 +183,15 @@ export async function rejectFarmerAction(
       });
       await tx.user.delete({ where: { id: farm.userId } });
     });
+
+    // 2. Delete from Supabase Auth after DB constraints are cleared
+    const { error: authError } = await adminClient.auth.admin.deleteUser(farm.userId);
+    if (authError) {
+      console.error('[rejectFarmer] Supabase Auth Error:', authError);
+      if (authError.status !== 404) {
+        console.error(`Auth Error during cleanup: ${authError.message}`);
+      }
+    }
 
     revalidatePath('/admin/farmers');
     revalidatePath('/admin');
@@ -811,23 +811,22 @@ export async function deleteAdminAction(adminId: string): Promise<ActionState> {
 
     const adminClient = await import('@/lib/supabase/server').then(m => m.createServiceClient());
 
-    // 1. Delete from Supabase Auth
-    const { error: authError } = await adminClient.auth.admin.deleteUser(adminId);
-    if (authError) {
-      console.error('[deleteAdmin] Supabase Auth Error:', authError);
-      // If the user doesn't exist in Supabase (404), we still want to cascade delete them from Prisma
-      if (authError.status !== 404) {
-        return { success: false, error: `Auth Error: ${authError.message}` };
-      }
-    }
-
-    // 2. Cascade delete in Prisma DB
+    // 1. Cascade delete in Prisma DB first to remove foreign key dependencies
     await prisma.$transaction(async (tx) => {
       await tx.notification.deleteMany({ 
         where: { OR: [{ relatedId: adminId }, { recipientId: adminId }] } 
       });
       await tx.user.delete({ where: { id: adminId } });
     });
+
+    // 2. Delete from Supabase Auth after DB constraints are cleared
+    const { error: authError } = await adminClient.auth.admin.deleteUser(adminId);
+    if (authError) {
+      console.error('[deleteAdmin] Supabase Auth Error:', authError);
+      if (authError.status !== 404) {
+        console.error(`Auth Error during cleanup: ${authError.message}`);
+      }
+    }
 
     revalidatePath('/admin/settings');
     
