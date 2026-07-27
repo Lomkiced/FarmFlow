@@ -836,3 +836,117 @@ export async function deleteAdminAction(adminId: string): Promise<ActionState> {
     return { success: false, error: 'An unexpected error occurred.' };
   }
 }
+
+// --- BUYER DIRECTORY ACTIONS ---
+
+export async function getBuyersAction() {
+  await requireAdmin();
+
+  try {
+    const buyers = await prisma.user.findMany({
+      where: { role: 'BUYER' },
+      include: {
+        ordersAsBuyer: {
+          select: {
+            id: true,
+            totalAmount: true,
+            orderStatus: true,
+          }
+        },
+        addresses: true,
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    const enrichedBuyers = buyers.map(buyer => {
+      const totalOrders = buyer.ordersAsBuyer.length;
+      const cancelledOrders = buyer.ordersAsBuyer.filter(o => o.orderStatus === 'CANCELLED').length;
+      const completedOrders = buyer.ordersAsBuyer.filter(o => o.orderStatus === 'DELIVERED').length;
+      const totalSpent = buyer.ordersAsBuyer
+        .filter(o => o.orderStatus !== 'CANCELLED')
+        .reduce((sum, o) => sum + o.totalAmount, 0);
+
+      return {
+        id: buyer.id,
+        name: buyer.name,
+        email: buyer.email,
+        phone: buyer.phone,
+        avatarUrl: buyer.avatarUrl,
+        createdAt: buyer.createdAt,
+        isSuspended: buyer.isSuspended,
+        stats: {
+          totalOrders,
+          cancelledOrders,
+          completedOrders,
+          totalSpent
+        }
+      };
+    });
+
+    return { success: true, data: enrichedBuyers };
+  } catch (error) {
+    console.error('[getBuyersAction]', error);
+    return { success: false, error: 'Failed to fetch buyers.' };
+  }
+}
+
+export async function toggleBuyerSuspensionAction(buyerId: string, suspend: boolean) {
+  await requireAdmin();
+
+  try {
+    const adminClient = await import('@/lib/supabase/server').then(m => m.createServiceClient());
+    
+    // 1. Update Supabase Auth Ban Status
+    const banDuration = suspend ? '876000h' : 'none'; // ~100 years for true suspension
+    const { error: banError } = await adminClient.auth.admin.updateUserById(buyerId, {
+      ban_duration: banDuration
+    });
+
+    if (banError && banError.status !== 404) {
+      return { success: false, error: `Auth Error: ${banError.message}` };
+    }
+
+    // 2. Update Prisma User
+    await prisma.user.update({
+      where: { id: buyerId },
+      data: { isSuspended: suspend }
+    });
+
+    revalidatePath('/admin/buyers');
+    return { 
+      success: true, 
+      message: suspend ? 'Buyer account has been suspended.' : 'Buyer account has been restored.' 
+    };
+  } catch (error) {
+    console.error('[toggleBuyerSuspension]', error);
+    return { success: false, error: 'An unexpected error occurred.' };
+  }
+}
+
+export async function deleteBuyerAction(buyerId: string) {
+  await requireAdmin();
+
+  try {
+    const adminClient = await import('@/lib/supabase/server').then(m => m.createServiceClient());
+
+    // 1. Cascade delete in Prisma DB first to remove foreign key dependencies
+    await prisma.$transaction(async (tx) => {
+      await tx.notification.deleteMany({ 
+        where: { OR: [{ relatedId: buyerId }, { recipientId: buyerId }] } 
+      });
+      await tx.user.delete({ where: { id: buyerId } });
+    });
+
+    // 2. Delete from Supabase Auth after DB constraints are cleared
+    const { error: authError } = await adminClient.auth.admin.deleteUser(buyerId);
+    if (authError && authError.status !== 404) {
+      console.error(`Auth Error during cleanup: ${authError.message}`);
+    }
+
+    revalidatePath('/admin/buyers');
+    return { success: true, message: 'Buyer successfully deleted.' };
+  } catch (error) {
+    console.error('[deleteBuyer]', error);
+    return { success: false, error: 'Failed to delete buyer.' };
+  }
+}

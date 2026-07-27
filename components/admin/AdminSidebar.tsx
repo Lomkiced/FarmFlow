@@ -15,6 +15,7 @@ export default function AdminSidebar() {
     { label: 'Dashboard', icon: 'dashboard', href: '/admin' },
     { label: 'Inbox', icon: 'inbox', href: '/admin/inbox' },
     { label: 'Farmers', icon: 'agriculture', href: '/admin/farmers' },
+    { label: 'Buyers', icon: 'group', href: '/admin/buyers' },
     { label: 'Listings', icon: 'inventory_2', href: '/admin/listings' },
     { label: 'Orders', icon: 'receipt_long', href: '/admin/orders' },
     { label: 'Analytics', icon: 'monitoring', href: '/admin/analytics' },
