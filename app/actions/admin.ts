@@ -167,13 +167,15 @@ export async function rejectFarmerAction(
   if (!farm) return { success: false, error: 'Farm not found.' };
 
   try {
-    const adminClient = await import('@/lib/supabase/server').then(m => m.createAdminClient());
+    const adminClient = await import('@/lib/supabase/server').then(m => m.createServiceClient());
     
     // 1. Delete from Supabase Auth
     const { error: authError } = await adminClient.auth.admin.deleteUser(farm.userId);
     if (authError) {
       console.error('[rejectFarmer] Supabase Auth Error:', authError);
-      // We log but continue, in case the auth user is already gone
+      if (authError.status !== 404) {
+        return { success: false, error: `Auth Error: ${authError.message}` };
+      }
     }
 
     // 2. Cascade delete in Prisma DB
@@ -747,7 +749,7 @@ export async function addAdminAction(name: string, email: string): Promise<Actio
       return { success: false, error: 'A user with this email already exists.' };
     }
 
-    const adminClient = await import('@/lib/supabase/server').then(m => m.createAdminClient());
+    const adminClient = await import('@/lib/supabase/server').then(m => m.createServiceClient());
 
     const headersList = await import('next/headers').then(m => m.headers());
     const host = headersList.get('host');
@@ -807,14 +809,15 @@ export async function deleteAdminAction(adminId: string): Promise<ActionState> {
       return { success: false, error: 'Cannot delete the last administrator.' };
     }
 
-    const adminClient = await import('@/lib/supabase/server').then(m => m.createAdminClient());
+    const adminClient = await import('@/lib/supabase/server').then(m => m.createServiceClient());
 
     // 1. Delete from Supabase Auth
     const { error: authError } = await adminClient.auth.admin.deleteUser(adminId);
     if (authError) {
       console.error('[deleteAdmin] Supabase Auth Error:', authError);
-      if (!authError.message.includes('User not found')) {
-        return { success: false, error: 'Failed to delete user from authentication system.' };
+      // If the user doesn't exist in Supabase (404), we still want to cascade delete them from Prisma
+      if (authError.status !== 404) {
+        return { success: false, error: `Auth Error: ${authError.message}` };
       }
     }
 
