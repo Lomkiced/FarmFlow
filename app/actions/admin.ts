@@ -758,7 +758,7 @@ export async function addAdminAction(name: string, email: string): Promise<Actio
 
     // 1. Invite the user in Supabase Auth (This securely sends the Invite User email template)
     const { data: authData, error: authError } = await adminClient.auth.admin.inviteUserByEmail(email, {
-      redirectTo: `${origin}/auth/callback?next=/auth/update-password`,
+      redirectTo: `${origin}/auth/callback/update-password`,
       data: {
         name,
         role: 'ADMIN',
