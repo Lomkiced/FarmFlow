@@ -200,15 +200,15 @@ export async function updateProductAction(
   }
 }
 
-// ─── Delete Product ───────────────────────────────────────────────────────────
+// ─── Deactivate Product ─────────────────────────────────────────────────────────
 
-export async function deleteProductAction(productId: string): Promise<ActionState> {
+export async function deactivateProductAction(productId: string): Promise<ActionState> {
   const { farmId } = await requireFarmer();
 
   const existing = await prisma.product.findFirst({ where: { id: productId, farmId } });
   if (!existing) return { success: false, error: 'Product not found.' };
 
-  // Safety check: can't delete if there are open orders for this product
+  // Safety check: can't deactivate if there are open orders for this product that need to be fulfilled
   const openOrders = await prisma.orderItem.count({
     where: {
       productId,
@@ -219,39 +219,27 @@ export async function deleteProductAction(productId: string): Promise<ActionStat
   if (openOrders > 0) {
     return {
       success: false,
-      error: `This product has ${openOrders} open order(s). Wait for them to be fulfilled before deleting.`,
+      error: `This product has ${openOrders} open order(s). Wait for them to be fulfilled before deactivating.`,
     };
   }
 
   try {
-    const totalLinkedOrders = await prisma.orderItem.count({
-      where: { productId },
+    // Simply set status to REMOVED instead of deleting
+    await prisma.product.update({
+      where: { id: productId },
+      data: { status: 'REMOVED' },
     });
 
-    if (totalLinkedOrders > 0) {
-      await prisma.product.update({
-        where: { id: productId },
-        data: { status: 'REMOVED' },
-      });
+    revalidatePath('/farmer/products');
+    revalidatePath('/products');
 
-      revalidatePath('/farmer/products');
-      revalidatePath('/products');
-
-      return { 
-        success: true, 
-        message: 'Product removed from your listings. It will remain in order history.' 
-      };
-    } else {
-      await prisma.product.delete({ where: { id: productId } });
-
-      revalidatePath('/farmer/products');
-      revalidatePath('/products');
-
-      return { success: true, message: 'Product permanently deleted.' };
-    }
+    return { 
+      success: true, 
+      message: 'Product deactivated and removed from public listings.' 
+    };
   } catch (err) {
-    console.error('[deleteProduct]', err);
-    return { success: false, error: 'Failed to process deletion. Please try again.' };
+    console.error('[deactivateProduct]', err);
+    return { success: false, error: 'Failed to deactivate product. Please try again.' };
   }
 }
 
