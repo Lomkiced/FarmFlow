@@ -58,4 +58,5 @@ Do not deviate from the core components in `components/ui/`.
 - **Contrast:** Ensure all text passes WCAG AA standards (e.g., white text on `primary`, dark text on `cream`).
 - **Focus Rings:** Never remove `focus:ring`. Style it with `focus:ring-2 focus:ring-primary focus:outline-none`.
 - **Semantic HTML:** Use `<nav>`, `<main>`, `<article>`, `<section>`, and `<aside>` appropriately.
-- **ARIA:** Use `aria-label` for icon-only buttons.
+## 8. Mobile Navigation Patterns
+- **Bottom Navigation (`FarmerBottomNav`):** For mobile devices, core actions are placed at the bottom to accommodate thumb reachability. The bottom nav is fixed, uses explicit icons with labels, and dynamically highlights the active page. Keep the bottom inset safe area into consideration for modern devices with gesture bars (`env(safe-area-inset-bottom)`).

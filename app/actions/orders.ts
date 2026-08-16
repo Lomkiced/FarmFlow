@@ -39,6 +39,7 @@ export async function createOrderAction(
 
   const raw = {
     addressId: formData.get('addressId'),
+    paymentMethod: formData.get('paymentMethod') || 'cod',
     items,
     notes: formData.get('notes') || undefined,
   };
@@ -168,8 +169,64 @@ export async function createOrderAction(
       });
     }
 
-    // Redirect to order confirmation page on success
-    redirect(`/order-confirmation?orderId=${order.id}`);
+    if (parsed.data.paymentMethod === 'gcash') {
+      const paymongoSecret = process.env.PAYMONGO_SECRET_KEY;
+      if (!paymongoSecret || paymongoSecret.includes('your_')) {
+        // Fallback or error if not configured
+        console.warn('PayMongo is not configured. Falling back to COD.');
+        redirect(`/order-confirmation?orderId=${order.id}`);
+      } else {
+        const auth = Buffer.from(`${paymongoSecret}:`).toString('base64');
+        const response = await fetch('https://api.paymongo.com/v1/checkout_sessions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Basic ${auth}`
+          },
+          body: JSON.stringify({
+            data: {
+              attributes: {
+                billing: {
+                  name: user.name,
+                  email: user.email,
+                  phone: (user as any).phone || undefined,
+                },
+                send_email_receipt: true,
+                show_description: true,
+                show_line_items: true,
+                payment_method_types: ['gcash'],
+                line_items: orderItems.map(item => ({
+                  name: productMap.get(item.productId)?.name || 'Product',
+                  amount: Math.round(item.pricePerKg * 100), // in centavos
+                  currency: 'PHP',
+                  quantity: Math.ceil(item.quantityKg) // PayMongo requires integer quantity
+                })).concat([{
+                  name: 'Delivery Fee',
+                  amount: Math.round(deliveryFee * 100),
+                  currency: 'PHP',
+                  quantity: 1
+                }]),
+                reference_number: order.id,
+                description: `FarmFlow Order #${order.id.slice(0, 8)}`,
+                success_url: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/order-confirmation?orderId=${order.id}&success=true`,
+                cancel_url: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/checkout`,
+              }
+            }
+          })
+        });
+
+        const paymongoData = await response.json();
+        if (response.ok && paymongoData.data?.attributes?.checkout_url) {
+          redirect(paymongoData.data.attributes.checkout_url);
+        } else {
+          console.error('[PayMongo Error]', paymongoData);
+          return { success: false, error: 'Failed to initialize payment gateway.' };
+        }
+      }
+    } else {
+      // Redirect to order confirmation page on success for COD
+      redirect(`/order-confirmation?orderId=${order.id}`);
+    }
 
   } catch (err: unknown) {
     // redirect() throws a special error — re-throw it

@@ -3,7 +3,7 @@
 import Link from 'next/link';
 
 interface FarmerBottomNavProps {
-  activePage: 'home' | 'crops' | 'add' | 'orders' | 'profile'
+  activePage: 'home' | 'crops' | 'products' | 'add' | 'orders' | 'profile'
 }
 
 export default function FarmerBottomNav({ activePage }: FarmerBottomNavProps) {

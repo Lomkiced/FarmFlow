@@ -81,6 +81,7 @@ export default function CheckoutClient({ addresses }: { addresses: Address[] }) 
       // Create Order
       const orderFormData = new FormData();
       orderFormData.append('addressId', finalAddressId);
+      orderFormData.append('paymentMethod', paymentMethod);
       orderFormData.append('items', JSON.stringify(checkoutItems.map(i => ({ productId: i.productId, quantityKg: i.quantityKg }))));
 
       if (notes) orderFormData.append('notes', notes);
@@ -199,7 +200,7 @@ export default function CheckoutClient({ addresses }: { addresses: Address[] }) 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-[8px]">
             {[
               { id: 'cod', title: 'Cash on Delivery', subtitle: 'Pay when it arrives' },
-              { id: 'gcash', title: 'GCash', subtitle: 'Instant payment (Phase 6)' },
+              { id: 'gcash', title: 'GCash (PayMongo)', subtitle: 'Instant digital payment' },
             ].map((method) => {
               const isSelected = paymentMethod === method.id;
               return (
@@ -226,9 +227,6 @@ export default function CheckoutClient({ addresses }: { addresses: Address[] }) 
               );
             })}
           </div>
-          {paymentMethod !== 'cod' && (
-            <p className="mt-4 text-sm text-error">Only Cash on Delivery is supported right now. Digital payments will be added in Phase 6.</p>
-          )}
         </div>
 
         {/* SECTION 3: NOTES */}
@@ -297,7 +295,7 @@ export default function CheckoutClient({ addresses }: { addresses: Address[] }) 
           <div>
             <button
               type="submit"
-              disabled={isPending || paymentMethod !== 'cod' || (!isNewAddress && !selectedAddressId)}
+              disabled={isPending || (!isNewAddress && !selectedAddressId)}
               className="w-full bg-[#d97706] hover:bg-[#b45309] disabled:opacity-50 disabled:cursor-not-allowed text-white font-label-md text-label-md py-4 rounded-xl transition-colors shadow-sm flex justify-center items-center gap-2"
             >
               {isPending ? (

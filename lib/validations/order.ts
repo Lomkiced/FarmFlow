@@ -18,6 +18,7 @@ export const checkoutItemSchema = z.object({
 
 export const checkoutSchema = z.object({
   addressId: z.string().uuid('Please select a valid delivery address.'),
+  paymentMethod: z.enum(['cod', 'gcash']).default('cod'),
   items: z
     .array(checkoutItemSchema)
     .min(1, 'Your cart is empty.')
