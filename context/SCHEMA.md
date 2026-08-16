@@ -29,7 +29,7 @@ erDiagram
     ORDER ||--|{ ORDER_ITEM : "contains"
     PRODUCT ||--o{ ORDER_ITEM : "included in"
     ADDRESS ||--o{ ORDER : "used for"
-```
+    USER ||--o{ NOTIFICATION : "receives"
 
 ## 3. Data Integrity & Cascades
 To maintain a clean database and prevent orphan records, cascading deletes are implemented:
@@ -57,4 +57,6 @@ Database schema changes are strictly managed through Prisma Migrations.
 - **PaymentStatus:** PENDING, PAID, FAILED, REFUNDED
 - **ListingStatus:** ACTIVE, PENDING_REVIEW, REMOVED
 - **FarmerStatus:** PENDING, VERIFIED, SUSPENDED
-- **NotificationType:** NEW_USER, PENDING_FARMER, NEW_LISTING, NEW_ORDER, ORDER_STATUS_CHANGE, PAYMENT_CONFIRMED
+- **NotificationType:**
+  - *Admin-facing:* NEW_USER, PENDING_FARMER, NEW_LISTING, NEW_ORDER, ORDER_STATUS_CHANGE, PAYMENT_CONFIRMED
+  - *Farmer-facing:* ACCOUNT_APPROVED, LISTING_APPROVED, LISTING_REMOVED, NEW_CUSTOMER_ORDER, ORDER_CONFIRMED, ORDER_READY, ORDER_DELIVERED, ORDER_CANCELLED

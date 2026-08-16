@@ -249,7 +249,7 @@ export default function EditProductClient({
             <div className="text-[14px] font-medium text-on-background">Delivery available from farm?</div>
             <div className="text-[12px] text-on-surface-variant mt-1">Can you transport to the buyer?</div>
           </div>
-          <button type="button" onClick={() => setDeliveryAvail(v => !v)} className={`relative inline-flex h-6 w-11 rounded-full border-2 border-transparent transition-colors ${deliveryAvail ? 'bg-primary-container' : 'bg-surface-variant'}`}>
+          <button type="button" onClick={() => setDeliveryAvail((v: boolean) => !v)} className={`relative inline-flex h-6 w-11 rounded-full border-2 border-transparent transition-colors ${deliveryAvail ? 'bg-primary-container' : 'bg-surface-variant'}`}>
             <span className={`inline-block h-5 w-5 rounded-full bg-white shadow transition transform ${deliveryAvail ? 'translate-x-5' : 'translate-x-0'}`} />
           </button>
         </div>

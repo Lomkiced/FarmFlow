@@ -17,6 +17,7 @@ FarmFlow is a multi-sided marketplace connecting farmers in La Union directly wi
 2. **Server Actions (RPC):** All database mutations and complex data fetching (e.g., `getAnalyticsStatsAction`, `createOrderAction`) happen exclusively on the server in `/app/actions`. This ensures zero DB logic is exposed to the client.
 3. **Data Access Layer (DAL):** All server operations pass through `lib/dal.ts` (`requireAuth`, `requireRole`, `requireAdmin`), ensuring strict Server-Side Authorization regardless of UI state.
 4. **Prisma Singleton:** DB connections are pooled and managed via `lib/prisma.ts` to prevent connection exhaustion in serverless environments.
+5. **Notification Subsystem:** Background notifications are dispatched directly from Server Actions (via `lib/notifications.ts`) to keep admins and farmers informed of state changes asynchronously.
 
 ## Component Strategy
 - **Server Components (Default):** Used for all data-fetching, SEO-heavy pages, and layouts. These components query Prisma directly via Server Actions.
