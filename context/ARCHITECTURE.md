@@ -27,3 +27,13 @@ FarmFlow is a multi-sided marketplace connecting farmers in La Union directly wi
 - **Edge-Level Auth:** `proxy.ts` prevents unauthenticated access to dashboards and redirects logged-in users away from auth pages.
 - **Server-Level Auth:** `lib/dal.ts` prevents malicious API calls or Server Action executions by verifying the JWT and checking the user role against the database on every sensitive request.
 - **Atomic Transactions:** Critical operations like placing an order use `prisma.$transaction` to ensure inventory isn't decremented if the order creation fails.
+
+## Webhook Architecture (PayMongo)
+- **Ingestion:** Dedicated API routes (e.g., `/api/webhooks/paymongo`) will receive `POST` requests from PayMongo.
+- **Validation:** Webhooks MUST be validated using the `PAYMONGO_WEBHOOK_SECRET` to verify the signature and prevent spoofing.
+- **Idempotency:** Webhook handlers must check if an event has already been processed (e.g., by querying the `Order` status) before applying mutations, ensuring duplicate webhook deliveries don't cause double-processing.
+
+## Deployment & CI/CD
+- **Hosting Environment:** Vercel (Optimized for Next.js 16 Server Components and Middleware).
+- **Database:** Supabase PostgreSQL (Connection pooling via Supavisor configured in Vercel environment variables).
+- **CI Checks:** GitHub Actions / Vercel Build checks will enforce strict TypeScript compilation, ESLint, and Prettier formatting before allowing production deployments.

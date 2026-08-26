@@ -45,3 +45,18 @@ FarmFlow is an Agricultural Operations Management System and PWA targeting the m
 - AI-based crop disease detection.
 - IoT integration for soil moisture monitoring.
 - Complex multi-vendor cart routing (Currently handled as separate orders per farm).
+
+## 7. Milestones & Phased Rollout
+- **Phase 1 (Alpha):** Core marketplace operations, basic auth, product listing, and simple order flow.
+- **Phase 2 (Beta):** PayMongo integration, robust webhook handling, and admin moderation dashboard.
+- **Phase 3 (V1 Launch):** Performance optimization, PWA installation prompts, and onboarding 50 pilot farmers.
+
+## 8. User Personas
+- **The Local Farmer (Mang Juan):** Uses a budget Android smartphone. Needs large buttons, clear offline-capable flows, and simple tracking to list inventory without technical hassle.
+- **The Public Buyer (Maria):** Values fresh, traceable produce. Wants a fast, intuitive cart experience with reliable delivery tracking and secure payment via GCash/PayMaya (PayMongo).
+
+## 9. Risk Management
+- **Risk:** Low technical literacy among farmers.
+  - **Mitigation:** Extremely simplified UI, onboarding tooltips, and local community workshops for the Alpha phase.
+- **Risk:** Poor internet connectivity in rural farms.
+  - **Mitigation:** Strict adherence to PWA caching strategies and optimistic UI updates for farm activity logging.

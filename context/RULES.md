@@ -36,3 +36,11 @@ To ensure maintainable code, faster development, and fewer bugs, all contributio
 - Use `try/catch` blocks in all Server Actions and API Routes.
 - Show user-friendly error messages using `react-hot-toast`.
 - Log critical errors appropriately (do not expose stack traces to the client).
+
+## 8. Testing Standards
+- **Unit Testing:** Write unit tests for critical business logic, specifically around cart calculations, payment processing, and complex data transformations.
+- **End-to-End (E2E) Testing:** Implement E2E tests (e.g., Playwright) for critical user flows: User Login, Farmer Product Creation, and Buyer Checkout.
+
+## 9. Git & Commits
+- **Conventional Commits:** Use standard commit prefixes (`feat:`, `fix:`, `chore:`, `refactor:`, `docs:`) to maintain a readable history.
+- **Pull Requests:** PRs must be reviewed and tested locally before merging to the `main` branch. Avoid pushing directly to `main`.

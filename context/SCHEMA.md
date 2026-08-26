@@ -60,3 +60,13 @@ Database schema changes are strictly managed through Prisma Migrations.
 - **NotificationType:**
   - *Admin-facing:* NEW_USER, PENDING_FARMER, NEW_LISTING, NEW_ORDER, ORDER_STATUS_CHANGE, PAYMENT_CONFIRMED
   - *Farmer-facing:* ACCOUNT_APPROVED, LISTING_APPROVED, LISTING_REMOVED, NEW_CUSTOMER_ORDER, ORDER_CONFIRMED, ORDER_READY, ORDER_DELIVERED, ORDER_CANCELLED
+
+## 7. Indexing Strategy
+To ensure fast reads as the marketplace scales, we apply targeted indexes in our Prisma schema:
+- **Foreign Keys:** All relation scalar fields (e.g., `userId`, `farmId`, `productId`) MUST be indexed.
+- **Searchable Fields:** High-frequency search fields (e.g., `Product.name`, `Product.category`) should be indexed.
+- **Status/Filter Fields:** Fields frequently used in WHERE clauses (e.g., `Order.status`, `Product.listingStatus`) should be indexed.
+
+## 8. Soft Deletes vs Hard Deletes
+- **Default Strategy:** Prefer Soft Deletes (adding a `deletedAt` timestamp or toggling `status`) for critical business data (e.g., `Products`, `Orders`, `Farms`). This preserves historical analytics and order integrity.
+- **Hard Deletes:** Only permanently delete data (using `CASCADE`) when required for privacy (e.g., a user requesting account deletion) or for cleaning up irrelevant intermediate records (e.g., an abandoned cart session if we choose to store it in DB).
