@@ -23,6 +23,18 @@ FarmFlow is a multi-sided marketplace connecting farmers in La Union directly wi
 - **Server Components (Default):** Used for all data-fetching, SEO-heavy pages, and layouts. These components query Prisma directly via Server Actions.
 - **Client Components ('use client'):** Strictly reserved for interactive islands (e.g., `AdminSettingsClient`, `ProductListingCard`, `FarmersSearchBar`). Client components only receive sanitized data as props.
 
+## Geographic Reference Data Architecture
+1. **Single Source of Truth (SSOT):**
+   - The municipal boundaries of Agoo, La Union comprise exactly 49 legally defined barangays (PSGC: `013301000`).
+   - Rather than relying on fragile 3rd-party external APIs (which introduce network latency, availability risks, and rate limiting), geographic data is maintained as an immutable, canonical TypeScript module (`lib/constants/locations.ts`).
+2. **Why Not an External API?**
+   - **Offline-First PWA Resilience:** Mang Juan and local farmers operating under weak or intermittent rural cellular signals must be able to register and manage farms offline or on low-bandwidth connections without third-party network blocking.
+   - **Zero Latency & Zero Cost:** 49 items consume < 2 KB of memory. Querying an external API adds 200ms–1500ms overhead with zero functional benefit since barangay boundaries are legally static.
+   - **Deterministic Validation:** Backend Server Actions validate incoming payloads against the canonical enum/tuple using Zod (`z.enum(AGOO_BARANGAYS)`), preventing database corruption or injection.
+3. **Internal API & Access Patterns:**
+   - Both Server Components and Client Components import the canonical dataset directly.
+   - If dynamic fetching is needed by decoupled services or external clients, an internal Next.js API route (`/api/locations/barangays`) can expose this dataset cached with `Cache-Control: public, max-age=31536000, immutable`.
+
 ## Security Posture
 - **Edge-Level Auth:** `proxy.ts` prevents unauthenticated access to dashboards and redirects logged-in users away from auth pages.
 - **Server-Level Auth:** `lib/dal.ts` prevents malicious API calls or Server Action executions by verifying the JWT and checking the user role against the database on every sensitive request.

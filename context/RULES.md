@@ -44,3 +44,9 @@ To ensure maintainable code, faster development, and fewer bugs, all contributio
 ## 9. Git & Commits
 - **Conventional Commits:** Use standard commit prefixes (`feat:`, `fix:`, `chore:`, `refactor:`, `docs:`) to maintain a readable history.
 - **Pull Requests:** PRs must be reviewed and tested locally before merging to the `main` branch. Avoid pushing directly to `main`.
+
+## 10. Geographic & Reference Data Rules
+- **No Unvalidated Free-Text:** Never use arbitrary `<input type="text">` for bounded geographic locations like Agoo Barangays. Always use standardized selectors or comboboxes.
+- **Single Source of Truth (SSOT):** All barangay options and validation rules MUST import from `lib/constants/locations.ts`. Do NOT hardcode `<option>` elements in separate components or pages.
+- **Strict Server-Side Validation:** Always validate incoming barangay values using `z.enum(AGOO_BARANGAYS)` in Server Actions (`lib/validations/auth.ts`, `lib/validations/farm.ts`, `lib/validations/address.ts`).
+- **Offline-First PWA Compatibility:** Geographic datasets must remain static and bundled or locally cached to guarantee full offline operability on budget mobile devices. Do not introduce mandatory third-party network API calls for core location resolution.
