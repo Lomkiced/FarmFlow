@@ -3,6 +3,7 @@
 import { useState, useTransition, useRef, useCallback } from 'react';
 import { updateFarmProfileAction, updateAvatarUrlAction, updateCoverPhotoUrlAction } from '@/app/actions/farm';
 import { uploadAvatar, uploadFarmCoverPhoto } from '@/app/actions/upload';
+import { AGOO_BARANGAYS, normalizeBarangayName } from '@/lib/constants/locations';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -331,12 +332,24 @@ export default function EditProfileModal({ farmProfile }: { farmProfile: any }) 
 
                 <div>
                   <label className="block text-sm font-semibold text-on-surface mb-1.5">Barangay</label>
-                  <input
-                    name="barangay"
-                    defaultValue={farmProfile.barangay}
-                    required
-                    className="w-full bg-surface-container text-on-surface p-3 rounded-xl border border-outline-variant focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all"
-                  />
+                  <div className="relative">
+                    <select
+                      name="barangay"
+                      defaultValue={normalizeBarangayName(farmProfile.barangay)}
+                      required
+                      className="w-full appearance-none bg-surface-container text-on-surface p-3 pr-10 rounded-xl border border-outline-variant focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all cursor-pointer"
+                    >
+                      <option value="" disabled>Select Barangay</option>
+                      {AGOO_BARANGAYS.map((brgy) => (
+                        <option key={brgy} value={brgy}>
+                          {brgy}
+                        </option>
+                      ))}
+                    </select>
+                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-outline">
+                      <span className="material-symbols-outlined text-[20px]">expand_more</span>
+                    </div>
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
@@ -344,18 +357,20 @@ export default function EditProfileModal({ farmProfile }: { farmProfile: any }) 
                     <label className="block text-sm font-semibold text-on-surface mb-1.5">Municipality</label>
                     <input
                       name="municipality"
-                      defaultValue={farmProfile.municipality}
+                      defaultValue={farmProfile.municipality || 'Agoo'}
                       required
-                      className="w-full bg-surface-container text-on-surface p-3 rounded-xl border border-outline-variant focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                      readOnly
+                      className="w-full bg-surface-container/60 text-on-surface/80 p-3 rounded-xl border border-outline-variant outline-none cursor-not-allowed"
                     />
                   </div>
                   <div>
                     <label className="block text-sm font-semibold text-on-surface mb-1.5">Province</label>
                     <input
                       name="province"
-                      defaultValue={farmProfile.province}
+                      defaultValue={farmProfile.province || 'La Union'}
                       required
-                      className="w-full bg-surface-container text-on-surface p-3 rounded-xl border border-outline-variant focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                      readOnly
+                      className="w-full bg-surface-container/60 text-on-surface/80 p-3 rounded-xl border border-outline-variant outline-none cursor-not-allowed"
                     />
                   </div>
                 </div>

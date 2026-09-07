@@ -9,6 +9,7 @@ import { createOrderAction } from '@/app/actions/orders';
 import { createAddressAction } from '@/app/actions/addresses';
 import toast from 'react-hot-toast';
 import { PaymentMethod } from '@/types';
+import { AGOO_BARANGAYS } from '@/lib/constants/locations';
 
 interface Address {
   id: string;
@@ -174,7 +175,24 @@ export default function CheckoutClient({ addresses }: { addresses: Address[] }) 
               </div>
               <div className="flex flex-col gap-[8px] col-span-1">
                 <label className="text-[14px] font-medium tracking-[0.01em] text-on-surface-variant">Barangay *</label>
-                <input required name="barangay" type="text" className="bg-background border border-outline-variant focus:border-primary focus:ring-1 focus:ring-primary rounded-lg px-4 py-3 font-body-md text-on-surface transition-colors placeholder:text-outline outline-none" />
+                <div className="relative">
+                  <select
+                    required
+                    name="barangay"
+                    defaultValue=""
+                    className="w-full appearance-none bg-background border border-outline-variant focus:border-primary focus:ring-1 focus:ring-primary rounded-lg px-4 py-3 pr-10 font-body-md text-on-surface transition-colors outline-none cursor-pointer"
+                  >
+                    <option value="" disabled>Select Barangay</option>
+                    {AGOO_BARANGAYS.map((brgy) => (
+                      <option key={brgy} value={brgy}>
+                        {brgy}
+                      </option>
+                    ))}
+                  </select>
+                  <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-outline">
+                    <span className="material-symbols-outlined text-[20px]">expand_more</span>
+                  </div>
+                </div>
               </div>
               <div className="flex flex-col gap-[8px] col-span-1">
                 <label className="text-[14px] font-medium tracking-[0.01em] text-on-surface-variant">City / Municipality *</label>

@@ -1,8 +1,13 @@
 import { z } from 'zod';
+import { AGOO_BARANGAYS, type AgooBarangay } from '@/lib/constants/locations';
+
+export { AGOO_BARANGAYS, type AgooBarangay };
 
 export const farmSchema = z.object({
   farmName: z.string().min(2, 'Farm name must be at least 2 characters.').trim(),
-  barangay: z.string().min(1, 'Please select a barangay.').trim(),
+  barangay: z.enum(AGOO_BARANGAYS, {
+    error: 'Please select a valid Agoo barangay.',
+  }),
   municipality: z.string().default('Agoo'),
   province: z.string().default('La Union'),
   landArea: z.coerce
@@ -12,33 +17,4 @@ export const farmSchema = z.object({
   // coverPhoto URL is set separately after upload action
 });
 
-export const AGOO_BARANGAYS = [
-  'Agoo Poblacion',
-  'Ambitacay',
-  'Balawarte',
-  'Cataguintingan',
-  'Consolacion',
-  'Imelda',
-  'La Union',
-  'Macalva Norte',
-  'Macalva Sur',
-  'Nazareno',
-  'Purok 1',
-  'Purok 2',
-  'San Cristobal',
-  'San Isidro',
-  'San Juan',
-  'San Miguel',
-  'San Nicolas Norte',
-  'San Nicolas Sur',
-  'San Vicente',
-  'Santa Cruz',
-  'Santa Monica',
-  'Santiago Norte',
-  'Santiago Sur',
-  'Santo Rosario',
-  'Sta. Barbara',
-  'Sto. Tomas',
-] as const;
-
-export type FarmFormValues = z.infer<typeof farmSchema>;
+export type FarmFormValues = z.infer<typeof farmSchema>;

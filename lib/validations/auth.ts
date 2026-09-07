@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { AGOO_BARANGAYS } from '@/lib/constants/locations';
 
 export const loginSchema = z.object({
   email: z.string().email({ message: 'Please enter a valid email address.' }),
@@ -30,7 +31,9 @@ export const farmerRegisterSchema = z.object({
     .regex(/[a-zA-Z]/, { message: 'Password must contain at least one letter.' })
     .regex(/[0-9]/, { message: 'Password must contain at least one number.' }),
   farmName: z.string().min(2, { message: 'Farm name is required.' }).trim(),
-  barangay: z.string().min(1, { message: 'Please select a barangay.' }),
+  barangay: z.enum(AGOO_BARANGAYS, {
+    error: 'Please select a valid Agoo barangay.',
+  }),
   landArea: z.coerce.number().positive({ message: 'Land area must be a positive number.' }),
   crops: z.array(z.string()).min(1, { message: 'Please select at least one primary crop.' }),
 });

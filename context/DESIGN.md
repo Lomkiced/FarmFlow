@@ -60,3 +60,18 @@ Do not deviate from the core components in `components/ui/`.
 - **Semantic HTML:** Use `<nav>`, `<main>`, `<article>`, `<section>`, and `<aside>` appropriately.
 ## 8. Mobile Navigation Patterns
 - **Bottom Navigation (`FarmerBottomNav`):** For mobile devices, core actions are placed at the bottom to accommodate thumb reachability. The bottom nav is fixed, uses explicit icons with labels, and dynamically highlights the active page. Keep the bottom inset safe area into consideration for modern devices with gesture bars (`env(safe-area-inset-bottom)`).
+
+## 8.1 Location & Barangay Selection Pattern
+- **Mobile-First Select/Combobox:** Since Agoo has 49 barangays, standard select dropdowns on budget Android devices can be cumbersome without quick-search or grouped layout.
+- **Visual Design:** Use consistent rounded borders (`rounded-xl` or `rounded-lg`), subtle outline colors (`border-outline-variant`), and clear focus rings (`focus:ring-2 focus:ring-primary/20`).
+- **PWA Form Performance:** Keep dropdown DOM light to avoid memory spikes on low-RAM devices (1GB–2GB Android). Grouping or searchable select enhances UX significantly.
+
+## 9. State Guidelines
+- **Empty States:** Never show a blank screen. If a farmer has no crops, show an illustration with a clear Call to Action (CTA) like "Add your first crop".
+- **Error States:** Use friendly error boundaries. If a data fetch fails, show a "Something went wrong" message with a "Try Again" button instead of crashing the app.
+- **Loading States:** Use skeleton screens that mimic the layout of the content being loaded, to reduce perceived latency.
+
+## 10. Accessibility (a11y)
+- **Screen Readers:** Ensure all images and icons have `alt` tags or `aria-labels`.
+- **Keyboard Navigation:** All interactive elements must be accessible via the `Tab` key.
+- **Testing:** Periodically run Lighthouse Accessibility audits or use `axe-core` to catch contrast and semantic HTML issues.

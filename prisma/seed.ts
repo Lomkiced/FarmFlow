@@ -48,7 +48,7 @@ async function main() {
     create: {
       userId: farmer.id,
       farmName: 'Dela Cruz Family Farm',
-      barangay: 'San Vicente',
+      barangay: 'San Vicente Norte',
       municipality: 'Agoo',
       province: 'La Union',
       landArea: 2.5,

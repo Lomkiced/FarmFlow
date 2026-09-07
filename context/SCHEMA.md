@@ -50,7 +50,7 @@ Database schema changes are strictly managed through Prisma Migrations.
 - **Production:** `npx prisma migrate deploy`
 - Never modify the database schema directly through the Supabase UI. Always update `schema.prisma` and run a migration to ensure code and database stay synchronized.
 
-## 6. Enums Dictionary
+## 6. Enums & Reference Data Dictionary
 - **Role:** ADMIN, FARMER, BUYER
 - **CropStage:** SEEDLING, GROWING, READY_TO_HARVEST, HARVESTED
 - **OrderStatus:** PENDING, CONFIRMED, READY, DELIVERED, CANCELLED
@@ -60,3 +60,16 @@ Database schema changes are strictly managed through Prisma Migrations.
 - **NotificationType:**
   - *Admin-facing:* NEW_USER, PENDING_FARMER, NEW_LISTING, NEW_ORDER, ORDER_STATUS_CHANGE, PAYMENT_CONFIRMED
   - *Farmer-facing:* ACCOUNT_APPROVED, LISTING_APPROVED, LISTING_REMOVED, NEW_CUSTOMER_ORDER, ORDER_CONFIRMED, ORDER_READY, ORDER_DELIVERED, ORDER_CANCELLED
+- **Agoo Barangays (49 Canonical LGUs):**
+  - Stored as `String` in `Farm.barangay` and `Address.barangay` to maintain database flexibility, but strictly validated at the application boundary (Zod schemas) against `AGOO_BARANGAYS`.
+  - Canonical list: Ambitacay, Balawarte, Capas, Consolacion (Poblacion), Macalva Central, Macalva Norte, Macalva Sur, Nazareno, Purok, San Agustin East, San Agustin Norte, San Agustin Sur, San Antonino, San Antonio, San Francisco, San Isidro, San Joaquin Norte, San Joaquin Sur, San Jose Norte, San Jose Sur, San Juan, San Julian Central, San Julian East, San Julian Norte, San Julian West, San Manuel Norte, San Manuel Sur, San Marcos, San Miguel, San Nicolas Central (Poblacion), San Nicolas East, San Nicolas Norte (Poblacion), San Nicolas Sur (Poblacion), San Nicolas West, San Pedro, San Roque East, San Roque West, San Vicente Norte, San Vicente Sur, Santa Ana, Santa Barbara (Poblacion), Santa Fe, Santa Maria, Santa Monica, Santa Rita (Nalinac), Santa Rita East, Santa Rita Norte, Santa Rita Sur, Santa Rita West.
+
+## 7. Indexing Strategy
+To ensure fast reads as the marketplace scales, we apply targeted indexes in our Prisma schema:
+- **Foreign Keys:** All relation scalar fields (e.g., `userId`, `farmId`, `productId`) MUST be indexed.
+- **Searchable Fields:** High-frequency search fields (e.g., `Product.name`, `Product.category`) should be indexed.
+- **Status/Filter Fields:** Fields frequently used in WHERE clauses (e.g., `Order.status`, `Product.listingStatus`) should be indexed.
+
+## 8. Soft Deletes vs Hard Deletes
+- **Default Strategy:** Prefer Soft Deletes (adding a `deletedAt` timestamp or toggling `status`) for critical business data (e.g., `Products`, `Orders`, `Farms`). This preserves historical analytics and order integrity.
+- **Hard Deletes:** Only permanently delete data (using `CASCADE`) when required for privacy (e.g., a user requesting account deletion) or for cleaning up irrelevant intermediate records (e.g., an abandoned cart session if we choose to store it in DB).

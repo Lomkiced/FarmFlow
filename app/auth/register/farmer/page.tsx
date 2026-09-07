@@ -6,6 +6,7 @@ import AuthLeftPanel from '@/components/auth/AuthLeftPanel';
 import ProgressStepper from '@/components/auth/ProgressStepper';
 import { registerFarmerAction, type AuthActionState } from '@/app/actions/auth';
 import PasswordStrengthBar from '@/components/auth/PasswordStrengthBar';
+import { AGOO_BARANGAYS } from '@/lib/constants/locations';
 
 export default function FarmerRegisterPage() {
   const [selectedCrops, setSelectedCrops] = useState<string[]>(['Vegetables']);
@@ -144,14 +145,21 @@ export default function FarmerRegisterPage() {
                 </div>
                 <div className="space-y-1 col-span-1">
                   <label className="font-auth-label-caps text-auth-on-surface-variant uppercase">Barangay</label>
-                  <select name="barangay" className={`w-full text-[14px] rounded-lg border bg-white text-auth-on-surface focus:ring-2 focus:ring-primary/20 transition-colors shadow-sm py-2 px-3 outline-none ${state?.errors?.barangay ? 'border-error focus:border-error bg-error-container/5' : 'border-auth-secondary-fixed focus:border-primary'}`}>
-                    <option value="">Select Barangay</option>
-                    <option value="San Nicolas">San Nicolas</option>
-                    <option value="San Julian">San Julian</option>
-                    <option value="Santo Rosario">Santo Rosario</option>
-                    <option value="San Vicente">San Vicente</option>
-                    <option value="San Roque">San Roque</option>
-                    <option value="Consolacion">Consolacion</option>
+                  <select
+                    name="barangay"
+                    defaultValue=""
+                    className={`w-full text-[14px] rounded-lg border bg-white text-auth-on-surface focus:ring-2 focus:ring-primary/20 transition-colors shadow-sm py-2 px-3 outline-none ${
+                      state?.errors?.barangay ? 'border-error focus:border-error bg-error-container/5' : 'border-auth-secondary-fixed focus:border-primary'
+                    }`}
+                  >
+                    <option value="" disabled>
+                      Select Barangay
+                    </option>
+                    {AGOO_BARANGAYS.map((brgy) => (
+                      <option key={brgy} value={brgy}>
+                        {brgy}
+                      </option>
+                    ))}
                   </select>
                   {state?.errors?.barangay && <p className="text-[11px] text-error mt-1">{state.errors.barangay[0]}</p>}
                 </div>
