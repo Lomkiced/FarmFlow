@@ -20,13 +20,14 @@ All farm locations must strictly map to one of these 49 barangays for verificati
 - View detailed farmer profiles and product origins.
 - Add items to cart (Zustand persistent storage).
 - Checkout with delivery or pickup options.
-- Track order status.
+- Order Confirmation & Receipt Hub (view confirmed delivery destination, contact phone, custom landmark notes, payment breakdown, and printable order slips).
+- Real-time order status tracking with visual timeline.
 
 ### For Farmers
 - Farm Profile Management (Bio, location, cover photo).
 - Crop Management (Track crops from seedling to harvest).
 - Product Listing (Convert harvested crops to marketplace listings).
-- Order Management (Accept, prepare, and update orders).
+- Order Management & Logistics Dispatch (view full delivery address across Agoo's 49 barangays, customer landmarks/instructions, 1-tap call/SMS contact, localized Google Maps navigation, unambiguous COD vs. Prepaid collection alerts, harvest packing checklist, and printable delivery waybills/trip tickets).
 - Activity Logging (Track inputs used, activities on the farm).
 
 ### For Admins

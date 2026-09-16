@@ -50,3 +50,13 @@ To ensure maintainable code, faster development, and fewer bugs, all contributio
 - **Single Source of Truth (SSOT):** All barangay options and validation rules MUST import from `lib/constants/locations.ts`. Do NOT hardcode `<option>` elements in separate components or pages.
 - **Strict Server-Side Validation:** Always validate incoming barangay values using `z.enum(AGOO_BARANGAYS)` in Server Actions (`lib/validations/auth.ts`, `lib/validations/farm.ts`, `lib/validations/address.ts`).
 - **Offline-First PWA Compatibility:** Geographic datasets must remain static and bundled or locally cached to guarantee full offline operability on budget mobile devices. Do not introduce mandatory third-party network API calls for core location resolution.
+
+## 11. Order Fulfillment, Logistics, & Data Integrity Rules
+- **Mandatory Logistics Field Selection:** Any query or Server Action retrieving orders for farmer fulfillment (`getFarmerOrdersAction`) MUST select:
+  - `order.notes` (delivery instructions/landmarks).
+  - `order.paymentStatus`, `order.deliveryFee`, and `order.totalAmount`.
+  - Full delivery address fields: `address.fullName`, `address.phone`, `address.street`, `address.barangay`, `address.city`, `address.province`, `address.zipCode`.
+  - Item harvest metrics: `quantityKg`, `pricePerKg`, and `subtotal`.
+- **Zero Ambiguity on Cash Collection:** UI components rendering orders MUST differentiate between Prepaid orders (`PAID` via PayMongo/GCash) and Cash on Delivery (`PENDING` COD). Fulfilling farmers and couriers must never be left guessing whether to collect payment from the buyer.
+- **Direct Mobile Telephony Protocols:** All recipient contact numbers displayed in seller and buyer dispatch views must provide native `tel:` and `sms:` URI links formatted cleanly for Philippine mobile numbers.
+- **Object-Level Authorization (IDOR Protection):** Order confirmation and tracking endpoints must enforce strict identity checks to ensure buyers can only view their own receipts and farmers can only access orders containing products from their own farm.

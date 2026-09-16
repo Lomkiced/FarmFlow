@@ -189,7 +189,7 @@ export async function createOrderAction(
                 billing: {
                   name: user.name,
                   email: user.email,
-                  phone: (user as any).phone || undefined,
+                  phone: address.phone || undefined,
                 },
                 send_email_receipt: true,
                 show_description: true,
@@ -289,12 +289,14 @@ export async function getOrderAction(orderId: string) {
             select: {
               id: true,
               name: true,
+              category: true,
               photos: true,
               farm: {
                 select: {
                   id: true,
                   farmName: true,
-                  user: { select: { name: true, avatarUrl: true } },
+                  barangay: true,
+                  user: { select: { name: true, phone: true, avatarUrl: true } },
                 },
               },
             },
@@ -386,12 +388,30 @@ export async function getFarmerOrdersAction(
     },
     orderBy: { createdAt: 'desc' },
     include: {
-      buyer: { select: { name: true, phone: true } },
-      address: { select: { street: true, barangay: true, city: true } },
+      buyer: { select: { name: true, email: true, phone: true } },
+      address: {
+        select: {
+          id: true,
+          fullName: true,
+          phone: true,
+          street: true,
+          barangay: true,
+          city: true,
+          province: true,
+          zipCode: true,
+        },
+      },
       items: {
         where: { product: { farmId } },
         include: {
-          product: { select: { name: true, photos: true } },
+          product: {
+            select: {
+              id: true,
+              name: true,
+              photos: true,
+              category: true,
+            },
+          },
         },
       },
     },

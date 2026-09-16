@@ -66,6 +66,14 @@ Do not deviate from the core components in `components/ui/`.
 - **Visual Design:** Use consistent rounded borders (`rounded-xl` or `rounded-lg`), subtle outline colors (`border-outline-variant`), and clear focus rings (`focus:ring-2 focus:ring-primary/20`).
 - **PWA Form Performance:** Keep dropdown DOM light to avoid memory spikes on low-RAM devices (1GB–2GB Android). Grouping or searchable select enhances UX significantly.
 
+## 8.2 Order Confirmation & Farmer Delivery Dispatch Patterns
+- **High-Contrast Cash Collection Banners:**
+  - **Cash on Delivery (COD):** High-visibility amber banner (`bg-amber-100 text-amber-900 border border-amber-300`) with bold statement: *"💵 Cash on Delivery — Collect ₱XXX from Buyer"*.
+  - **Paid Online (GCash):** High-visibility emerald banner (`bg-emerald-100 text-emerald-900 border border-emerald-300`) with bold statement: *"✓ Paid Online (GCash) — Do Not Collect Cash"*.
+- **Mobile-First Action Targets:** All dispatch quick actions (Call, SMS, Open Navigation) must adhere to a minimum 48px × 48px touch target for easy thumb tapping by farmers operating in the field or in transit.
+- **Delivery Landmark Callout:** Landmark notes from `order.notes` must be highlighted in an accented callout container with an `info` or `pin_drop` icon, ensuring drivers never miss crucial gate/church/school references.
+- **Printable Delivery Waybill / Trip Ticket:** Both the Confirmation Page and Farmer Dispatch Modal must support clean `@media print` styling that hides navigation, buttons, and backgrounds, producing an ink-friendly, readable packing slip for local delivery couriers.
+
 ## 9. State Guidelines
 - **Empty States:** Never show a blank screen. If a farmer has no crops, show an illustration with a clear Call to Action (CTA) like "Add your first crop".
 - **Error States:** Use friendly error boundaries. If a data fetch fails, show a "Something went wrong" message with a "Try Again" button instead of crashing the app.
