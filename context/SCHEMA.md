@@ -9,8 +9,8 @@ The database consists of 8 core models supporting the marketplace, farm operatio
 - **Farm:** Central hub for a farmer's operations. Linked 1-to-1 with a Farmer User.
 - **Crop:** Represents the agricultural yield lifecycle on a farm.
 - **Product:** The marketplace listing derived from a Crop (or created standalone).
-- **Order & OrderItem:** E-commerce transaction records.
-- **Address:** User delivery/billing addresses.
+- **Order & OrderItem:** E-commerce transaction records. `Order.notes` explicitly stores delivery instructions and customer landmarks; `Order.addressId` references the delivery recipient snapshot.
+- **Address:** User delivery/billing addresses storing `fullName`, `phone`, `street`, `barangay`, `city`, `province`, and `zipCode`.
 - **Activity:** Audit/log of farm activities (planting, fertilizing, harvesting).
 - **Notification:** System notifications for users.
 
