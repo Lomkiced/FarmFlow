@@ -36,6 +36,10 @@ export const farmerRegisterSchema = z.object({
   }),
   landArea: z.coerce.number().positive({ message: 'Land area must be a positive number.' }),
   crops: z.array(z.string()).min(1, { message: 'Please select at least one primary crop.' }),
+  confirmPassword: z.string(),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: 'Passwords do not match.',
+  path: ['confirmPassword'],
 });
 
 export const forgotPasswordSchema = z.object({

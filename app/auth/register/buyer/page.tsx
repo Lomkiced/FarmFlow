@@ -100,8 +100,9 @@ export default function BuyerRegisterPage() {
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}
             error={
-              state?.errors?.confirmPassword?.[0] ??
-              (confirmPassword.length > 0 && !passwordsMatch ? 'Passwords do not match.' : undefined)
+              (confirmPassword.length > 0 && !passwordsMatch)
+                ? 'Passwords do not match.'
+                : (passwordsMatch ? undefined : state?.errors?.confirmPassword?.[0])
             }
             placeholder="••••••••"
             autoComplete="new-password"
