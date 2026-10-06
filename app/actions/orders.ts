@@ -351,10 +351,36 @@ export async function updateOrderStatusAction(
   }
 
   try {
-    await prisma.order.update({
-      where: { id: orderId },
-      data: { orderStatus: newStatus },
-    });
+    if (newStatus === 'DELIVERED') {
+      // Fetch this farmer's order items to compute their earned subtotal
+      const farmerItems = await prisma.orderItem.findMany({
+        where: { orderId, product: { farmId } },
+        select: { subtotal: true },
+      });
+      const farmerSubtotal = farmerItems.reduce((sum, item) => sum + item.subtotal, 0);
+
+      // Atomic transaction: update order + auto-complete COD payment + track sales
+      await prisma.$transaction([
+        prisma.order.update({
+          where: { id: orderId },
+          data: {
+            orderStatus: 'DELIVERED',
+            // COD orders (paymentStatus === 'PENDING') — cash is collected on delivery
+            ...(order.paymentStatus === 'PENDING' ? { paymentStatus: 'PAID' } : {}),
+          },
+        }),
+        // Increment the farm's denormalized totalSales counter
+        prisma.farm.update({
+          where: { id: farmId },
+          data: { totalSales: { increment: farmerSubtotal } },
+        }),
+      ]);
+    } else {
+      await prisma.order.update({
+        where: { id: orderId },
+        data: { orderStatus: newStatus },
+      });
+    }
 
     sendAdminNotification({
       type: 'ORDER_STATUS_CHANGE',
@@ -365,6 +391,8 @@ export async function updateOrderStatusAction(
     });
 
     revalidatePath('/farmer/orders');
+    revalidatePath('/farmer/dashboard');
+    revalidatePath('/farmer/farm-profile');
     revalidatePath(`/orders/${orderId}`);
 
     return { success: true, message: `Order marked as ${newStatus.toLowerCase()}.` };

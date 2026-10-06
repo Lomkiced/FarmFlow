@@ -60,3 +60,8 @@ To ensure maintainable code, faster development, and fewer bugs, all contributio
 - **Zero Ambiguity on Cash Collection:** UI components rendering orders MUST differentiate between Prepaid orders (`PAID` via PayMongo/GCash) and Cash on Delivery (`PENDING` COD). Fulfilling farmers and couriers must never be left guessing whether to collect payment from the buyer.
 - **Direct Mobile Telephony Protocols:** All recipient contact numbers displayed in seller and buyer dispatch views must provide native `tel:` and `sms:` URI links formatted cleanly for Philippine mobile numbers.
 - **Object-Level Authorization (IDOR Protection):** Order confirmation and tracking endpoints must enforce strict identity checks to ensure buyers can only view their own receipts and farmers can only access orders containing products from their own farm.
+
+## 12. Server Action State and Client Validation Syncing
+- **Stale Server Errors:** When using `useActionState` (or `useFormState`), server validation errors remain sticky until the next form submission. When client-side validation logic (like password matching or string length checks) contradicts a stale server error, the client-side state MUST take precedence. 
+- **Error Hiding:** Implement UI logic to suppress stale server errors if the user has subsequently corrected the input on the client (e.g. `!passwordsMatch ? "Passwords do not match." : undefined` instead of rendering a leftover server error).
+- **Consistency:** Ensure schemas strictly match between client and server. If an input exists on the client (like `confirmPassword`), it must be validated by the corresponding Zod schema on the server to prevent accidental lockouts or security bypasses.

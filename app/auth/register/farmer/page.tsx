@@ -119,7 +119,7 @@ export default function FarmerRegisterPage() {
                       autoComplete="new-password"
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
-                      className={`w-full text-[14px] rounded-lg border bg-white text-auth-on-surface focus:ring-2 focus:ring-primary/20 transition-colors shadow-sm py-2 px-3 pr-10 outline-none ${!passwordsMatch && confirmPassword.length > 0 ? 'border-error focus:border-error bg-error-container/5' : 'border-auth-secondary-fixed focus:border-primary'}`} 
+                      className={`w-full text-[14px] rounded-lg border bg-white text-auth-on-surface focus:ring-2 focus:ring-primary/20 transition-colors shadow-sm py-2 px-3 pr-10 outline-none ${(!passwordsMatch && confirmPassword.length > 0) || (!passwordsMatch && state?.errors?.confirmPassword) ? 'border-error focus:border-error bg-error-container/5' : 'border-auth-secondary-fixed focus:border-primary'}`} 
                     />
                     {confirmPassword.length > 0 && (
                       <span className={`absolute right-3 top-1/2 -translate-y-1/2 material-symbols-outlined text-[18px] ${passwordsMatch ? 'text-primary' : 'text-error'}`}>
@@ -127,7 +127,11 @@ export default function FarmerRegisterPage() {
                       </span>
                     )}
                   </div>
-                  {!passwordsMatch && confirmPassword.length > 0 && <p className="text-[11px] text-error mt-1">Passwords do not match.</p>}
+                  {(!passwordsMatch && confirmPassword.length > 0) ? (
+                    <p className="text-[11px] text-error mt-1">Passwords do not match.</p>
+                  ) : (!passwordsMatch && state?.errors?.confirmPassword) ? (
+                    <p className="text-[11px] text-error mt-1">{state.errors.confirmPassword[0]}</p>
+                  ) : null}
                 </div>
               </div>
             </div>

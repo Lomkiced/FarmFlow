@@ -186,6 +186,7 @@ export async function registerFarmerAction(
     barangay: formData.get('barangay') as string,
     landArea: formData.get('landArea') as string,
     crops: cropsRaw ? cropsRaw.split(',') : [],
+    confirmPassword: formData.get('confirmPassword') as string,
   };
 
   const parsed = farmerRegisterSchema.safeParse(raw);
