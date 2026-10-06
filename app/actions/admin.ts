@@ -398,13 +398,49 @@ export async function updateOrderStatusAdminAction(
   if (!order) return { success: false, error: 'Order not found.' };
 
   try {
-    await prisma.order.update({
-      where: { id: orderId },
-      data: {
-        orderStatus: status,
-        ...(paymentStatus ? { paymentStatus } : {}),
-      },
-    });
+    // Resolve effective payment status: explicit param > COD auto-complete > no change
+    const effectivePaymentStatus = paymentStatus
+      || (status === 'DELIVERED' && order.paymentStatus === 'PENDING' ? 'PAID' : undefined);
+
+    if (status === 'DELIVERED') {
+      // Fetch all order items grouped by farm for totalSales tracking
+      const orderItems = await prisma.orderItem.findMany({
+        where: { orderId },
+        select: { subtotal: true, product: { select: { farmId: true } } },
+      });
+
+      // Aggregate subtotals per farm
+      const farmSubtotals = new Map<string, number>();
+      orderItems.forEach(item => {
+        const current = farmSubtotals.get(item.product.farmId) || 0;
+        farmSubtotals.set(item.product.farmId, current + item.subtotal);
+      });
+
+      await prisma.$transaction([
+        prisma.order.update({
+          where: { id: orderId },
+          data: {
+            orderStatus: status,
+            ...(effectivePaymentStatus ? { paymentStatus: effectivePaymentStatus } : {}),
+          },
+        }),
+        // Atomically increment totalSales for each farm in the order
+        ...Array.from(farmSubtotals.entries()).map(([fId, subtotal]) =>
+          prisma.farm.update({
+            where: { id: fId },
+            data: { totalSales: { increment: subtotal } },
+          })
+        ),
+      ]);
+    } else {
+      await prisma.order.update({
+        where: { id: orderId },
+        data: {
+          orderStatus: status,
+          ...(effectivePaymentStatus ? { paymentStatus: effectivePaymentStatus } : {}),
+        },
+      });
+    }
 
     sendAdminNotification({
       type: 'ORDER_STATUS_CHANGE',
@@ -415,6 +451,9 @@ export async function updateOrderStatusAdminAction(
     });
 
     revalidatePath('/admin/orders');
+    revalidatePath('/farmer/orders');
+    revalidatePath('/farmer/dashboard');
+    revalidatePath('/farmer/farm-profile');
     revalidatePath(`/orders/${orderId}`);
 
     return { success: true, message: `Order status updated to ${status}.` };

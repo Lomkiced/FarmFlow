@@ -40,11 +40,16 @@ FarmFlow is a multi-sided marketplace connecting farmers in La Union directly wi
    - **Checkout Capture:** When a buyer checks out, `createOrderAction` validates the canonical Agoo barangay address, persists optional delivery landmarks (`order.notes`), and records payment type (`COD` vs. `GCash`).
    - **Order Confirmation & Receipt Hub:** Once placed, the user is redirected to `/order-confirmation?orderId=...`. This page enforces server-side authorization (verifying the session user is either the buyer or seller) to prevent Insecure Direct Object Reference (IDOR), and renders the complete delivery destination, contact details, payment breakdown, and print-ready receipt.
    - **Farmer Dispatch Suite (`/farmer/orders`):** Farmers receive notifications and access an interactive dispatch drawer. Server actions supply the full delivery destination, recipient name, phone number, and special delivery notes.
-2. **Offline-Resilient Mobile Navigation & Contact:**
+2. **Payment Status Lifecycle:**
+   - **GCash (Online):** `paymentStatus` transitions from `PENDING` → `PAID` via the PayMongo webhook (`/api/webhooks/paymongo`) upon successful checkout session payment.
+   - **COD (Cash on Delivery):** `paymentStatus` transitions from `PENDING` → `PAID` automatically when the farmer (via `updateOrderStatusAction`) or admin (via `updateOrderStatusAdminAction`) marks the order as `DELIVERED`. Cash is collected at the door, so delivery confirmation = payment confirmation.
+   - **Atomic Sales Tracking:** When an order transitions to `DELIVERED`, the farmer's `Farm.totalSales` denormalized counter is atomically incremented (via `prisma.$transaction`) with the farmer's earned subtotal from that order's items. This ensures dashboard stats, earnings queries, and profile displays always reflect accurate revenue.
+3. **Offline-Resilient Mobile Navigation & Contact:**
    - Rather than embedding heavy mapping SDKs that crash budget Android phones or fail in low-signal rural barangays, FarmFlow generates lightweight, deep-linking navigation URIs (`https://www.google.com/maps/search/?api=1&query=...`) resolved directly by native device map apps (Google Maps/Waze).
    - Direct telco integration is achieved via native mobile schemes (`tel:` and `sms:`) using verified Philippine phone formats (+639 / 09).
-3. **Cash Collection Reconciliation Safeguards:**
+4. **Cash Collection Reconciliation Safeguards:**
    - Prevents double-collection or missed payments by computing collection instructions strictly server-side: Orders with `paymentStatus === 'PAID'` show an unmistakable "DO NOT COLLECT CASH" indicator, whereas `paymentStatus === 'PENDING'` (COD) orders display an explicit "COLLECT ₱XXX IN CASH" prompt.
+
 
 ## Security Posture
 - **Edge-Level Auth:** `proxy.ts` prevents unauthenticated access to dashboards and redirects logged-in users away from auth pages.

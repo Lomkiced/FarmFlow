@@ -39,11 +39,11 @@ export default async function FarmProfilePage() {
     { 
       icon: 'payments', 
       label: 'TOTAL SALES', 
-      value: `₱${(stats.thisMonthEarnings || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}` 
+      value: `₱${(stats.readyForPayout || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}` 
     },
     { icon: 'inventory_2', label: 'PRODUCTS LISTED', value: products.length.toString() },
     { icon: 'star', label: 'RATING', value: rating, filled: true },
-    { icon: 'local_shipping', label: 'TOTAL ORDERS', value: stats.pendingOrdersCount.toString() }, // Using pending for now as a placeholder, can be total lifetime orders
+    { icon: 'local_shipping', label: 'TOTAL ORDERS', value: stats.lifetimeTotalOrders.toString() },
   ];
 
   return (

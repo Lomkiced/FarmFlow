@@ -147,6 +147,7 @@ export async function getFarmerDashboardStatsAction() {
     recentOrders,
     totalProducts,
     readyForPayout,
+    lifetimeTotalOrders,
   ] = await Promise.all([
     // Active crops (not yet harvested)
     prisma.crop.count({
@@ -234,6 +235,13 @@ export async function getFarmerDashboardStatsAction() {
       },
       _sum: { subtotal: true },
     }),
+
+    // Lifetime total orders (all orders containing this farm's products)
+    prisma.order.count({
+      where: {
+        items: { some: { product: { farmId } } },
+      },
+    }),
   ]);
 
   // Weekly breakdown
@@ -282,6 +290,7 @@ export async function getFarmerDashboardStatsAction() {
     upcomingHarvests,
     recentOrders,
     totalProducts,
+    lifetimeTotalOrders,
   };
 }
 
