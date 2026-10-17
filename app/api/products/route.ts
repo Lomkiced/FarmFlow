@@ -5,11 +5,12 @@ export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
     
-    const query = searchParams.get('query') || undefined;
+    const query = searchParams.get('query') || searchParams.get('q') || undefined;
     const category = searchParams.get('category') || undefined;
+    const barangay = searchParams.get('barangay') || undefined;
     const minPrice = searchParams.get('minPrice') ? parseFloat(searchParams.get('minPrice')!) : undefined;
     const maxPrice = searchParams.get('maxPrice') ? parseFloat(searchParams.get('maxPrice')!) : undefined;
-    const inStockOnly = searchParams.get('inStockOnly') === 'true';
+    const inStockOnly = searchParams.get('inStockOnly') === 'true' || searchParams.get('inStock') === 'true';
     const sort = (searchParams.get('sort') as any) || 'newest';
     const page = searchParams.get('page') ? parseInt(searchParams.get('page')!) : 1;
     const pageSize = searchParams.get('pageSize') ? parseInt(searchParams.get('pageSize')!) : 12;
@@ -17,6 +18,7 @@ export async function GET(request: NextRequest) {
     const result = await getPublicProductsAction({
       query,
       category,
+      barangay,
       minPrice: isNaN(minPrice as number) ? undefined : minPrice,
       maxPrice: isNaN(maxPrice as number) ? undefined : maxPrice,
       inStockOnly,

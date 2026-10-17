@@ -169,6 +169,7 @@ export async function getFarmerDashboardStatsAction() {
         order: {
           orderStatus: 'DELIVERED',
           paymentStatus: 'PAID',
+          refundStatus: { notIn: ['REFUNDED', 'APPROVED'] },
           createdAt: {
             gte: (() => {
               const nowZoned = toZonedTime(new Date(), TZ);
@@ -231,6 +232,7 @@ export async function getFarmerDashboardStatsAction() {
         order: {
           orderStatus: 'DELIVERED',
           paymentStatus: 'PAID',
+          refundStatus: { notIn: ['REFUNDED', 'APPROVED'] },
         },
       },
       _sum: { subtotal: true },
@@ -257,6 +259,8 @@ export async function getFarmerDashboardStatsAction() {
       product: { farmId },
       order: {
         orderStatus: 'DELIVERED',
+        paymentStatus: 'PAID',
+        refundStatus: { notIn: ['REFUNDED', 'APPROVED'] },
         createdAt: { gte: startOfWeekUtc },
       },
     },

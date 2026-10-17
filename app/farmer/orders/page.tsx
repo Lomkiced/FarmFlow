@@ -16,6 +16,8 @@ export default async function OrdersEarningsPage() {
 
   const activeOrders = orders.filter(o => ['PENDING', 'CONFIRMED', 'READY'].includes(o.orderStatus));
   const completedOrders = orders.filter(o => ['DELIVERED'].includes(o.orderStatus));
+  const cancelledOrders = orders.filter(o => ['CANCELLED'].includes(o.orderStatus));
+  const refundOrders = orders.filter(o => Boolean(o.refundStatus && o.refundStatus !== 'NONE'));
 
   return (
     <>
@@ -24,6 +26,8 @@ export default async function OrdersEarningsPage() {
         <OrdersClient 
           activeOrders={activeOrders as any} 
           completedOrders={completedOrders as any} 
+          cancelledOrders={cancelledOrders as any}
+          refundOrders={refundOrders as any}
           stats={stats} 
         />
       </main>

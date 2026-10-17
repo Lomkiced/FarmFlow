@@ -99,10 +99,24 @@ export async function GET(request: Request) {
     // ─── Calculations ───────────────────────────────────────────────────────────
     
     // Total Sales
-    const currentSales = orders.filter(o => o.orderStatus === 'DELIVERED' && o.paymentStatus === 'PAID')
-                               .reduce((sum, o) => sum + o.totalAmount, 0);
-    const prevSales = previousOrders.filter(o => o.orderStatus === 'DELIVERED' && o.paymentStatus === 'PAID')
-                                    .reduce((sum, o) => sum + o.totalAmount, 0);
+    const currentSales = orders
+      .filter(
+        (o) =>
+          o.orderStatus === 'DELIVERED' &&
+          o.paymentStatus === 'PAID' &&
+          o.refundStatus !== 'REFUNDED' &&
+          o.refundStatus !== 'APPROVED'
+      )
+      .reduce((sum, o) => sum + o.totalAmount, 0);
+    const prevSales = previousOrders
+      .filter(
+        (o) =>
+          o.orderStatus === 'DELIVERED' &&
+          o.paymentStatus === 'PAID' &&
+          o.refundStatus !== 'REFUNDED' &&
+          o.refundStatus !== 'APPROVED'
+      )
+      .reduce((sum, o) => sum + o.totalAmount, 0);
     const salesGrowth = prevSales ? (((currentSales - prevSales) / prevSales) * 100).toFixed(1) : 'N/A';
 
     // Active Farmers
@@ -131,20 +145,18 @@ export async function GET(request: Request) {
       .map(([name, vol], index) => ({ rank: index + 1, name, vol: vol.toFixed(2) }));
 
     // Most Active Farmers
-    const farmerSales: Record<string, { name: string, farm: string, orders: number, total: number }> = {};
-    orders.filter(o => o.orderStatus === 'DELIVERED' && o.paymentStatus === 'PAID').forEach(o => {
-      // Find farm from order items
-      o.items.forEach(item => {
-        // Need farmId... wait, we didn't include product.farmId. We'll do our best with what we have
-      });
-    });
-
-    // Instead of doing complex joins here in memory without product.farm, let's just do a simpler grouped query
     const activeFarmersData = await prisma.orderItem.groupBy({
       by: ['productId'],
-      where: { order: { createdAt: { gte: startDate, lte: endDate }, orderStatus: 'DELIVERED', paymentStatus: 'PAID' } },
+      where: {
+        order: {
+          createdAt: { gte: startDate, lte: endDate },
+          orderStatus: 'DELIVERED',
+          paymentStatus: 'PAID',
+          refundStatus: { notIn: ['REFUNDED', 'APPROVED'] },
+        },
+      },
       _sum: { subtotal: true },
-      _count: { orderId: true }
+      _count: { orderId: true },
     });
 
     // Fetch product details to map back to farmers

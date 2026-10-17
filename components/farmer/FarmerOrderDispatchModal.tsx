@@ -42,6 +42,17 @@ export interface DispatchOrder {
   paymentRef?: string | null;
   notes?: string | null;
   createdAt: Date | string;
+  cancelReason?: string | null;
+  cancelledBy?: string | null;
+  cancelledAt?: Date | string | null;
+  refundStatus?: string | null;
+  refundReason?: string | null;
+  refundDetails?: string | null;
+  refundProofUrl?: string | null;
+  refundAmount?: number | null;
+  refundRequestedAt?: Date | string | null;
+  refundResolvedAt?: Date | string | null;
+  refundAdminNote?: string | null;
 }
 
 interface Props {

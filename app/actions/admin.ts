@@ -35,6 +35,7 @@ export async function getAdminDashboardStatsAction() {
       where: {
         orderStatus: 'DELIVERED',
         paymentStatus: 'PAID',
+        refundStatus: { notIn: ['REFUNDED', 'APPROVED'] },
         createdAt: { gte: startOfMonth },
       },
       _sum: { totalAmount: true },
@@ -43,14 +44,34 @@ export async function getAdminDashboardStatsAction() {
       where: {
         orderStatus: 'DELIVERED',
         paymentStatus: 'PAID',
+        refundStatus: { notIn: ['REFUNDED', 'APPROVED'] },
         createdAt: { gte: startOfLastMonth, lte: endOfLastMonth },
       },
       _sum: { totalAmount: true },
     }),
     prisma.user.findMany({
       orderBy: { createdAt: 'desc' },
-      take: 5,
-      select: { id: true, name: true, email: true, role: true, createdAt: true, avatarUrl: true },
+      take: 8,
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        createdAt: true,
+        avatarUrl: true,
+        idType: true,
+        idNumber: true,
+        idPhotoUrl: true,
+        farm: {
+          select: {
+            farmName: true,
+            idType: true,
+            idNumber: true,
+            idPhotoUrl: true,
+            farmDocUrl: true,
+          },
+        },
+      },
     }),
     prisma.order.groupBy({
       by: ['orderStatus'],
@@ -116,7 +137,7 @@ export async function getFarmersAction(
       take: pageSize,
       orderBy: { createdAt: 'desc' },
       include: {
-        user: { select: { name: true, email: true, phone: true, avatarUrl: true } },
+        user: { select: { name: true, email: true, phone: true, avatarUrl: true, idType: true, idNumber: true, idPhotoUrl: true } },
         _count: { select: { crops: true, products: true } },
       },
     }),
@@ -337,7 +358,16 @@ export async function getAdminOrdersAction(
 ) {
   await requireAdmin();
 
-  const whereClause: any = status && status !== 'ALL' ? { orderStatus: status as 'PENDING' | 'CONFIRMED' | 'READY' | 'DELIVERED' | 'CANCELLED' } : {};
+  const whereClause: any = {};
+  if (status && status !== 'ALL') {
+    if (status === 'REFUNDS' || status === 'REFUND_REQUESTED') {
+      whereClause.refundStatus = 'REQUESTED';
+    } else if (status === 'REFUNDED') {
+      whereClause.refundStatus = { in: ['APPROVED', 'REFUNDED'] };
+    } else {
+      whereClause.orderStatus = status as 'PENDING' | 'CONFIRMED' | 'READY' | 'DELIVERED' | 'CANCELLED';
+    }
+  }
 
   if (filters?.buyer) {
     whereClause.buyer = {
@@ -374,9 +404,9 @@ export async function getAdminOrdersAction(
       take: pageSize,
       orderBy: { createdAt: 'desc' },
       include: {
-        buyer: { select: { name: true, email: true } },
-        address: { select: { barangay: true, city: true } },
-        items: { take: 1, include: { product: { select: { name: true } } } },
+        buyer: { select: { name: true, email: true, phone: true } },
+        address: { select: { street: true, barangay: true, city: true, phone: true } },
+        items: { include: { product: { select: { name: true } } } },
       },
     }),
     prisma.order.count({
@@ -487,7 +517,11 @@ export async function getAnalyticsStatsAction() {
   ] = await Promise.all([
     // Total all-time revenue from delivered + paid orders
     prisma.order.aggregate({
-      where: { orderStatus: 'DELIVERED', paymentStatus: 'PAID' },
+      where: {
+        orderStatus: 'DELIVERED',
+        paymentStatus: 'PAID',
+        refundStatus: { notIn: ['REFUNDED', 'APPROVED'] },
+      },
       _sum: { totalAmount: true },
     }),
     // This month revenue
@@ -495,6 +529,7 @@ export async function getAnalyticsStatsAction() {
       where: {
         orderStatus: 'DELIVERED',
         paymentStatus: 'PAID',
+        refundStatus: { notIn: ['REFUNDED', 'APPROVED'] },
         createdAt: { gte: startOfMonth },
       },
       _sum: { totalAmount: true },
@@ -504,6 +539,7 @@ export async function getAnalyticsStatsAction() {
       where: {
         orderStatus: 'DELIVERED',
         paymentStatus: 'PAID',
+        refundStatus: { notIn: ['REFUNDED', 'APPROVED'] },
         createdAt: { gte: startOfLastMonth, lte: endOfLastMonth },
       },
       _sum: { totalAmount: true },
@@ -519,7 +555,11 @@ export async function getAnalyticsStatsAction() {
     }),
     // Average order value (all delivered paid orders)
     prisma.order.aggregate({
-      where: { orderStatus: 'DELIVERED', paymentStatus: 'PAID' },
+      where: {
+        orderStatus: 'DELIVERED',
+        paymentStatus: 'PAID',
+        refundStatus: { notIn: ['REFUNDED', 'APPROVED'] },
+      },
       _avg: { totalAmount: true },
     }),
     // Top 5 product categories by number of active listings
@@ -542,7 +582,7 @@ export async function getAnalyticsStatsAction() {
             orderItems: {
               include: {
                 order: {
-                  select: { orderStatus: true, totalAmount: true },
+                  select: { orderStatus: true, totalAmount: true, refundStatus: true },
                 },
               },
             },
@@ -559,7 +599,11 @@ export async function getAnalyticsStatsAction() {
     // Revenue grouped by barangay (from farm locations of fulfilled orders)
     prisma.orderItem.findMany({
       where: {
-        order: { orderStatus: 'DELIVERED', paymentStatus: 'PAID' },
+        order: {
+          orderStatus: 'DELIVERED',
+          paymentStatus: 'PAID',
+          refundStatus: { notIn: ['REFUNDED', 'APPROVED'] },
+        },
       },
       select: {
         subtotal: true,
@@ -575,6 +619,7 @@ export async function getAnalyticsStatsAction() {
       where: {
         orderStatus: 'DELIVERED',
         paymentStatus: 'PAID',
+        refundStatus: { notIn: ['REFUNDED', 'APPROVED'] },
         createdAt: {
           gte: new Date(new Date().setMonth(new Date().getMonth() - 5, 1)),
         },
@@ -603,7 +648,7 @@ export async function getAnalyticsStatsAction() {
     let totalSalesAmount = 0;
     for (const product of farm.products) {
       for (const item of product.orderItems) {
-        if (item.order.orderStatus === 'DELIVERED') {
+        if (item.order.orderStatus === 'DELIVERED' && item.order.refundStatus !== 'REFUNDED' && item.order.refundStatus !== 'APPROVED') {
           completedOrderCount++;
           totalSalesAmount += item.order.totalAmount;
         }
@@ -890,6 +935,7 @@ export async function getBuyersAction() {
             id: true,
             totalAmount: true,
             orderStatus: true,
+            refundStatus: true,
           }
         },
         addresses: true,
@@ -900,9 +946,9 @@ export async function getBuyersAction() {
     const enrichedBuyers = buyers.map(buyer => {
       const totalOrders = buyer.ordersAsBuyer.length;
       const cancelledOrders = buyer.ordersAsBuyer.filter(o => o.orderStatus === 'CANCELLED').length;
-      const completedOrders = buyer.ordersAsBuyer.filter(o => o.orderStatus === 'DELIVERED').length;
+      const completedOrders = buyer.ordersAsBuyer.filter(o => o.orderStatus === 'DELIVERED' && o.refundStatus !== 'REFUNDED' && o.refundStatus !== 'APPROVED').length;
       const totalSpent = buyer.ordersAsBuyer
-        .filter(o => o.orderStatus !== 'CANCELLED')
+        .filter(o => o.orderStatus === 'DELIVERED' && o.refundStatus !== 'REFUNDED' && o.refundStatus !== 'APPROVED')
         .reduce((sum, o) => sum + o.totalAmount, 0);
 
       return {

@@ -55,6 +55,7 @@ enum NotificationType {
   NEW_ORDER
   ORDER_STATUS_CHANGE
   PAYMENT_CONFIRMED
+  SUPPORT_INQUIRY
 
   // Farmer-facing
   ACCOUNT_APPROVED
@@ -65,6 +66,19 @@ enum NotificationType {
   ORDER_READY
   ORDER_DELIVERED
   ORDER_CANCELLED
+
+  // Refund notifications
+  REFUND_REQUESTED
+  REFUND_APPROVED
+  REFUND_REJECTED
+}
+
+enum RefundStatus {
+  NONE
+  REQUESTED
+  APPROVED
+  REJECTED
+  REFUNDED
 }
 
 model Notification {
@@ -87,6 +101,9 @@ model User {
   avatarUrl     String?
   role          Role         @default(BUYER)
   isSuspended   Boolean      @default(false)
+  idType        String?
+  idNumber      String?
+  idPhotoUrl    String?
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
   farm          Farm?
@@ -105,6 +122,10 @@ model Farm {
   landArea     Float
   coverPhoto   String?
   bio          String?
+  idType       String?
+  idNumber     String?
+  idPhotoUrl   String?
+  farmDocUrl   String?
   status       FarmerStatus @default(PENDING)
   rating       Float        @default(0)
   totalSales   Float        @default(0)
@@ -154,20 +175,31 @@ model Product {
 }
 
 model Order {
-  id            String        @id @default(uuid())
-  buyerId       String
-  buyer         User          @relation("BuyerOrders", fields: [buyerId], references: [id], onDelete: Cascade)
-  totalAmount   Float
-  deliveryFee   Float         @default(0)
-  orderStatus   OrderStatus   @default(PENDING)
-  paymentStatus PaymentStatus @default(PENDING)
-  paymentRef    String?
-  addressId     String
-  address       Address       @relation(fields: [addressId], references: [id], onDelete: Cascade)
-  notes         String?
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
-  items         OrderItem[]
+  id                String        @id @default(uuid())
+  buyerId           String
+  buyer             User          @relation("BuyerOrders", fields: [buyerId], references: [id], onDelete: Cascade)
+  totalAmount       Float
+  deliveryFee       Float         @default(0)
+  orderStatus       OrderStatus   @default(PENDING)
+  paymentStatus     PaymentStatus @default(PENDING)
+  paymentRef        String?
+  addressId         String
+  address           Address       @relation(fields: [addressId], references: [id], onDelete: Cascade)
+  notes             String?
+  cancelReason      String?
+  cancelledBy       String?
+  cancelledAt       DateTime?
+  refundStatus      RefundStatus  @default(NONE)
+  refundReason      String?
+  refundDetails     String?
+  refundProofUrl    String?
+  refundAmount      Float?
+  refundRequestedAt DateTime?
+  refundResolvedAt  DateTime?
+  refundAdminNote   String?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  items             OrderItem[]
 }
 
 model OrderItem {
@@ -211,4 +243,16 @@ model Activity {
   unit         String?
   activityDate DateTime
   createdAt    DateTime @default(now())
+}
+
+model SupportInquiry {
+  id        String   @id @default(uuid())
+  name      String
+  email     String
+  phone     String?
+  subject   String
+  message   String
+  status    String   @default("OPEN") // OPEN, RESOLVED
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }

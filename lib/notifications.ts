@@ -54,3 +54,6 @@ export async function sendFarmerNotification(
     console.error('[sendFarmerNotification] Failed to create notification:', error);
   }
 }
+
+export const sendUserNotification = sendFarmerNotification;
+

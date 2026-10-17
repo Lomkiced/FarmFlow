@@ -5,15 +5,9 @@ import Link from 'next/link';
 import ProductCard from '@/components/marketplace/ProductCard';
 import { getProductStockBadge } from '@/lib/utils';
 
-const CATEGORIES = ['All Produce', 'Rice', 'Vegetables', 'Fruits', 'Herbs', 'Root Crops'];
+import { PRODUCT_CATEGORIES } from '@/lib/validations/product';
 
-const CATEGORY_MAP: Record<string, string> = {
-  'Rice': 'Grains & Rice',
-  'Vegetables': 'Vegetables',
-  'Fruits': 'Fruits',
-  'Herbs': 'Herbs & Spices',
-  'Root Crops': 'Root Crops',
-};
+const CATEGORIES = ['All Produce', ...PRODUCT_CATEGORIES];
 
 type Product = {
   id: string;
@@ -36,7 +30,7 @@ export default function CategoryFilter({ products }: { products: Product[] }) {
 
   const filteredProducts = activeCategory === 'All Produce'
     ? products
-    : products.filter(p => p.category === CATEGORY_MAP[activeCategory]);
+    : products.filter(p => p.category?.toLowerCase() === activeCategory.toLowerCase());
 
   return (
     <>
@@ -70,8 +64,11 @@ export default function CategoryFilter({ products }: { products: Product[] }) {
             <h2 className="font-display font-semibold text-h2 text-primary">Featured Harvest</h2>
             <p className="font-sans text-[16px] text-on-surface-variant mt-1">Freshly picked within the last 24 hours.</p>
           </div>
-          <Link href="/products" className="hidden md:flex items-center gap-1 text-primary font-label-md hover:underline">
-            View all
+          <Link 
+            href={activeCategory === 'All Produce' ? '/products' : `/products?category=${encodeURIComponent(activeCategory)}`} 
+            className="hidden md:flex items-center gap-1 text-primary font-label-md hover:underline"
+          >
+            {activeCategory === 'All Produce' ? 'View all' : `View all in ${activeCategory}`}
             <span className="material-symbols-outlined text-[20px]">arrow_forward</span>
           </Link>
         </div>

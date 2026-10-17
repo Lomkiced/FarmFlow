@@ -2,8 +2,9 @@
 
 import { useRouter } from 'next/navigation';
 import { useState, useTransition, useEffect } from 'react';
-import { updateOrderStatusAction } from '@/app/actions/orders';
+import { updateOrderStatusAction, cancelOrderAction, resolveOrderRefundAction } from '@/app/actions/orders';
 import toast from 'react-hot-toast';
+import { format, formatDistanceToNow } from 'date-fns';
 import FarmerOrderDispatchModal, { DispatchOrder } from './FarmerOrderDispatchModal';
 
 export type Order = DispatchOrder;
@@ -21,16 +22,28 @@ interface FarmerStats {
   weekData?: WeekDataItem[];
 }
 
+const FARMER_CANCEL_PRESETS = [
+  'Harvest damaged or insufficient quantity available',
+  'Severe weather / field flooded in Agoo',
+  'Unable to transport or deliver to buyer address',
+  'Customer contacted and requested cancellation',
+  'Other operational issue',
+];
+
 export default function OrdersClient({
-  activeOrders,
-  completedOrders,
+  activeOrders = [],
+  completedOrders = [],
+  cancelledOrders = [],
+  refundOrders = [],
   stats,
 }: {
   activeOrders: Order[];
   completedOrders: Order[];
+  cancelledOrders?: Order[];
+  refundOrders?: Order[];
   stats: FarmerStats;
 }) {
-  const [activeTab, setActiveTab] = useState<'active' | 'completed' | 'earnings'>('active');
+  const [activeTab, setActiveTab] = useState<'active' | 'completed' | 'refunds' | 'cancelled' | 'earnings'>('active');
   const [isPending, startTransition] = useTransition();
   const [isRefreshing, startRefreshTransition] = useTransition();
   const router = useRouter();
@@ -38,6 +51,19 @@ export default function OrdersClient({
   // State for the dispatch & waybill modal
   const [selectedDispatchOrder, setSelectedDispatchOrder] = useState<DispatchOrder | null>(null);
   const [isDispatchModalOpen, setIsDispatchModalOpen] = useState(false);
+
+  // Cancellation Modal State
+  const [cancellingOrder, setCancellingOrder] = useState<Order | null>(null);
+  const [cancelReasonPreset, setCancelReasonPreset] = useState(FARMER_CANCEL_PRESETS[0]);
+  const [cancelReasonCustom, setCancelReasonCustom] = useState('');
+  const [isSubmittingCancel, setIsSubmittingCancel] = useState(false);
+
+  // Refund Resolution State
+  const [resolvingRefundOrder, setResolvingRefundOrder] = useState<Order | null>(null);
+  const [refundDecision, setRefundDecision] = useState<'APPROVED' | 'REJECTED'>('APPROVED');
+  const [refundAdminNote, setRefundAdminNote] = useState('');
+  const [isSubmittingRefund, setIsSubmittingRefund] = useState(false);
+  const [previewProofUrl, setPreviewProofUrl] = useState<string | null>(null);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -50,6 +76,7 @@ export default function OrdersClient({
 
   const weekData = stats?.weekData || [];
   const readyForPayout = stats?.readyForPayout || 0;
+  const pendingRefundsCount = refundOrders.filter(o => o.refundStatus === 'REQUESTED').length;
 
   const handleUpdateStatus = (orderId: string, currentStatus: string) => {
     let newStatus: 'CONFIRMED' | 'READY' | 'DELIVERED' | 'CANCELLED';
@@ -62,7 +89,6 @@ export default function OrdersClient({
       const result = await updateOrderStatusAction(orderId, newStatus);
       if (result.success) {
         toast.success(result.message || `Order marked as ${newStatus.toLowerCase()}`);
-        // If the updated order is currently open in modal, close it
         if (selectedDispatchOrder?.id === orderId) {
           setIsDispatchModalOpen(false);
           setSelectedDispatchOrder(null);
@@ -72,6 +98,66 @@ export default function OrdersClient({
         toast.error(result.error || 'Failed to update order status');
       }
     });
+  };
+
+  const handleCancelOrderSubmit = async () => {
+    if (!cancellingOrder) return;
+    const finalReason =
+      cancelReasonPreset === 'Other operational issue'
+        ? cancelReasonCustom.trim()
+        : `${cancelReasonPreset}${cancelReasonCustom.trim() ? `: ${cancelReasonCustom.trim()}` : ''}`;
+
+    if (!finalReason) {
+      toast.error('Please specify a cancellation reason.');
+      return;
+    }
+
+    setIsSubmittingCancel(true);
+    const toastId = toast.loading('Cancelling order and restoring stock...');
+
+    try {
+      const res = await cancelOrderAction(cancellingOrder.id, finalReason);
+      if (res.success) {
+        toast.success(res.message || 'Order cancelled. Inventory restored.', { id: toastId });
+        setCancellingOrder(null);
+        setCancelReasonCustom('');
+        router.refresh();
+      } else {
+        toast.error(res.error || 'Failed to cancel order.', { id: toastId });
+      }
+    } catch (e: any) {
+      toast.error(e?.message || 'An error occurred.', { id: toastId });
+    } finally {
+      setIsSubmittingCancel(false);
+    }
+  };
+
+  const handleResolveRefundSubmit = async () => {
+    if (!resolvingRefundOrder) return;
+
+    setIsSubmittingRefund(true);
+    const toastId = toast.loading(`${refundDecision === 'APPROVED' ? 'Approving' : 'Declining'} refund...`);
+
+    try {
+      const res = await resolveOrderRefundAction({
+        orderId: resolvingRefundOrder.id,
+        decision: refundDecision,
+        adminNote: refundAdminNote.trim() || undefined,
+      });
+
+      if (res.success) {
+        toast.success(res.message || `Refund request ${refundDecision.toLowerCase()}!`, { id: toastId });
+        setResolvingRefundOrder(null);
+        setRefundAdminNote('');
+        router.refresh();
+      } else {
+        toast.error(res.error || 'Failed to resolve refund.', { id: toastId });
+      }
+    } catch (e: any) {
+      toast.error(e?.message || 'An error occurred.', { id: toastId });
+    } finally {
+      setIsSubmittingRefund(false);
+    }
   };
 
   const openDispatchDetails = (order: Order) => {
@@ -88,9 +174,12 @@ export default function OrdersClient({
       .join(', ');
 
     const isOrderPending = order.orderStatus === 'PENDING';
+    const isOrderConfirmed = order.orderStatus === 'CONFIRMED';
     const isOrderReady = order.orderStatus === 'READY';
     const isOrderDelivered = order.orderStatus === 'DELIVERED';
+    const isOrderCancelled = order.orderStatus === 'CANCELLED';
 
+    const canFarmerCancel = isOrderPending || isOrderConfirmed;
     const isPaid = order.paymentStatus === 'PAID';
 
     let nextActionLabel = '';
@@ -140,6 +229,8 @@ export default function OrdersClient({
                   ? 'bg-blue-100 text-blue-900 border border-blue-300'
                   : isOrderDelivered
                   ? 'bg-emerald-100 text-emerald-900 border border-emerald-300'
+                  : isOrderCancelled
+                  ? 'bg-rose-100 text-rose-900 border border-rose-300'
                   : 'bg-surface-variant text-on-surface-variant'
               }`}
             >
@@ -147,6 +238,47 @@ export default function OrdersClient({
             </span>
           </div>
         </div>
+
+        {/* Cancellation details banner if cancelled */}
+        {isOrderCancelled && (
+          <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-900">
+            <div className="font-bold flex items-center gap-1.5">
+              <span className="material-symbols-outlined text-[16px]">cancel</span>
+              Order Cancelled {order.cancelledBy ? `by ${order.cancelledBy.toLowerCase()}` : ''}
+            </div>
+            {order.cancelReason && <div className="mt-0.5">Reason: "{order.cancelReason}"</div>}
+            <div className="mt-1 text-[11px] text-rose-700/80">Inventory was safely restored to stock.</div>
+          </div>
+        )}
+
+        {/* Refund badge if applicable */}
+        {order.refundStatus && order.refundStatus !== 'NONE' && (
+          <div className={`p-3 rounded-xl border text-xs ${
+            order.refundStatus === 'REQUESTED' ? 'bg-amber-50 border-amber-300 text-amber-900' :
+            order.refundStatus === 'APPROVED' ? 'bg-emerald-50 border-emerald-300 text-emerald-900' :
+            'bg-rose-50 border-rose-300 text-rose-900'
+          }`}>
+            <div className="font-bold flex items-center justify-between">
+              <span className="flex items-center gap-1">
+                <span className="material-symbols-outlined text-[16px]">assignment_return</span>
+                Refund Status: {order.refundStatus}
+              </span>
+              {order.refundStatus === 'REQUESTED' && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setResolvingRefundOrder(order);
+                    setRefundDecision('APPROVED');
+                  }}
+                  className="px-2 py-0.5 rounded bg-amber-600 text-white font-bold text-[11px] hover:bg-amber-700"
+                >
+                  Review Request
+                </button>
+              )}
+            </div>
+            {order.refundReason && <div className="mt-0.5">Reason: {order.refundReason}</div>}
+          </div>
+        )}
 
         {/* Delivery Address Row */}
         {order.address && (
@@ -232,21 +364,34 @@ export default function OrdersClient({
             )}
           </div>
 
-          {/* Status Progression Button */}
-          {nextActionLabel && (
-            <button
-              disabled={isPending}
-              onClick={() => handleUpdateStatus(order.id, order.orderStatus)}
-              className="bg-primary hover:bg-primary/90 text-on-primary font-bold text-xs px-4 py-2 rounded-xl transition-all shadow-sm active:scale-95 disabled:opacity-50 flex items-center gap-1.5 ml-auto"
-            >
-              {isPending && (
-                <span className="material-symbols-outlined text-[14px] animate-spin">
-                  progress_activity
-                </span>
-              )}
-              {nextActionLabel}
-            </button>
-          )}
+          <div className="flex items-center gap-2 ml-auto">
+            {/* Cancel Button */}
+            {canFarmerCancel && (
+              <button
+                type="button"
+                onClick={() => setCancellingOrder(order)}
+                className="border border-rose-300 text-rose-700 hover:bg-rose-50 text-xs font-bold px-3 py-1.5 rounded-xl transition-all"
+              >
+                Cancel
+              </button>
+            )}
+
+            {/* Status Progression Button */}
+            {nextActionLabel && (
+              <button
+                disabled={isPending}
+                onClick={() => handleUpdateStatus(order.id, order.orderStatus)}
+                className="bg-primary hover:bg-primary/90 text-on-primary font-bold text-xs px-4 py-2 rounded-xl transition-all shadow-sm active:scale-95 disabled:opacity-50 flex items-center gap-1.5"
+              >
+                {isPending && (
+                  <span className="material-symbols-outlined text-[14px] animate-spin">
+                    progress_activity
+                  </span>
+                )}
+                {nextActionLabel}
+              </button>
+            )}
+          </div>
         </div>
       </div>
     );
@@ -255,20 +400,20 @@ export default function OrdersClient({
   return (
     <>
       {/* Tab selector */}
-      <div className="flex bg-surface-container rounded-xl p-1 shadow-sm">
+      <div className="flex bg-surface-container rounded-xl p-1 shadow-sm overflow-x-auto gap-1">
         <button 
           onClick={() => setActiveTab('active')}
-          className={`flex-1 py-2 text-center text-[14px] font-bold rounded-lg transition-all ${
+          className={`flex-1 min-w-[120px] py-2 text-center text-xs sm:text-[14px] font-bold rounded-lg transition-all ${
             activeTab === 'active' 
               ? 'text-on-primary bg-primary shadow-sm' 
               : 'text-on-surface-variant hover:bg-surface-container-high'
           }`}
         >
-          Active Deliveries ({activeOrders.length})
+          Active ({activeOrders.length})
         </button>
         <button 
           onClick={() => setActiveTab('completed')}
-          className={`flex-1 py-2 text-center text-[14px] font-bold rounded-lg transition-all ${
+          className={`flex-1 min-w-[120px] py-2 text-center text-xs sm:text-[14px] font-bold rounded-lg transition-all ${
             activeTab === 'completed' 
               ? 'text-on-primary bg-primary shadow-sm' 
               : 'text-on-surface-variant hover:bg-surface-container-high'
@@ -277,8 +422,33 @@ export default function OrdersClient({
           Completed ({completedOrders.length})
         </button>
         <button 
+          onClick={() => setActiveTab('refunds')}
+          className={`flex-1 min-w-[130px] py-2 text-center text-xs sm:text-[14px] font-bold rounded-lg transition-all relative ${
+            activeTab === 'refunds' 
+              ? 'text-on-primary bg-primary shadow-sm' 
+              : 'text-on-surface-variant hover:bg-surface-container-high'
+          }`}
+        >
+          Refunds ({refundOrders.length})
+          {pendingRefundsCount > 0 && (
+            <span className="ml-1.5 px-1.5 py-0.2 bg-amber-500 text-white rounded-full text-[10px]">
+              {pendingRefundsCount}
+            </span>
+          )}
+        </button>
+        <button 
+          onClick={() => setActiveTab('cancelled')}
+          className={`flex-1 min-w-[110px] py-2 text-center text-xs sm:text-[14px] font-bold rounded-lg transition-all ${
+            activeTab === 'cancelled' 
+              ? 'text-on-primary bg-primary shadow-sm' 
+              : 'text-on-surface-variant hover:bg-surface-container-high'
+          }`}
+        >
+          Cancelled ({cancelledOrders.length})
+        </button>
+        <button 
           onClick={() => setActiveTab('earnings')}
-          className={`flex-1 py-2 text-center text-[14px] font-bold rounded-lg transition-all ${
+          className={`flex-1 min-w-[100px] py-2 text-center text-xs sm:text-[14px] font-bold rounded-lg transition-all ${
             activeTab === 'earnings' 
               ? 'text-on-primary bg-primary shadow-sm' 
               : 'text-on-surface-variant hover:bg-surface-container-high'
@@ -326,7 +496,144 @@ export default function OrdersClient({
         </div>
       )}
 
-      {/* Tab 3: Earnings */}
+      {/* Tab 3: Refunds & Returns */}
+      {activeTab === 'refunds' && (
+        <div className="flex flex-col gap-3">
+          {refundOrders.length === 0 ? (
+            <div className="text-center py-16 bg-surface-container-lowest rounded-2xl border border-surface-variant/40 shadow-sm p-6">
+              <span className="material-symbols-outlined text-[48px] text-outline mb-2">
+                assignment_return
+              </span>
+              <p className="text-base font-bold text-on-surface">No refund requests</p>
+              <p className="text-xs text-on-surface-variant mt-1">
+                Returns and refund disputes filed by buyers will appear here for your review.
+              </p>
+            </div>
+          ) : (
+            refundOrders.map((order) => {
+              const isPendingReview = order.refundStatus === 'REQUESTED';
+
+              return (
+                <div
+                  key={order.id}
+                  className="p-5 bg-surface-container-lowest rounded-2xl shadow-sm border border-outline-variant/30 flex flex-col gap-3"
+                >
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-on-surface text-base">{order.buyer.name}</span>
+                        <span className="text-xs text-on-surface-variant font-mono">#{order.id.slice(0, 8)}</span>
+                      </div>
+                      <p className="text-xs text-on-surface-variant mt-0.5">
+                        {order.items.map(i => `${i.product.name} (${i.quantityKg}kg)`).join(', ')}
+                      </p>
+                    </div>
+                    <span className={`px-2.5 py-1 rounded-full text-xs font-bold uppercase tracking-wide ${
+                      isPendingReview ? 'bg-amber-100 text-amber-900 border border-amber-300' :
+                      order.refundStatus === 'APPROVED' ? 'bg-emerald-100 text-emerald-900 border border-emerald-300' :
+                      'bg-rose-100 text-rose-900 border border-rose-300'
+                    }`}>
+                      {order.refundStatus}
+                    </span>
+                  </div>
+
+                  <div className="bg-surface-container/50 p-3.5 rounded-xl border border-surface-variant/40 text-xs flex flex-col gap-1.5">
+                    <div className="flex justify-between items-center">
+                      <span className="font-semibold text-gray-700">Reason:</span>
+                      <span className="font-bold text-amber-900">{order.refundReason || 'Unspecified'}</span>
+                    </div>
+                    {order.refundDetails && (
+                      <div className="mt-1 text-gray-800">
+                        <span className="font-semibold text-gray-700">Details: </span>
+                        "{order.refundDetails}"
+                      </div>
+                    )}
+                    <div className="flex justify-between items-center text-gray-600 mt-1">
+                      <span>Order Value:</span>
+                      <span className="font-bold text-primary">₱{order.totalAmount.toFixed(2)}</span>
+                    </div>
+                  </div>
+
+                  {/* Proof Photo Preview Button */}
+                  {order.refundProofUrl && (
+                    <div className="flex items-center gap-3 bg-gray-50 p-2.5 rounded-xl border border-gray-200">
+                      <img 
+                        src={order.refundProofUrl} 
+                        alt="Proof thumbnail" 
+                        className="w-12 h-12 rounded-lg object-cover border shrink-0 cursor-pointer"
+                        onClick={() => setPreviewProofUrl(order.refundProofUrl || null)}
+                      />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-semibold text-gray-900">Buyer Uploaded Proof</p>
+                        <button
+                          type="button"
+                          onClick={() => setPreviewProofUrl(order.refundProofUrl || null)}
+                          className="text-[11px] text-primary hover:underline flex items-center gap-0.5 mt-0.5"
+                        >
+                          <span className="material-symbols-outlined text-[13px]">visibility</span>
+                          Click to inspect full photo
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {isPendingReview ? (
+                    <div className="flex justify-end gap-2 pt-2 border-t border-surface-variant/40">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setResolvingRefundOrder(order);
+                          setRefundDecision('REJECTED');
+                        }}
+                        className="px-4 py-1.5 rounded-xl text-xs font-bold border border-rose-300 text-rose-700 hover:bg-rose-50"
+                      >
+                        Decline Refund
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setResolvingRefundOrder(order);
+                          setRefundDecision('APPROVED');
+                        }}
+                        className="px-4 py-1.5 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm"
+                      >
+                        Approve Refund
+                      </button>
+                    </div>
+                  ) : (
+                    order.refundAdminNote && (
+                      <div className="text-[11px] text-gray-500 italic border-t pt-2">
+                        Resolution Note: "{order.refundAdminNote}"
+                      </div>
+                    )
+                  )}
+                </div>
+              );
+            })
+          )}
+        </div>
+      )}
+
+      {/* Tab 4: Cancelled Orders */}
+      {activeTab === 'cancelled' && (
+        <div className="flex flex-col gap-2">
+          {cancelledOrders.length === 0 ? (
+            <div className="text-center py-16 bg-surface-container-lowest rounded-2xl border border-surface-variant/40 shadow-sm p-6">
+              <span className="material-symbols-outlined text-[48px] text-outline mb-2">
+                cancel
+              </span>
+              <p className="text-base font-bold text-on-surface">No cancelled orders</p>
+              <p className="text-xs text-on-surface-variant mt-1">
+                Any orders cancelled before harvest will be tracked here.
+              </p>
+            </div>
+          ) : (
+            cancelledOrders.map(renderOrderCard)
+          )}
+        </div>
+      )}
+
+      {/* Tab 5: Earnings */}
       {activeTab === 'earnings' && (
         <>
           {/* FILTER + TOTAL EARNINGS */}
@@ -417,6 +724,188 @@ export default function OrdersClient({
         onUpdateStatus={handleUpdateStatus}
         isUpdatingStatus={isPending}
       />
+
+      {/* FARMER CANCEL ORDER MODAL */}
+      {cancellingOrder && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-150">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-gray-100 flex flex-col gap-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-rose-600">
+                <span className="material-symbols-outlined text-[24px]">cancel</span>
+                <h3 className="font-bold text-gray-900 text-lg">Cancel Order #{cancellingOrder.id.slice(0, 8)}</h3>
+              </div>
+              <button onClick={() => setCancellingOrder(null)} className="text-gray-400 hover:text-gray-600">
+                <span className="material-symbols-outlined text-[20px]">close</span>
+              </button>
+            </div>
+
+            <p className="text-xs text-gray-500">
+              The buyer will be notified immediately, and all harvested quantities will be restored to your inventory.
+            </p>
+
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 mb-1">Reason for cancellation *</label>
+                <select 
+                  value={cancelReasonPreset}
+                  onChange={(e) => setCancelReasonPreset(e.target.value)}
+                  className="w-full text-xs border border-gray-300 rounded-lg p-2.5 bg-white text-gray-900 outline-none focus:border-rose-500"
+                >
+                  {FARMER_CANCEL_PRESETS.map((p) => (
+                    <option key={p} value={p}>{p}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 mb-1">Note to Customer (Optional)</label>
+                <textarea
+                  rows={2}
+                  placeholder="Explain why the order cannot be fulfilled..."
+                  value={cancelReasonCustom}
+                  onChange={(e) => setCancelReasonCustom(e.target.value)}
+                  className="w-full text-xs border border-gray-300 rounded-lg p-2.5 outline-none focus:border-rose-500 resize-none"
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2 border-t border-gray-100">
+              <button
+                type="button"
+                disabled={isSubmittingCancel}
+                onClick={() => setCancellingOrder(null)}
+                className="px-4 py-2 text-xs font-semibold rounded-lg text-gray-700 hover:bg-gray-100"
+              >
+                Keep Order
+              </button>
+              <button
+                type="button"
+                disabled={isSubmittingCancel}
+                onClick={handleCancelOrderSubmit}
+                className="px-4 py-2 text-xs font-semibold rounded-lg bg-rose-600 hover:bg-rose-700 text-white flex items-center gap-1.5 shadow-sm disabled:opacity-50"
+              >
+                {isSubmittingCancel ? 'Cancelling...' : 'Confirm Cancellation'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* RESOLVE REFUND MODAL */}
+      {resolvingRefundOrder && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-150">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-gray-100 flex flex-col gap-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-amber-700">
+                <span className="material-symbols-outlined text-[24px]">assignment_return</span>
+                <h3 className="font-bold text-gray-900 text-lg">
+                  {refundDecision === 'APPROVED' ? 'Approve' : 'Decline'} Refund Request
+                </h3>
+              </div>
+              <button onClick={() => setResolvingRefundOrder(null)} className="text-gray-400 hover:text-gray-600">
+                <span className="material-symbols-outlined text-[20px]">close</span>
+              </button>
+            </div>
+
+            <div className="bg-gray-50 p-3 rounded-xl border border-gray-200 text-xs text-gray-700 flex flex-col gap-1">
+              <div><span className="font-semibold">Buyer:</span> {resolvingRefundOrder.buyer.name}</div>
+              <div><span className="font-semibold">Reason:</span> {resolvingRefundOrder.refundReason}</div>
+              <div><span className="font-semibold">Amount:</span> ₱{resolvingRefundOrder.totalAmount.toFixed(2)}</div>
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 mb-1">Decision</label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setRefundDecision('APPROVED')}
+                    className={`py-2 text-xs font-bold rounded-lg border transition-all ${
+                      refundDecision === 'APPROVED'
+                        ? 'bg-emerald-50 border-emerald-500 text-emerald-800'
+                        : 'border-gray-200 text-gray-600 hover:bg-gray-50'
+                    }`}
+                  >
+                    ✓ Approve Refund
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setRefundDecision('REJECTED')}
+                    className={`py-2 text-xs font-bold rounded-lg border transition-all ${
+                      refundDecision === 'REJECTED'
+                        ? 'bg-rose-50 border-rose-500 text-rose-800'
+                        : 'border-gray-200 text-gray-600 hover:bg-gray-50'
+                    }`}
+                  >
+                    ✕ Decline Refund
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 mb-1">
+                  Message / Resolution Note to Buyer
+                </label>
+                <textarea
+                  rows={3}
+                  placeholder={
+                    refundDecision === 'APPROVED'
+                      ? 'e.g. Apologies for the defective item, we have approved your refund.'
+                      : 'e.g. Produce delivered was confirmed fresh per inspection.'
+                  }
+                  value={refundAdminNote}
+                  onChange={(e) => setRefundAdminNote(e.target.value)}
+                  className="w-full text-xs border border-gray-300 rounded-lg p-2.5 outline-none focus:border-primary resize-none"
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2 border-t border-gray-100">
+              <button
+                type="button"
+                disabled={isSubmittingRefund}
+                onClick={() => setResolvingRefundOrder(null)}
+                className="px-4 py-2 text-xs font-semibold rounded-lg text-gray-700 hover:bg-gray-100"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={isSubmittingRefund}
+                onClick={handleResolveRefundSubmit}
+                className={`px-4 py-2 text-xs font-semibold rounded-lg text-white shadow-sm disabled:opacity-50 ${
+                  refundDecision === 'APPROVED' ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-rose-600 hover:bg-rose-700'
+                }`}
+              >
+                {isSubmittingRefund ? 'Submitting...' : `Confirm ${refundDecision === 'APPROVED' ? 'Approval' : 'Decline'}`}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* PROOF PHOTO PREVIEW MODAL */}
+      {previewProofUrl && (
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in duration-150"
+          onClick={() => setPreviewProofUrl(null)}
+        >
+          <div 
+            className="bg-white rounded-2xl max-w-2xl w-full p-4 shadow-2xl flex flex-col gap-3 overflow-hidden"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex justify-between items-center border-b pb-2">
+              <h3 className="font-bold text-sm text-gray-900">Refund Proof Photo</h3>
+              <button onClick={() => setPreviewProofUrl(null)} className="text-gray-400 hover:text-gray-600">
+                <span className="material-symbols-outlined text-[20px]">close</span>
+              </button>
+            </div>
+            <div className="max-h-[75vh] flex items-center justify-center bg-gray-950 rounded-xl overflow-hidden">
+              <img src={previewProofUrl} alt="Refund proof" className="max-h-[70vh] w-auto object-contain" />
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

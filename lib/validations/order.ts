@@ -26,5 +26,26 @@ export const checkoutSchema = z.object({
   notes: z.string().max(300).trim().optional(),
 });
 
+export const cancelOrderSchema = z.object({
+  orderId: z.string().uuid('Invalid order ID.'),
+  reason: z.string().min(3, 'Please provide a cancellation reason.').max(500, 'Reason cannot exceed 500 characters.').trim(),
+});
+
+export const requestRefundSchema = z.object({
+  orderId: z.string().uuid('Invalid order ID.'),
+  reason: z.string().min(3, 'Please provide a refund reason.').max(200, 'Reason cannot exceed 200 characters.').trim(),
+  details: z.string().max(1000, 'Details cannot exceed 1000 characters.').trim().optional(),
+  proofUrl: z.string().url('Proof photo URL is required for refund verification.').optional(),
+});
+
+export const resolveRefundSchema = z.object({
+  orderId: z.string().uuid('Invalid order ID.'),
+  decision: z.enum(['APPROVED', 'REJECTED']),
+  adminNote: z.string().max(500, 'Note cannot exceed 500 characters.').trim().optional(),
+});
+
 export type OrderFormValues = z.infer<typeof orderSchema>;
 export type CheckoutFormValues = z.infer<typeof checkoutSchema>;
+export type CancelOrderValues = z.infer<typeof cancelOrderSchema>;
+export type RequestRefundValues = z.infer<typeof requestRefundSchema>;
+export type ResolveRefundValues = z.infer<typeof resolveRefundSchema>;

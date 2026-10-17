@@ -47,10 +47,19 @@ export default function CheckoutClient({ addresses }: { addresses: Address[] }) 
   const deliveryFee = 50;
   const total = subtotal + deliveryFee;
 
+  const hasOutOfStockItems = checkoutItems.some(
+    (i) => i.stockKg <= 0 || i.quantityKg > i.stockKg
+  );
+
   const handlePlaceOrder = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (checkoutItems.length === 0) {
       toast.error('Your cart is empty');
+      return;
+    }
+
+    if (hasOutOfStockItems) {
+      toast.error('One or more items in your cart exceed available stock. Please return to cart.');
       return;
     }
 
@@ -310,10 +319,17 @@ export default function CheckoutClient({ addresses }: { addresses: Address[] }) 
             </div>
           </div>
 
+          {hasOutOfStockItems && (
+            <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-800 flex items-start gap-2">
+              <span className="material-symbols-outlined text-[16px] text-rose-600 shrink-0 mt-0.5">warning</span>
+              <span>Some items in your order exceed the farmer's current inventory. Please adjust quantities in your cart.</span>
+            </div>
+          )}
+
           <div>
             <button
               type="submit"
-              disabled={isPending || (!isNewAddress && !selectedAddressId)}
+              disabled={isPending || (!isNewAddress && !selectedAddressId) || hasOutOfStockItems}
               className="w-full bg-[#d97706] hover:bg-[#b45309] disabled:opacity-50 disabled:cursor-not-allowed text-white font-label-md text-label-md py-4 rounded-xl transition-colors shadow-sm flex justify-center items-center gap-2"
             >
               {isPending ? (

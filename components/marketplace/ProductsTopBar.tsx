@@ -40,7 +40,10 @@ export default function ProductsTopBar({ totalCount }: { totalCount: number }) {
 
   // Read active filters for badges
   const activeCategory = searchParams.get('category');
-  const inStockOnly = searchParams.get('inStockOnly') === 'true';
+  const activeBarangay = searchParams.get('barangay');
+  const minPrice = searchParams.get('minPrice');
+  const maxPrice = searchParams.get('maxPrice');
+  const inStockOnly = searchParams.get('inStockOnly') === 'true' || searchParams.get('inStock') === 'true';
 
   const clearFilter = (name: string) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -63,11 +66,11 @@ export default function ProductsTopBar({ totalCount }: { totalCount: number }) {
           />
         </div>
         <div className="flex items-center gap-3">
-          <span className="font-body-md text-on-surface-variant">Sort by:</span>
+          <span className="font-body-md text-on-surface-variant text-sm">Sort by:</span>
           <select 
             value={sort}
             onChange={(e) => updateFilters('sort', e.target.value)}
-            className="p-2 bg-transparent border-none text-primary font-label-md cursor-pointer outline-none focus:ring-0 appearance-none pr-4 relative"
+            className="p-2 bg-transparent border border-outline-variant/50 rounded-lg text-primary font-medium text-sm cursor-pointer outline-none focus:ring-1 focus:ring-primary pr-6"
           >
             <option value="newest">Newly Listed</option>
             <option value="price_asc">Price: Low to High</option>
@@ -79,17 +82,51 @@ export default function ProductsTopBar({ totalCount }: { totalCount: number }) {
 
       {/* Active Filter Chips */}
       <div className="flex flex-wrap gap-2 items-center">
-        <span className="font-body-md text-on-surface-variant mr-2">Showing {totalCount} results</span>
-        {activeCategory && (
-          <span className="inline-flex items-center gap-1 px-3 py-1 bg-secondary-container text-on-secondary-container rounded-full font-label-sm text-label-sm capitalize">
-            {activeCategory.toLowerCase()}
-            <button onClick={() => clearFilter('category')} className="material-symbols-outlined text-[14px] hover:text-primary leading-none">close</button>
+        <span className="font-body-md text-on-surface-variant text-sm mr-1">Showing {totalCount} results</span>
+        {activeCategory && activeCategory.toLowerCase() !== 'all' && (
+          <span className="inline-flex items-center gap-1 px-3 py-1 bg-primary/10 text-primary border border-primary/20 rounded-full font-label-sm text-xs capitalize">
+            {activeCategory}
+            <button onClick={() => clearFilter('category')} className="material-symbols-outlined text-[14px] hover:text-red-500 leading-none">close</button>
+          </span>
+        )}
+        {activeBarangay && (
+          <span className="inline-flex items-center gap-1 px-3 py-1 bg-amber-500/10 text-amber-700 border border-amber-500/20 rounded-full font-label-sm text-xs">
+            📍 {activeBarangay}
+            <button onClick={() => clearFilter('barangay')} className="material-symbols-outlined text-[14px] hover:text-red-500 leading-none">close</button>
+          </span>
+        )}
+        {(minPrice || maxPrice) && (
+          <span className="inline-flex items-center gap-1 px-3 py-1 bg-blue-500/10 text-blue-700 border border-blue-500/20 rounded-full font-label-sm text-xs">
+            ₱{minPrice || 0} - ₱{maxPrice || '∞'}
+            <button 
+              onClick={() => {
+                const params = new URLSearchParams(searchParams.toString());
+                params.delete('minPrice');
+                params.delete('maxPrice');
+                params.set('page', '1');
+                router.push(pathname + '?' + params.toString());
+              }} 
+              className="material-symbols-outlined text-[14px] hover:text-red-500 leading-none"
+            >
+              close
+            </button>
           </span>
         )}
         {inStockOnly && (
-          <span className="inline-flex items-center gap-1 px-3 py-1 bg-secondary-container text-on-secondary-container rounded-full font-label-sm text-label-sm">
+          <span className="inline-flex items-center gap-1 px-3 py-1 bg-emerald-500/10 text-emerald-700 border border-emerald-500/20 rounded-full font-label-sm text-xs">
             In Stock
-            <button onClick={() => clearFilter('inStockOnly')} className="material-symbols-outlined text-[14px] hover:text-primary leading-none">close</button>
+            <button 
+              onClick={() => {
+                const params = new URLSearchParams(searchParams.toString());
+                params.delete('inStockOnly');
+                params.delete('inStock');
+                params.set('page', '1');
+                router.push(pathname + '?' + params.toString());
+              }} 
+              className="material-symbols-outlined text-[14px] hover:text-red-500 leading-none"
+            >
+              close
+            </button>
           </span>
         )}
       </div>

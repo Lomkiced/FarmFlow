@@ -4,8 +4,17 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
 import { requireAuth, requireFarmer } from '@/lib/dal';
-import { checkoutSchema } from '@/lib/validations/order';
-import { sendAdminNotification, sendFarmerNotification } from '@/lib/notifications';
+import {
+  checkoutSchema,
+  cancelOrderSchema,
+  requestRefundSchema,
+  resolveRefundSchema,
+} from '@/lib/validations/order';
+import {
+  sendAdminNotification,
+  sendFarmerNotification,
+  sendUserNotification,
+} from '@/lib/notifications';
 import type { ActionState } from './crops';
 
 // ─── Create Order (Checkout) ──────────────────────────────────────────────────
@@ -447,3 +456,406 @@ export async function getFarmerOrdersAction(
 
   return orders;
 }
+
+// ─── Cancel Order ─────────────────────────────────────────────────────────────
+
+/**
+ * Cancels an order, restores inventory atomically in a transaction,
+ * and notifies all affected parties.
+ */
+export async function cancelOrderAction(
+  orderId: string,
+  reason: string
+): Promise<ActionState> {
+  const user = await requireAuth();
+
+  const parseResult = cancelOrderSchema.safeParse({ orderId, reason });
+  if (!parseResult.success) {
+    return {
+      success: false,
+      error: parseResult.error.issues[0]?.message || 'Invalid cancellation data.',
+    };
+  }
+
+  const order = await prisma.order.findUnique({
+    where: { id: orderId },
+    include: {
+      buyer: { select: { id: true, name: true } },
+      items: {
+        include: {
+          product: {
+            select: {
+              id: true,
+              name: true,
+              farmId: true,
+              farm: { select: { userId: true, farmName: true } },
+            },
+          },
+        },
+      },
+    },
+  });
+
+  if (!order) {
+    return { success: false, error: 'Order not found.' };
+  }
+
+  // Authorization check: buyer who placed the order, farmer who owns items, or admin
+  const isBuyer = user.role === 'BUYER' && order.buyerId === user.id;
+  const isFarmer =
+    user.role === 'FARMER' &&
+    order.items.some((i) => i.product.farm?.userId === user.id);
+  const isAdmin = user.role === 'ADMIN';
+
+  if (!isBuyer && !isFarmer && !isAdmin) {
+    return { success: false, error: 'You are not authorized to cancel this order.' };
+  }
+
+  // Status guard: Only PENDING or CONFIRMED orders can be cancelled
+  if (order.orderStatus === 'CANCELLED') {
+    return { success: false, error: 'This order is already cancelled.' };
+  }
+
+  if (order.orderStatus === 'READY' || order.orderStatus === 'DELIVERED') {
+    return {
+      success: false,
+      error: `Orders cannot be cancelled once they are ${order.orderStatus.toLowerCase()}.`,
+    };
+  }
+
+  try {
+    await prisma.$transaction(async (tx) => {
+      // 1. Update order status and cancellation details
+      await tx.order.update({
+        where: { id: orderId },
+        data: {
+          orderStatus: 'CANCELLED',
+          cancelReason: reason.trim(),
+          cancelledBy: user.role,
+          cancelledAt: new Date(),
+          ...(order.paymentStatus === 'PAID' ? { paymentStatus: 'REFUNDED' } : {}),
+        },
+      });
+
+      // 2. Transaction-level Stock Restoration: increment product stock by ordered quantity
+      for (const item of order.items) {
+        await tx.product.update({
+          where: { id: item.productId },
+          data: { stockKg: { increment: item.quantityKg } },
+        });
+      }
+    });
+
+    // 3. Dispatch notifications
+    const cancelledByLabel = isBuyer ? 'customer' : isFarmer ? 'farmer' : 'administrator';
+
+    // Notify farmers
+    const uniqueFarmers = new Set(
+      order.items.map((i) => i.product.farm?.userId).filter(Boolean) as string[]
+    );
+    for (const farmerUserId of uniqueFarmers) {
+      if (farmerUserId !== user.id) {
+        sendFarmerNotification(farmerUserId, {
+          type: 'ORDER_STATUS_CHANGE',
+          title: 'Order Cancelled',
+          message: `Order #${orderId.slice(0, 8)} was cancelled by the ${cancelledByLabel}. Reason: "${reason.trim()}". Stock has been restored.`,
+          relatedId: orderId,
+          relatedType: 'order',
+        });
+      }
+    }
+
+    // Notify buyer (if cancelled by someone else)
+    if (!isBuyer && order.buyerId) {
+      sendUserNotification(order.buyerId, {
+        type: 'ORDER_STATUS_CHANGE',
+        title: 'Order Cancelled',
+        message: `Your Order #${orderId.slice(0, 8)} was cancelled by the ${cancelledByLabel}. Reason: "${reason.trim()}".`,
+        relatedId: orderId,
+        relatedType: 'order',
+      });
+    }
+
+    // Notify admin
+    sendAdminNotification({
+      type: 'ORDER_STATUS_CHANGE',
+      title: 'Order Cancelled',
+      message: `Order #${orderId.slice(0, 8)} was cancelled by ${user.role}. Reason: "${reason.trim()}".`,
+      relatedId: orderId,
+      relatedType: 'order',
+    });
+
+    revalidatePath('/buyer/orders');
+    revalidatePath('/orders');
+    revalidatePath(`/orders/${orderId}`);
+    revalidatePath('/farmer/orders');
+    revalidatePath('/farmer/dashboard');
+    revalidatePath('/admin/orders');
+    revalidatePath('/products');
+
+    return {
+      success: true,
+      message: 'Order has been successfully cancelled and stock restored.',
+    };
+  } catch (err) {
+    console.error('[cancelOrderAction]', err);
+    return { success: false, error: 'Failed to cancel order. Please try again.' };
+  }
+}
+
+// ─── Request Order Refund & Return (Buyer) ────────────────────────────────────
+
+export async function requestOrderRefundAction(data: {
+  orderId: string;
+  reason: string;
+  details?: string;
+  proofUrl?: string;
+}): Promise<ActionState> {
+  const user = await requireAuth();
+
+  const parseResult = requestRefundSchema.safeParse(data);
+  if (!parseResult.success) {
+    return {
+      success: false,
+      error: parseResult.error.issues[0]?.message || 'Invalid refund request data.',
+    };
+  }
+
+  const order = await prisma.order.findUnique({
+    where: { id: data.orderId },
+    include: {
+      buyer: { select: { id: true, name: true } },
+      items: {
+        include: {
+          product: {
+            select: {
+              farmId: true,
+              farm: { select: { userId: true, farmName: true } },
+            },
+          },
+        },
+      },
+    },
+  });
+
+  if (!order) {
+    return { success: false, error: 'Order not found.' };
+  }
+
+  if (order.buyerId !== user.id) {
+    return { success: false, error: 'Only the buyer who placed this order can request a refund.' };
+  }
+
+  if (order.orderStatus !== 'DELIVERED') {
+    return {
+      success: false,
+      error: 'Refunds can only be requested for delivered orders.',
+    };
+  }
+
+  if (order.refundStatus && order.refundStatus !== 'NONE' && order.refundStatus !== 'REJECTED') {
+    return {
+      success: false,
+      error: `A refund request has already been ${order.refundStatus.toLowerCase()} for this order.`,
+    };
+  }
+
+  try {
+    await prisma.order.update({
+      where: { id: data.orderId },
+      data: {
+        refundStatus: 'REQUESTED',
+        refundReason: data.reason.trim(),
+        refundDetails: data.details?.trim() || null,
+        refundProofUrl: data.proofUrl || null,
+        refundAmount: order.totalAmount,
+        refundRequestedAt: new Date(),
+        refundResolvedAt: null,
+        refundAdminNote: null,
+      },
+    });
+
+    // Notify farmers involved
+    const uniqueFarmers = new Set(
+      order.items.map((i) => i.product.farm?.userId).filter(Boolean) as string[]
+    );
+    for (const farmerUserId of uniqueFarmers) {
+      sendFarmerNotification(farmerUserId, {
+        type: 'REFUND_REQUESTED',
+        title: '⚠️ Refund & Return Requested',
+        message: `Customer requested a refund for Order #${order.id.slice(0, 8)}. Reason: "${data.reason.trim()}". Please review in your Orders portal.`,
+        relatedId: order.id,
+        relatedType: 'order',
+      });
+    }
+
+    // Notify admin
+    sendAdminNotification({
+      type: 'REFUND_REQUESTED',
+      title: '⚠️ Refund Request Submitted',
+      message: `Buyer ${user.name} requested a refund for Order #${order.id.slice(0, 8)} (₱${order.totalAmount}). Reason: "${data.reason.trim()}".`,
+      relatedId: order.id,
+      relatedType: 'order',
+    });
+
+    revalidatePath('/buyer/orders');
+    revalidatePath(`/orders/${order.id}`);
+    revalidatePath('/farmer/orders');
+    revalidatePath('/admin/orders');
+
+    return {
+      success: true,
+      message: 'Refund request submitted successfully. The farmer/admin will review your proof.',
+    };
+  } catch (err) {
+    console.error('[requestOrderRefundAction]', err);
+    return { success: false, error: 'Failed to submit refund request.' };
+  }
+}
+
+// ─── Resolve Order Refund (Farmer / Admin) ───────────────────────────────────
+
+export async function resolveOrderRefundAction(data: {
+  orderId: string;
+  decision: 'APPROVED' | 'REJECTED';
+  adminNote?: string;
+}): Promise<ActionState> {
+  const user = await requireAuth();
+
+  const parseResult = resolveRefundSchema.safeParse(data);
+  if (!parseResult.success) {
+    return {
+      success: false,
+      error: parseResult.error.issues[0]?.message || 'Invalid resolution data.',
+    };
+  }
+
+  const order = await prisma.order.findUnique({
+    where: { id: data.orderId },
+    include: {
+      buyer: { select: { id: true, name: true } },
+      items: {
+        include: {
+          product: {
+            select: {
+              id: true,
+              farmId: true,
+              farm: { select: { id: true, userId: true, farmName: true } },
+            },
+          },
+        },
+      },
+    },
+  });
+
+  if (!order) {
+    return { success: false, error: 'Order not found.' };
+  }
+
+  const isFarmer =
+    user.role === 'FARMER' &&
+    order.items.some((i) => i.product.farm?.userId === user.id);
+  const isAdmin = user.role === 'ADMIN';
+
+  if (!isFarmer && !isAdmin) {
+    return { success: false, error: 'Unauthorized to resolve refund for this order.' };
+  }
+
+  if (order.refundStatus !== 'REQUESTED') {
+    return {
+      success: false,
+      error: `Order refund is currently ${order.refundStatus || 'NONE'}, not REQUESTED.`,
+    };
+  }
+
+  try {
+    if (data.decision === 'APPROVED') {
+      // Calculate each farm's subtotal to deduct from totalSales
+      const farmSubtotals = new Map<string, number>();
+      for (const item of order.items) {
+        const farmId = item.product.farmId;
+        const current = farmSubtotals.get(farmId) || 0;
+        farmSubtotals.set(farmId, current + item.subtotal);
+      }
+
+      await prisma.$transaction(async (tx) => {
+        await tx.order.update({
+          where: { id: data.orderId },
+          data: {
+            refundStatus: 'APPROVED',
+            paymentStatus: 'REFUNDED',
+            refundResolvedAt: new Date(),
+            refundAdminNote: data.adminNote?.trim() || null,
+          },
+        });
+
+        // Deduct from farm totalSales so sales analytics remain accurate
+        for (const [fId, subtotal] of farmSubtotals.entries()) {
+          await tx.farm.update({
+            where: { id: fId },
+            data: { totalSales: { decrement: subtotal } },
+          });
+        }
+      });
+
+      // Send notifications to buyer
+      sendUserNotification(order.buyerId, {
+        type: 'REFUND_APPROVED',
+        title: '✅ Refund Request Approved',
+        message: `Your refund request for Order #${order.id.slice(0, 8)} (₱${order.totalAmount}) has been approved.${data.adminNote ? ` Note: "${data.adminNote}"` : ''}`,
+        relatedId: order.id,
+        relatedType: 'order',
+      });
+
+      sendAdminNotification({
+        type: 'REFUND_APPROVED',
+        title: 'Refund Approved',
+        message: `Refund for Order #${order.id.slice(0, 8)} was approved by ${user.role}.`,
+        relatedId: order.id,
+        relatedType: 'order',
+      });
+    } else {
+      await prisma.order.update({
+        where: { id: data.orderId },
+        data: {
+          refundStatus: 'REJECTED',
+          refundResolvedAt: new Date(),
+          refundAdminNote: data.adminNote?.trim() || null,
+        },
+      });
+
+      // Send notifications to buyer
+      sendUserNotification(order.buyerId, {
+        type: 'REFUND_REJECTED',
+        title: '❌ Refund Request Declined',
+        message: `Your refund request for Order #${order.id.slice(0, 8)} was declined.${data.adminNote ? ` Reason: "${data.adminNote}"` : ''}`,
+        relatedId: order.id,
+        relatedType: 'order',
+      });
+
+      sendAdminNotification({
+        type: 'REFUND_REJECTED',
+        title: 'Refund Declined',
+        message: `Refund for Order #${order.id.slice(0, 8)} was declined by ${user.role}.`,
+        relatedId: order.id,
+        relatedType: 'order',
+      });
+    }
+
+    revalidatePath('/buyer/orders');
+    revalidatePath(`/orders/${order.id}`);
+    revalidatePath('/farmer/orders');
+    revalidatePath('/farmer/dashboard');
+    revalidatePath('/admin/orders');
+    revalidatePath('/admin/analytics');
+
+    return {
+      success: true,
+      message: `Refund request has been ${data.decision.toLowerCase()}!`,
+    };
+  } catch (err) {
+    console.error('[resolveOrderRefundAction]', err);
+    return { success: false, error: 'Failed to resolve refund request.' };
+  }
+}
+

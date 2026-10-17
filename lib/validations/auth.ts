@@ -1,6 +1,18 @@
 import { z } from 'zod';
 import { AGOO_BARANGAYS } from '@/lib/constants/locations';
 
+export const VALID_ID_TYPES = [
+  'PhilSys National ID',
+  "Driver's License",
+  'RSBSA Farmer ID',
+  'Passport',
+  "Voter's ID",
+  'Postal ID',
+  'UMID / SSS / GSIS',
+  'Barangay Certification with Photo',
+  'Student / Institutional ID',
+] as const;
+
 export const loginSchema = z.object({
   email: z.string().email({ message: 'Please enter a valid email address.' }),
   password: z.string().min(8, { message: 'Password must be at least 8 characters.' }),
@@ -10,6 +22,9 @@ export const buyerRegisterSchema = z.object({
   name: z.string().min(2, { message: 'Full name must be at least 2 characters.' }).trim(),
   email: z.string().email({ message: 'Please enter a valid email address.' }).trim(),
   phone: z.string().optional(),
+  idType: z.string().min(1, { message: 'Please select a valid ID type.' }),
+  idNumber: z.string().min(1, { message: 'ID number is required.' }).trim(),
+  idPhotoUrl: z.string().min(1, { message: 'A valid government or institutional ID is required.' }).trim(),
   password: z
     .string()
     .min(8, { message: 'Password must be at least 8 characters.' })
@@ -25,17 +40,21 @@ export const farmerRegisterSchema = z.object({
   name: z.string().min(2, { message: 'Full name must be at least 2 characters.' }).trim(),
   email: z.string().email({ message: 'Please enter a valid email address.' }).trim(),
   phone: z.string().min(10, { message: 'Please enter a valid phone number.' }),
-  password: z
-    .string()
-    .min(8, { message: 'Password must be at least 8 characters.' })
-    .regex(/[a-zA-Z]/, { message: 'Password must contain at least one letter.' })
-    .regex(/[0-9]/, { message: 'Password must contain at least one number.' }),
   farmName: z.string().min(2, { message: 'Farm name is required.' }).trim(),
   barangay: z.enum(AGOO_BARANGAYS, {
     error: 'Please select a valid Agoo barangay.',
   }),
   landArea: z.coerce.number().positive({ message: 'Land area must be a positive number.' }),
   crops: z.array(z.string()).min(1, { message: 'Please select at least one primary crop.' }),
+  idType: z.string().min(1, { message: 'Please select a valid ID type.' }),
+  idNumber: z.string().min(1, { message: 'ID number is required.' }).trim(),
+  idPhotoUrl: z.string().min(1, { message: 'A valid government or institutional ID is required.' }).trim(),
+  farmDocUrl: z.string().optional(),
+  password: z
+    .string()
+    .min(8, { message: 'Password must be at least 8 characters.' })
+    .regex(/[a-zA-Z]/, { message: 'Password must contain at least one letter.' })
+    .regex(/[0-9]/, { message: 'Password must contain at least one number.' }),
   confirmPassword: z.string(),
 }).refine((data) => data.password === data.confirmPassword, {
   message: 'Passwords do not match.',

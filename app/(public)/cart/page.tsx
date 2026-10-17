@@ -298,6 +298,10 @@ function OrderSummary({
   const deliveryFee = selectedItems.length > 0 ? 50 : 0;
   const total = subtotal + deliveryFee;
 
+  const hasOutOfStockItem = selectedItems.some(
+    (i) => i.stockKg <= 0 || i.quantityKg > i.stockKg
+  );
+
   return (
     <div className="bg-surface-container-lowest rounded-xl border border-surface-variant shadow-sm p-5 flex flex-col gap-4">
       <h2 className="font-semibold text-on-surface text-[17px] pb-3 border-b border-surface-variant">
@@ -312,16 +316,26 @@ function OrderSummary({
         <>
           {/* Selected item breakdown */}
           <div className="flex flex-col gap-2 max-h-44 overflow-y-auto pr-1 no-scrollbar">
-            {selectedItems.map((item) => (
-              <div key={item.productId} className="flex justify-between items-center gap-2 text-sm">
-                <span className="text-on-surface-variant line-clamp-1 flex-1">
-                  {item.name} × {item.quantityKg} kg
-                </span>
-                <span className="font-medium text-on-surface flex-shrink-0">
-                  ₱{(item.pricePerKg * item.quantityKg).toFixed(2)}
-                </span>
-              </div>
-            ))}
+            {selectedItems.map((item) => {
+              const isOverStock = item.stockKg <= 0 || item.quantityKg > item.stockKg;
+              return (
+                <div key={item.productId} className="flex justify-between items-center gap-2 text-sm">
+                  <div className="flex flex-col flex-1 min-w-0">
+                    <span className="text-on-surface-variant line-clamp-1">
+                      {item.name} × {item.quantityKg} kg
+                    </span>
+                    {isOverStock && (
+                      <span className="text-rose-600 text-[11px] font-medium">
+                        {item.stockKg <= 0 ? 'Out of stock' : `Only ${item.stockKg} kg available`}
+                      </span>
+                    )}
+                  </div>
+                  <span className="font-medium text-on-surface flex-shrink-0">
+                    ₱{(item.pricePerKg * item.quantityKg).toFixed(2)}
+                  </span>
+                </div>
+              );
+            })}
           </div>
 
           <div className="border-t border-surface-variant pt-3 flex flex-col gap-2">
@@ -339,13 +353,20 @@ function OrderSummary({
             <span className="font-semibold text-on-surface">Total</span>
             <span className="font-bold text-primary text-[22px]">₱{total.toFixed(2)}</span>
           </div>
+
+          {hasOutOfStockItem && (
+            <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-800 flex items-start gap-2">
+              <span className="material-symbols-outlined text-[16px] text-rose-600 shrink-0 mt-0.5">warning</span>
+              <span>Some items exceed available farmer inventory. Please adjust quantities before checking out.</span>
+            </div>
+          )}
         </>
       )}
 
       <button
         type="button"
         onClick={onCheckout}
-        disabled={selectedItems.length === 0}
+        disabled={selectedItems.length === 0 || hasOutOfStockItem}
         className="w-full bg-primary text-on-primary font-semibold py-3.5 rounded-xl shadow-sm hover:opacity-90 transition-all active:scale-[0.98] flex justify-center items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed text-[15px]"
       >
         <span className="material-symbols-outlined text-[20px]">shopping_bag</span>

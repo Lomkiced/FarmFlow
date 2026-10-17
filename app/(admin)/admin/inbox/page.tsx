@@ -1,5 +1,6 @@
 import { requireAdmin } from '@/lib/dal';
 import { getAdminNotificationsAction } from '@/app/actions/notifications';
+import { getSupportInquiriesAction } from '@/app/actions/support';
 import InboxClient from '@/components/admin/InboxClient';
 
 export const metadata = {
@@ -16,15 +17,18 @@ export default async function AdminInboxPage({
   const { page } = await searchParams;
   const currentPage = Number(page) || 1;
 
-  // We fetch a generous amount for the inbox, or we could handle pagination fully in the client
-  // For now, let's fetch top 100 to allow client-side filtering to work well
-  const { notifications, unreadCount } = await getAdminNotificationsAction(currentPage, 100);
+  // We fetch top notifications and support inquiries in parallel
+  const [{ notifications, unreadCount }, { inquiries }] = await Promise.all([
+    getAdminNotificationsAction(currentPage, 100),
+    getSupportInquiriesAction(),
+  ]);
 
   return (
     <div className="p-4 md:p-8">
       <InboxClient 
         initialNotifications={notifications} 
         unreadCount={unreadCount} 
+        initialInquiries={inquiries || []}
       />
     </div>
   );
