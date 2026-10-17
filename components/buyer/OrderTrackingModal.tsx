@@ -15,8 +15,16 @@ interface OrderTrackingModalProps {
     deliveryFee: number;
     orderStatus: OrderStatus;
     paymentStatus: PaymentStatus;
-    createdAt: Date;
+    createdAt: Date | string;
     items: OrderItemProp[];
+    cancelReason?: string | null;
+    cancelledBy?: string | null;
+    cancelledAt?: Date | string | null;
+    refundStatus?: string | null;
+    refundReason?: string | null;
+    refundDetails?: string | null;
+    refundAmount?: number | null;
+    refundAdminNote?: string | null;
     address: {
       fullName: string;
       phone: string;
@@ -93,11 +101,18 @@ export default function OrderTrackingModal({ isOpen, onClose, order }: OrderTrac
           <div className="bg-surface-container rounded-xl p-6 border border-surface-variant">
             <h3 className="font-bold text-sm text-on-surface-variant mb-6 uppercase tracking-wider">Tracking Status</h3>
             {order.orderStatus === 'CANCELLED' ? (
-              <div className="flex items-center gap-4 text-red-600">
-                <span className="material-symbols-outlined text-3xl">cancel</span>
+              <div className="flex items-start gap-4 text-rose-600 bg-rose-50 p-4 rounded-xl border border-rose-200">
+                <span className="material-symbols-outlined text-3xl shrink-0 mt-0.5">cancel</span>
                 <div>
-                  <div className="font-bold">Order Cancelled</div>
-                  <div className="text-sm">This order was cancelled and will not be delivered.</div>
+                  <div className="font-bold text-base">Order Cancelled</div>
+                  <div className="text-sm text-rose-800 mt-0.5">
+                    {order.cancelReason ? `Reason: "${order.cancelReason}"` : 'This order was cancelled and will not be delivered.'}
+                  </div>
+                  {order.cancelledAt && (
+                    <div className="text-xs text-rose-700/80 mt-1">
+                      Cancelled {format(new Date(order.cancelledAt), 'MMM d, yyyy h:mm a')}
+                    </div>
+                  )}
                 </div>
               </div>
             ) : (
@@ -118,6 +133,24 @@ export default function OrderTrackingModal({ isOpen, onClose, order }: OrderTrac
                     </div>
                   );
                 })}
+              </div>
+            )}
+
+            {/* Refund Callout if applicable */}
+            {order.refundStatus && order.refundStatus !== 'NONE' && (
+              <div className={`mt-4 p-3.5 rounded-xl border text-xs flex items-start gap-2.5 ${
+                order.refundStatus === 'REQUESTED' ? 'bg-amber-50 border-amber-200 text-amber-900' :
+                order.refundStatus === 'APPROVED' ? 'bg-emerald-50 border-emerald-200 text-emerald-900' :
+                'bg-rose-50 border-rose-200 text-rose-900'
+              }`}>
+                <span className="material-symbols-outlined text-[18px] shrink-0 mt-0.5">
+                  {order.refundStatus === 'REQUESTED' ? 'hourglass_top' : order.refundStatus === 'APPROVED' ? 'verified' : 'error'}
+                </span>
+                <div>
+                  <div className="font-bold">Refund Status: {order.refundStatus}</div>
+                  {order.refundReason && <div className="mt-0.5">Reason: {order.refundReason}</div>}
+                  {order.refundAdminNote && <div className="mt-0.5 italic">Note: "{order.refundAdminNote}"</div>}
+                </div>
               </div>
             )}
           </div>

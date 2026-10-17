@@ -8,7 +8,8 @@ import sharp from 'sharp';
 
 const BUCKET = 'photos';
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 MB
-const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/jpg'];
+const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/jpg'];
+const ALLOWED_DOC_TYPES = [...ALLOWED_IMAGE_TYPES, 'application/pdf'];
 
 // Target dimensions for compressed output
 const PRODUCT_IMAGE_SIZE = { width: 800, height: 800 };
@@ -23,7 +24,8 @@ export type UploadResult =
 async function uploadToStorage(
   buffer: Buffer,
   folder: string,
-  filename: string
+  filename: string,
+  contentType: string = 'image/webp'
 ): Promise<UploadResult> {
   const supabase = createServiceClient();
   const path = `${folder}/${filename}`;
@@ -32,7 +34,7 @@ async function uploadToStorage(
   let { error } = await supabase.storage
     .from(BUCKET)
     .upload(path, buffer, {
-      contentType: 'image/webp',
+      contentType,
       upsert: true,
       cacheControl: '3600',
     });
@@ -58,7 +60,7 @@ async function uploadToStorage(
     const retry = await supabase.storage
       .from(BUCKET)
       .upload(path, buffer, {
-        contentType: 'image/webp',
+        contentType,
         upsert: true,
         cacheControl: '3600',
       });
@@ -68,7 +70,7 @@ async function uploadToStorage(
 
   if (error) {
     console.error('[upload] Supabase storage error:', error);
-    return { success: false, error: 'Failed to upload image. Please try again. Error: ' + error.message };
+    return { success: false, error: 'Failed to upload file. Please try again. Error: ' + error.message };
   }
 
   const { data } = supabase.storage.from(BUCKET).getPublicUrl(path);
@@ -76,14 +78,88 @@ async function uploadToStorage(
   return { success: true, url: data.publicUrl, path };
 }
 
+// ─── Registration Document / Valid ID Upload (Public) ─────────────────────────
+
+/**
+ * Upload a government/institutional ID or farm document during registration.
+ * Does not require existing user session.
+ */
+export async function uploadRegistrationDocument(formData: FormData): Promise<UploadResult> {
+  const file = formData.get('file') as File | null;
+  if (!file) return { success: false, error: 'No file provided.' };
+
+  if (!ALLOWED_DOC_TYPES.includes(file.type)) {
+    return { success: false, error: 'Only JPG, PNG, WebP images or PDF files are allowed.' };
+  }
+
+  if (file.size > MAX_FILE_SIZE) {
+    return { success: false, error: 'File size must be 5 MB or less.' };
+  }
+
+  const arrayBuffer = await file.arrayBuffer();
+  const inputBuffer = Buffer.from(arrayBuffer);
+  const timestamp = Date.now();
+  const rand = Math.random().toString(36).substring(2, 9);
+
+  if (file.type === 'application/pdf') {
+    const filename = `doc_${timestamp}_${rand}.pdf`;
+    return uploadToStorage(inputBuffer, 'verification-documents', filename, 'application/pdf');
+  }
+
+  // Compress image to high-quality legible WebP
+  const compressed = await sharp(inputBuffer)
+    .resize(1200, 1200, {
+      fit: 'inside',
+      withoutEnlargement: true,
+    })
+    .webp({ quality: 85 })
+    .toBuffer();
+
+  const filename = `id_${timestamp}_${rand}.webp`;
+  return uploadToStorage(compressed, 'verification-documents', filename, 'image/webp');
+}
+
+// ─── Refund Proof Upload ──────────────────────────────────────────────────────
+
+/**
+ * Upload proof photos for refund / return requests.
+ */
+export async function uploadRefundProof(formData: FormData): Promise<UploadResult> {
+  const file = formData.get('file') as File | null;
+  if (!file) return { success: false, error: 'No file provided.' };
+
+  if (!ALLOWED_DOC_TYPES.includes(file.type)) {
+    return { success: false, error: 'Only JPG, PNG, WebP images or PDF files are allowed.' };
+  }
+
+  if (file.size > MAX_FILE_SIZE) {
+    return { success: false, error: 'File size must be 5 MB or less.' };
+  }
+
+  const arrayBuffer = await file.arrayBuffer();
+  const inputBuffer = Buffer.from(arrayBuffer);
+  const timestamp = Date.now();
+  const rand = Math.random().toString(36).substring(2, 9);
+
+  if (file.type === 'application/pdf') {
+    const filename = `proof_${timestamp}_${rand}.pdf`;
+    return uploadToStorage(inputBuffer, 'refund-proofs', filename, 'application/pdf');
+  }
+
+  const compressed = await sharp(inputBuffer)
+    .resize(1200, 1200, { fit: 'inside', withoutEnlargement: true })
+    .webp({ quality: 85 })
+    .toBuffer();
+
+  const filename = `proof_${timestamp}_${rand}.webp`;
+  return uploadToStorage(compressed, 'refund-proofs', filename, 'image/webp');
+}
+
 // ─── Product Image Upload ─────────────────────────────────────────────────────
 
 /**
  * Upload a product image. Compresses to 800×800 WebP before upload.
  * Caller must be authenticated.
- *
- * @param formData - FormData with key "file" containing the image
- * @returns Upload result with public URL
  */
 export async function uploadProductImage(formData: FormData): Promise<UploadResult> {
   const user = await requireAuth();
@@ -91,7 +167,7 @@ export async function uploadProductImage(formData: FormData): Promise<UploadResu
   const file = formData.get('file') as File | null;
   if (!file) return { success: false, error: 'No file provided.' };
 
-  if (!ALLOWED_TYPES.includes(file.type)) {
+  if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
     return { success: false, error: 'Only JPEG, PNG, or WebP images are allowed.' };
   }
 
@@ -130,7 +206,7 @@ export async function uploadFarmCoverPhoto(formData: FormData): Promise<UploadRe
   const file = formData.get('file') as File | null;
   if (!file) return { success: false, error: 'No file provided.' };
 
-  if (!ALLOWED_TYPES.includes(file.type)) {
+  if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
     return { success: false, error: 'Only JPEG, PNG, or WebP images are allowed.' };
   }
 
@@ -165,7 +241,7 @@ export async function uploadAvatar(formData: FormData): Promise<UploadResult> {
   const file = formData.get('file') as File | null;
   if (!file) return { success: false, error: 'No file provided.' };
 
-  if (!ALLOWED_TYPES.includes(file.type)) {
+  if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
     return { success: false, error: 'Only JPEG, PNG, or WebP images are allowed.' };
   }
 
@@ -181,7 +257,7 @@ export async function uploadAvatar(formData: FormData): Promise<UploadResult> {
     .webp({ quality: 85 })
     .toBuffer();
 
-  const filename = `avatar.webp`; // Always same name — overwrites previous
+  const filename = `avatar.webp`;
   const folder = `avatars/${user.id}`;
 
   return uploadToStorage(compressed, folder, filename);

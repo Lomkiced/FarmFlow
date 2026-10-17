@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import SupportFormClient from '@/components/support/SupportFormClient';
 
 export const metadata = {
   title: 'Support — FarmFlow',
@@ -88,6 +89,11 @@ export default function SupportPage() {
               </p>
             </div>
           </div>
+        </section>
+
+        {/* Direct Contact Form */}
+        <section id="contact-form">
+          <SupportFormClient />
         </section>
 
         {/* 4. Step-by-Step Guides */}

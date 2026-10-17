@@ -31,7 +31,8 @@ function OrderPageHeader({ order }: { order: any }) {
   );
 }
 
-function ProgressStepper({ status }: { status: string }) {
+function ProgressStepper({ order }: { order: any }) {
+  const status = order.orderStatus;
   let currentStep = steps.findIndex(s => s.status === status);
   if (currentStep === -1) currentStep = 0; // Default or Cancelled
 
@@ -50,8 +51,8 @@ function ProgressStepper({ status }: { status: string }) {
     title = 'Order delivered.';
     body = 'Enjoy your fresh produce!';
   } else if (status === 'CANCELLED') {
-    title = 'Order cancelled.';
-    body = 'This order has been cancelled.';
+    title = `Order cancelled${order.cancelledBy ? ` by ${order.cancelledBy.toLowerCase()}` : ''}.`;
+    body = order.cancelReason ? `Reason: "${order.cancelReason}"` : 'This order has been cancelled.';
   }
 
   return (
@@ -101,13 +102,32 @@ function ProgressStepper({ status }: { status: string }) {
         })}
       </div>
 
-      <div className="mt-8 p-4 bg-surface rounded-lg flex items-start gap-4 border border-surface-variant">
-        <span className="material-symbols-outlined text-primary mt-1">info</span>
+      <div className={`mt-8 p-4 rounded-lg flex items-start gap-4 border ${status === 'CANCELLED' ? 'bg-rose-50 border-rose-200 text-rose-900' : 'bg-surface border-surface-variant'}`}>
+        <span className={`material-symbols-outlined mt-1 ${status === 'CANCELLED' ? 'text-rose-600' : 'text-primary'}`}>
+          {status === 'CANCELLED' ? 'cancel' : 'info'}
+        </span>
         <div>
           <div className="font-body-md font-medium text-on-surface">{title}</div>
           <div className="font-body-md text-on-surface-variant mt-1">{body}</div>
         </div>
       </div>
+
+      {order.refundStatus && order.refundStatus !== 'NONE' && (
+        <div className={`mt-4 p-4 rounded-lg flex items-start gap-3 border ${
+          order.refundStatus === 'REQUESTED' ? 'bg-amber-50 border-amber-200 text-amber-900' :
+          order.refundStatus === 'APPROVED' ? 'bg-emerald-50 border-emerald-200 text-emerald-900' :
+          'bg-rose-50 border-rose-200 text-rose-900'
+        }`}>
+          <span className="material-symbols-outlined text-[20px] mt-0.5">
+            {order.refundStatus === 'REQUESTED' ? 'hourglass_top' : order.refundStatus === 'APPROVED' ? 'verified' : 'error'}
+          </span>
+          <div className="text-xs">
+            <div className="font-bold text-sm">Refund Status: {order.refundStatus}</div>
+            {order.refundReason && <div className="mt-0.5 font-medium">Reason: {order.refundReason}</div>}
+            {order.refundAdminNote && <div className="mt-0.5 italic">Note: "{order.refundAdminNote}"</div>}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -218,7 +238,7 @@ export default async function OrderTrackingPage(props: { params: Promise<{ id: s
         <OrderPageHeader order={order} />
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           <div className="lg:col-span-8 flex flex-col gap-8">
-            <ProgressStepper status={order.orderStatus} />
+            <ProgressStepper order={order} />
             <HarvestSummaryCard items={order.items} total={order.totalAmount} />
           </div>
           <div className="lg:col-span-4 flex flex-col gap-8">

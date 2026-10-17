@@ -8,6 +8,7 @@ import { PRODUCT_CATEGORIES } from '@/lib/validations/product';
 export type ProductSearchParams = {
   query?: string;
   category?: string;
+  barangay?: string;
   minPrice?: number;
   maxPrice?: number;
   inStockOnly?: boolean;
@@ -26,6 +27,7 @@ export async function getPublicProductsAction(params: ProductSearchParams = {}) 
   const {
     query,
     category,
+    barangay,
     minPrice,
     maxPrice,
     inStockOnly = false,
@@ -34,9 +36,25 @@ export async function getPublicProductsAction(params: ProductSearchParams = {}) 
     pageSize = 12,
   } = params;
 
-  const where = {
+  const isAllCategory =
+    !category ||
+    category.toLowerCase() === 'all' ||
+    category.toLowerCase() === 'all categories' ||
+    category.toLowerCase() === 'all produce';
+
+  const where: any = {
     status: 'ACTIVE' as const,
-    farm: { status: 'VERIFIED' as const },
+    farm: {
+      status: 'VERIFIED' as const,
+      ...(barangay && barangay.toLowerCase() !== 'all' && barangay.trim() !== ''
+        ? {
+            barangay: {
+              contains: barangay,
+              mode: 'insensitive' as const,
+            },
+          }
+        : {}),
+    },
     ...(query
       ? {
           OR: [
@@ -44,10 +62,18 @@ export async function getPublicProductsAction(params: ProductSearchParams = {}) 
             { description: { contains: query, mode: 'insensitive' as const } },
             { category: { contains: query, mode: 'insensitive' as const } },
             { farm: { farmName: { contains: query, mode: 'insensitive' as const } } },
+            { farm: { barangay: { contains: query, mode: 'insensitive' as const } } },
           ],
         }
       : {}),
-    ...(category ? { category } : {}),
+    ...(!isAllCategory
+      ? {
+          category: {
+            equals: category,
+            mode: 'insensitive' as const,
+          },
+        }
+      : {}),
     ...(minPrice !== undefined || maxPrice !== undefined
       ? {
           pricePerKg: {

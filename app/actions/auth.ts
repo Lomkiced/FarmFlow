@@ -7,6 +7,7 @@ import { prisma } from '@/lib/prisma';
 import { loginSchema, buyerRegisterSchema, farmerRegisterSchema, forgotPasswordSchema, updatePasswordSchema } from '@/lib/validations/auth';
 import { sendAdminNotification } from '@/lib/notifications';
 import { headers } from 'next/headers';
+
 // ─────────────────────────────────────────────────
 // LOGIN
 // ─────────────────────────────────────────────────
@@ -77,6 +78,9 @@ export async function registerBuyerAction(
     name: formData.get('name') as string,
     email: formData.get('email') as string,
     phone: formData.get('phone') as string,
+    idType: formData.get('idType') as string,
+    idNumber: formData.get('idNumber') as string,
+    idPhotoUrl: formData.get('idPhotoUrl') as string,
     password: formData.get('password') as string,
     confirmPassword: formData.get('confirmPassword') as string,
   };
@@ -84,6 +88,15 @@ export async function registerBuyerAction(
   const parsed = buyerRegisterSchema.safeParse(raw);
   if (!parsed.success) {
     return { errors: parsed.error.flatten().fieldErrors };
+  }
+
+  // Strict server-side check for ID
+  if (!parsed.data.idPhotoUrl || parsed.data.idPhotoUrl.trim() === '') {
+    return {
+      errors: {
+        idPhotoUrl: ['A valid government or institutional ID photo/document is strictly required.'],
+      },
+    };
   }
 
   const supabase = await createClient();
@@ -139,7 +152,7 @@ export async function registerBuyerAction(
 
   if (!data.user) return { message: 'Registration failed. Please try again.' };
 
-  // 2. Create User row in public DB (synced with Supabase Auth UID)
+  // 2. Create User row in public DB with mandatory ID verification details
   try {
     await prisma.user.create({
       data: {
@@ -147,6 +160,9 @@ export async function registerBuyerAction(
         email: parsed.data.email,
         name: parsed.data.name,
         phone: parsed.data.phone || null,
+        idType: parsed.data.idType,
+        idNumber: parsed.data.idNumber,
+        idPhotoUrl: parsed.data.idPhotoUrl,
         role: 'BUYER',
       },
     });
@@ -161,7 +177,7 @@ export async function registerBuyerAction(
   sendAdminNotification({
     type: 'NEW_USER',
     title: 'New Buyer Registration',
-    message: `${parsed.data.name} just registered as a Buyer.`,
+    message: `${parsed.data.name} just registered as a Buyer with ID verification (${parsed.data.idType}).`,
     relatedId: data.user.id,
     relatedType: 'user',
   });
@@ -186,12 +202,25 @@ export async function registerFarmerAction(
     barangay: formData.get('barangay') as string,
     landArea: formData.get('landArea') as string,
     crops: cropsRaw ? cropsRaw.split(',') : [],
+    idType: formData.get('idType') as string,
+    idNumber: formData.get('idNumber') as string,
+    idPhotoUrl: formData.get('idPhotoUrl') as string,
+    farmDocUrl: (formData.get('farmDocUrl') as string) || undefined,
     confirmPassword: formData.get('confirmPassword') as string,
   };
 
   const parsed = farmerRegisterSchema.safeParse(raw);
   if (!parsed.success) {
     return { errors: parsed.error.flatten().fieldErrors };
+  }
+
+  // Strict server-side check for ID
+  if (!parsed.data.idPhotoUrl || parsed.data.idPhotoUrl.trim() === '') {
+    return {
+      errors: {
+        idPhotoUrl: ['A valid government or institutional ID photo/document is strictly required.'],
+      },
+    };
   }
 
   const supabase = await createClient();
@@ -247,7 +276,7 @@ export async function registerFarmerAction(
 
   if (!data.user) return { message: 'Registration failed. Please try again.' };
 
-  // 2. Create User + Farm rows in a transaction
+  // 2. Create User + Farm rows in a transaction with ID verification data
   try {
     await prisma.$transaction(async (tx: any) => {
       await tx.user.create({
@@ -256,6 +285,9 @@ export async function registerFarmerAction(
           email: parsed.data.email,
           name: parsed.data.name,
           phone: parsed.data.phone,
+          idType: parsed.data.idType,
+          idNumber: parsed.data.idNumber,
+          idPhotoUrl: parsed.data.idPhotoUrl,
           role: 'FARMER',
         },
       });
@@ -266,6 +298,10 @@ export async function registerFarmerAction(
           farmName: parsed.data.farmName,
           barangay: parsed.data.barangay,
           landArea: parsed.data.landArea,
+          idType: parsed.data.idType,
+          idNumber: parsed.data.idNumber,
+          idPhotoUrl: parsed.data.idPhotoUrl,
+          farmDocUrl: parsed.data.farmDocUrl || null,
           status: 'PENDING',
         },
       });
@@ -280,15 +316,15 @@ export async function registerFarmerAction(
   sendAdminNotification({
     type: 'NEW_USER',
     title: 'New Farmer Registration',
-    message: `${parsed.data.name} just registered on the platform.`,
+    message: `${parsed.data.name} just registered on the platform with ID (${parsed.data.idType}).`,
     relatedId: data.user.id,
     relatedType: 'user',
   });
   sendAdminNotification({
     type: 'PENDING_FARMER',
     title: 'Farmer Pending Verification',
-    message: `${parsed.data.farmName} requires your verification to activate.`,
-    relatedId: data.user.id, // we could use farm ID, but user ID is also fine
+    message: `${parsed.data.farmName} requires your verification to activate. Review their uploaded ID.`,
+    relatedId: data.user.id,
     relatedType: 'farmer',
   });
 
@@ -322,13 +358,9 @@ export async function forgotPasswordAction(
   });
 
   if (error) {
-    // For security, don't reveal if email exists, just say "Check your email" or a generic message.
-    // However, if rate limited, we should tell them.
     if (error.message.includes('rate limit')) {
       return { message: 'Too many requests. Please try again later.' };
     }
-    // We return success anyway to prevent email enumeration, but here we can just pass the error if we want.
-    // Let's just return success message.
   }
 
   return { message: 'success' };

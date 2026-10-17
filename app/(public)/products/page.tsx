@@ -14,17 +14,19 @@ export const dynamic = 'force-dynamic';
 export default async function ProductsPage(props: { searchParams: SearchParams }) {
   const searchParams = await props.searchParams;
 
-  const query = typeof searchParams.query === 'string' ? searchParams.query : undefined;
+  const query = typeof searchParams.query === 'string' ? searchParams.query : typeof searchParams.q === 'string' ? searchParams.q : undefined;
   const category = typeof searchParams.category === 'string' ? searchParams.category : undefined;
+  const barangay = typeof searchParams.barangay === 'string' ? searchParams.barangay : undefined;
   const minPrice = typeof searchParams.minPrice === 'string' ? parseFloat(searchParams.minPrice) : undefined;
   const maxPrice = typeof searchParams.maxPrice === 'string' ? parseFloat(searchParams.maxPrice) : undefined;
-  const inStockOnly = searchParams.inStockOnly === 'true';
+  const inStockOnly = searchParams.inStockOnly === 'true' || searchParams.inStock === 'true';
   const sort = typeof searchParams.sort === 'string' ? (searchParams.sort as any) : 'newest';
   const page = typeof searchParams.page === 'string' ? parseInt(searchParams.page) : 1;
 
   const { products, total, totalPages, categories } = await getPublicProductsAction({
     query,
     category,
+    barangay,
     minPrice: isNaN(minPrice as number) ? undefined : minPrice,
     maxPrice: isNaN(maxPrice as number) ? undefined : maxPrice,
     inStockOnly,

@@ -5,7 +5,7 @@ import Link from 'next/link';
 import type { OrderStatus } from '@prisma/client';
 import OrderCard, { type OrderCardProps } from './OrderCard';
 
-type TabType = 'ALL' | OrderStatus;
+type TabType = 'ALL' | OrderStatus | 'REFUNDS';
 
 interface BuyerOrdersClientProps {
   orders: OrderCardProps['order'][];
@@ -18,6 +18,7 @@ const TABS: { id: TabType; label: string }[] = [
   { id: 'READY', label: 'To Ship' },
   { id: 'DELIVERED', label: 'Delivered' },
   { id: 'CANCELLED', label: 'Cancelled' },
+  { id: 'REFUNDS', label: 'Refunds / Returns' },
 ];
 
 export default function BuyerOrdersClient({ orders }: BuyerOrdersClientProps) {
@@ -25,13 +26,15 @@ export default function BuyerOrdersClient({ orders }: BuyerOrdersClientProps) {
 
   const filteredOrders = activeTab === 'ALL' 
     ? orders 
+    : activeTab === 'REFUNDS'
+    ? orders.filter(order => order.refundStatus && order.refundStatus !== 'NONE')
     : orders.filter(order => order.orderStatus === activeTab);
 
   return (
     <div className="w-full max-w-screen-md mx-auto px-4 md:px-8 py-12 flex flex-col gap-8 min-h-[80vh]">
       <div className="flex flex-col gap-2">
         <h1 className="font-display font-black text-4xl text-emerald-900 tracking-tight">My Orders</h1>
-        <p className="text-on-surface-variant text-lg">Track and view your recent purchases.</p>
+        <p className="text-on-surface-variant text-lg">Track, manage, and request refunds for your recent purchases.</p>
       </div>
 
       {/* Tabs */}
@@ -45,6 +48,9 @@ export default function BuyerOrdersClient({ orders }: BuyerOrdersClientProps) {
             }`}
           >
             {tab.label}
+            {tab.id === 'REFUNDS' && orders.some(o => o.refundStatus === 'REQUESTED') && (
+              <span className="ml-1.5 w-2 h-2 rounded-full bg-amber-500 inline-block"></span>
+            )}
             {activeTab === tab.id && (
               <div className="absolute bottom-0 left-0 right-0 h-1 bg-primary rounded-t-full"></div>
             )}
@@ -58,7 +64,7 @@ export default function BuyerOrdersClient({ orders }: BuyerOrdersClientProps) {
           <div className="flex flex-col items-center justify-center py-24 bg-surface-container-lowest rounded-3xl border border-surface-variant text-center px-6 shadow-sm">
             <div className="w-24 h-24 bg-surface-container-highest rounded-full flex items-center justify-center mb-6">
               <span className="material-symbols-outlined text-[48px] text-outline">
-                {activeTab === 'DELIVERED' ? 'local_shipping' : activeTab === 'CANCELLED' ? 'cancel' : 'shopping_bag'}
+                {activeTab === 'DELIVERED' ? 'local_shipping' : activeTab === 'CANCELLED' ? 'cancel' : activeTab === 'REFUNDS' ? 'assignment_return' : 'shopping_bag'}
               </span>
             </div>
             <h3 className="font-display font-bold text-2xl text-on-surface mb-2">
@@ -67,6 +73,8 @@ export default function BuyerOrdersClient({ orders }: BuyerOrdersClientProps) {
             <p className="text-on-surface-variant mb-8 max-w-sm">
               {activeTab === 'ALL' 
                 ? "You haven't placed any orders yet. Discover fresh, local produce directly from farmers!"
+                : activeTab === 'REFUNDS'
+                ? "You don't have any refund or return requests on your orders."
                 : `You don't have any orders in this status right now.`}
             </p>
             {activeTab === 'ALL' && (

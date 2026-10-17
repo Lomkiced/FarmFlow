@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import { uploadProductImage } from '@/app/actions/upload';
 import { createProductAction } from '@/app/actions/products';
+import { PRODUCT_CATEGORIES } from '@/lib/validations/product';
 
 export default function AddProductClient({
   crops,
@@ -17,7 +18,7 @@ export default function AddProductClient({
   const [price, setPrice] = useState('');
   const [stock, setStock] = useState('');
   const [deliveryAvail, setDeliveryAvail] = useState(false);
-  const [category, setCategory] = useState('vegetables');
+  const [category, setCategory] = useState<string>(PRODUCT_CATEGORIES[0]);
   const [description, setDescription] = useState('');
   const [cropId, setCropId] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -95,7 +96,7 @@ export default function AddProductClient({
       // 2. Submit product data
       const productFormData = new FormData();
       productFormData.append('name', productName);
-      productFormData.append('category', category.toUpperCase());
+      productFormData.append('category', category);
       productFormData.append('pricePerKg', price);
       productFormData.append('stockKg', stock);
       productFormData.append('deliveryAvail', deliveryAvail.toString());
@@ -168,10 +169,9 @@ export default function AddProductClient({
             <label className="block text-[14px] font-medium text-on-background mb-[8px]">Category *</label>
             <div className="relative">
               <select value={category} onChange={(e) => setCategory(e.target.value)} className="w-full bg-background border border-outline-variant rounded-lg px-4 py-3 text-[16px] text-on-background focus:outline-none focus:border-primary-container focus:ring-1 focus:ring-primary-container transition-colors appearance-none pr-10">
-                <option value="VEGETABLES">Vegetables</option>
-                <option value="FRUITS">Fruits</option>
-                <option value="GRAINS">Grains</option>
-                <option value="HERBS">Herbs</option>
+                {PRODUCT_CATEGORIES.map((cat) => (
+                  <option key={cat} value={cat}>{cat}</option>
+                ))}
               </select>
               <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-outline pointer-events-none">expand_more</span>
             </div>
