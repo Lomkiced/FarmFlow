@@ -51,6 +51,10 @@ export async function createOrderAction(
     paymentMethod: formData.get('paymentMethod') || 'cod',
     items,
     notes: formData.get('notes') || undefined,
+    orderType: (formData.get('orderType') as any) || 'STANDARD',
+    isContract: formData.get('isContract') === 'true',
+    deliveryScheduleDay: (formData.get('deliveryScheduleDay') as string) || undefined,
+    contractWeeks: formData.get('contractWeeks') ? Number(formData.get('contractWeeks')) : undefined,
   };
 
   const parsed = checkoutSchema.safeParse(raw);
@@ -70,11 +74,20 @@ export async function createOrderAction(
     return { success: false, error: 'Invalid delivery address.' };
   }
 
-  // ── Fetch all products server-side to verify price + stock ────────────────
+  // ── Fetch all products server-side to verify price + stock + MOQ ──────────
   const productIds = parsed.data.items.map((i) => i.productId);
   const products = await prisma.product.findMany({
     where: { id: { in: productIds }, status: 'ACTIVE' },
-    select: { id: true, name: true, pricePerKg: true, stockKg: true, farmId: true },
+    select: {
+      id: true,
+      name: true,
+      pricePerKg: true,
+      stockKg: true,
+      farmId: true,
+      minOrderQty: true,
+      wholesalePrice: true,
+      wholesaleMinQty: true,
+    },
   });
 
   if (products.length !== productIds.length) {
@@ -83,8 +96,10 @@ export async function createOrderAction(
 
   // Map products for quick lookup
   const productMap = new Map(products.map((p) => [p.id, p]));
+  const isContract = parsed.data.isContract ?? false;
+  const weeks = isContract ? (parsed.data.contractWeeks ?? 1) : 1;
 
-  // Build order items and verify stock
+  // Build order items, enforce MOQ, verify stock, and compute wholesale pricing
   const orderItems: Array<{
     productId: string;
     quantityKg: number;
@@ -97,6 +112,16 @@ export async function createOrderAction(
     if (!product) {
       return { success: false, error: `Product not found: ${item.productId}` };
     }
+
+    // REQUIREMENT 1: Server-side MOQ enforcement
+    const minOrderQty = product.minOrderQty ?? 1;
+    if (item.quantityKg < minOrderQty) {
+      return {
+        success: false,
+        error: `Minimum order quantity for "${product.name}" is ${minOrderQty} kg/units. (Your order: ${item.quantityKg})`,
+      };
+    }
+
     if (product.stockKg < item.quantityKg) {
       return {
         success: false,
@@ -104,17 +129,57 @@ export async function createOrderAction(
       };
     }
 
+    // Determine unit price: standard vs wholesale tier vs wholesale contract
+    let unitPrice = product.pricePerKg;
+    const wholesalePriceNum = product.wholesalePrice ? Number(product.wholesalePrice) : null;
+
+    if (wholesalePriceNum && product.wholesaleMinQty && item.quantityKg >= product.wholesaleMinQty) {
+      unitPrice = wholesalePriceNum;
+    } else if (isContract) {
+      if (wholesalePriceNum) {
+        unitPrice = wholesalePriceNum;
+      } else {
+        // 5% wholesale contract discount on produce
+        unitPrice = Math.round(product.pricePerKg * 0.95 * 100) / 100;
+      }
+    }
+
     orderItems.push({
       productId: item.productId,
       quantityKg: item.quantityKg,
-      pricePerKg: product.pricePerKg, // ← Server-computed price, not client price!
-      subtotal: product.pricePerKg * item.quantityKg,
+      pricePerKg: unitPrice,
+      subtotal: unitPrice * item.quantityKg,
     });
   }
 
-  const subtotal = orderItems.reduce((sum, i) => sum + i.subtotal, 0);
-  const deliveryFee = 50; // Fixed delivery fee — can be made dynamic later
-  const totalAmount = subtotal + deliveryFee;
+  const subtotalPerDelivery = orderItems.reduce((sum, i) => sum + i.subtotal, 0);
+  const deliveryFeePerDelivery = 50;
+  const totalProduceAmount = subtotalPerDelivery * weeks;
+  const deliveryFee = deliveryFeePerDelivery * weeks;
+  const totalAmount = totalProduceAmount + deliveryFee;
+
+  // Calculate first delivery date for wholesale contracts
+  let nextDeliveryDate: Date | null = null;
+  if (isContract && parsed.data.deliveryScheduleDay) {
+    const dayMap: Record<string, number> = {
+      Sunday: 0,
+      Monday: 1,
+      Tuesday: 2,
+      Wednesday: 3,
+      Thursday: 4,
+      Friday: 5,
+      Saturday: 6,
+    };
+    const targetDayName = parsed.data.deliveryScheduleDay.replace('Every ', '').trim();
+    const targetDay = dayMap[targetDayName] ?? 6;
+    const now = new Date();
+    const currentDay = now.getDay();
+    let diff = (targetDay - currentDay + 7) % 7;
+    if (diff === 0) diff = 7;
+    nextDeliveryDate = new Date(now);
+    nextDeliveryDate.setDate(now.getDate() + diff);
+    nextDeliveryDate.setHours(9, 0, 0, 0);
+  }
 
   // ── Atomic transaction: create order + update stock ────────────────────────
   try {
@@ -129,6 +194,12 @@ export async function createOrderAction(
           paymentStatus: 'PENDING',
           addressId: parsed.data.addressId,
           notes: parsed.data.notes,
+          orderType: parsed.data.orderType || (isContract ? 'WHOLESALE_CONTRACT' : 'STANDARD'),
+          isContract,
+          deliveryScheduleDay: parsed.data.deliveryScheduleDay || null,
+          contractWeeks: isContract ? weeks : null,
+          deliveriesCompleted: 0,
+          nextDeliveryDate,
           items: {
             create: orderItems,
           },
@@ -205,18 +276,20 @@ export async function createOrderAction(
                 show_line_items: true,
                 payment_method_types: ['gcash'],
                 line_items: orderItems.map(item => ({
-                  name: productMap.get(item.productId)?.name || 'Product',
-                  amount: Math.round(item.pricePerKg * 100), // in centavos
+                  name: `${productMap.get(item.productId)?.name || 'Product'}${isContract ? ` (${weeks} weekly deliveries)` : ''}`,
+                  amount: Math.round(item.pricePerKg * (isContract ? weeks : 1) * 100), // in centavos
                   currency: 'PHP',
                   quantity: Math.ceil(item.quantityKg) // PayMongo requires integer quantity
                 })).concat([{
-                  name: 'Delivery Fee',
+                  name: `Delivery Fee${isContract ? ` (${weeks} weekly batches)` : ''}`,
                   amount: Math.round(deliveryFee * 100),
                   currency: 'PHP',
                   quantity: 1
                 }]),
                 reference_number: order.id,
-                description: `FarmFlow Order #${order.id.slice(0, 8)}`,
+                description: isContract
+                  ? `FarmFlow Wholesale Contract (${weeks} wks, ${parsed.data.deliveryScheduleDay}) #${order.id.slice(0, 8)}`
+                  : `FarmFlow Order #${order.id.slice(0, 8)}`,
                 success_url: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/order-confirmation?orderId=${order.id}&success=true`,
                 cancel_url: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/checkout`,
               }
@@ -242,6 +315,142 @@ export async function createOrderAction(
     if (err instanceof Error && err.message === 'NEXT_REDIRECT') throw err;
     console.error('[createOrder]', err);
     return { success: false, error: 'Failed to place order. Please try again.' };
+  }
+}
+
+// ─── Record Wholesale Contract Delivery Batch (Farmer / Admin) ───────────────
+
+/**
+ * Records a single weekly delivery fulfillment for a wholesale contract.
+ * Increments deliveriesCompleted and updates nextDeliveryDate (+7 days).
+ * When all weeks are fulfilled, marks the order COMPLETED (and PAID if COD).
+ */
+export async function recordContractDeliveryAction(orderId: string): Promise<ActionState> {
+  const user = await requireAuth();
+
+  const order = await prisma.order.findUnique({
+    where: { id: orderId },
+    include: {
+      buyer: { select: { id: true, name: true, email: true } },
+      items: {
+        include: {
+          product: {
+            select: {
+              farmId: true,
+              farm: { select: { id: true, userId: true } },
+            },
+          },
+        },
+      },
+    },
+  });
+
+  if (!order) {
+    return { success: false, error: 'Order not found.' };
+  }
+
+  if (!order.isContract) {
+    return { success: false, error: 'This order is not a wholesale contract.' };
+  }
+
+  // Farmer verification: must own at least one item
+  if (user.role === 'FARMER') {
+    const ownsItem = order.items.some((i) => i.product.farm?.userId === user.id);
+    if (!ownsItem) {
+      return { success: false, error: 'You are not authorized to manage deliveries for this contract.' };
+    }
+  } else if (user.role !== 'ADMIN') {
+    return { success: false, error: 'Unauthorized.' };
+  }
+
+  const totalWeeks = order.contractWeeks || 1;
+  if (order.deliveriesCompleted >= totalWeeks) {
+    return { success: false, error: 'All scheduled contract deliveries have already been fulfilled.' };
+  }
+
+  const nextCompleted = order.deliveriesCompleted + 1;
+  const isFinalDelivery = nextCompleted >= totalWeeks;
+
+  let nextDeliveryDate: Date | null = null;
+  if (!isFinalDelivery) {
+    const baseDate = order.nextDeliveryDate ? new Date(order.nextDeliveryDate) : new Date();
+    nextDeliveryDate = new Date(baseDate);
+    nextDeliveryDate.setDate(nextDeliveryDate.getDate() + 7);
+  }
+
+  try {
+    await prisma.$transaction(async (tx) => {
+      // 1. Update order
+      await tx.order.update({
+        where: { id: orderId },
+        data: {
+          deliveriesCompleted: nextCompleted,
+          nextDeliveryDate,
+          ...(isFinalDelivery
+            ? {
+                orderStatus: 'DELIVERED',
+                ...(order.paymentStatus === 'PENDING' ? { paymentStatus: 'PAID' } : {}),
+              }
+            : {
+                orderStatus: 'CONFIRMED',
+              }),
+        },
+      });
+
+      // 2. If final delivery, credit farm sales
+      if (isFinalDelivery) {
+        const farmEarnings = new Map<string, number>();
+        for (const item of order.items) {
+          const fId = item.product.farmId;
+          const current = farmEarnings.get(fId) || 0;
+          farmEarnings.set(fId, current + (item.subtotal * totalWeeks));
+        }
+        for (const [fId, earned] of farmEarnings) {
+          await tx.farm.update({
+            where: { id: fId },
+            data: { totalSales: { increment: earned } },
+          });
+        }
+      }
+    });
+
+    // Notify buyer
+    if (order.buyerId) {
+      sendUserNotification(order.buyerId, {
+        type: 'ORDER_STATUS_CHANGE',
+        title: isFinalDelivery ? '🎉 Wholesale Contract Completed!' : '🚚 Weekly Wholesale Batch Delivered!',
+        message: isFinalDelivery
+          ? `All ${totalWeeks} weekly deliveries for Wholesale Contract #${order.id.slice(0, 8)} have been fulfilled! Thank you for supporting our local farmers!`
+          : `Batch ${nextCompleted} of ${totalWeeks} has been delivered! Your next delivery is scheduled for ${nextDeliveryDate?.toLocaleDateString('en-PH', { weekday: 'short', month: 'short', day: 'numeric' })}.`,
+        relatedId: order.id,
+        relatedType: 'order',
+      });
+    }
+
+    // Notify admin
+    sendAdminNotification({
+      type: 'ORDER_STATUS_CHANGE',
+      title: isFinalDelivery ? 'Wholesale Contract Completed' : 'Contract Delivery Batch Recorded',
+      message: `Contract #${order.id.slice(0, 8)}: batch ${nextCompleted}/${totalWeeks} delivered.`,
+      relatedId: order.id,
+      relatedType: 'order',
+    });
+
+    revalidatePath('/farmer/orders');
+    revalidatePath('/buyer/orders');
+    revalidatePath('/orders');
+    revalidatePath(`/orders/${orderId}`);
+    revalidatePath('/admin/orders');
+
+    return {
+      success: true,
+      message: isFinalDelivery
+        ? `Contract fully completed! All ${totalWeeks} weekly batches fulfilled.`
+        : `Batch ${nextCompleted} of ${totalWeeks} recorded. Next delivery: ${nextDeliveryDate?.toLocaleDateString('en-PH', { weekday: 'short', month: 'short', day: 'numeric' })}.`,
+    };
+  } catch (err) {
+    console.error('[recordContractDeliveryAction]', err);
+    return { success: false, error: 'Failed to record contract delivery.' };
   }
 }
 
@@ -649,7 +858,7 @@ export async function requestOrderRefundAction(data: {
   if (order.orderStatus !== 'DELIVERED') {
     return {
       success: false,
-      error: 'Refunds can only be requested for delivered orders.',
+      error: 'Return / refund requests can only be submitted for delivered orders.',
     };
   }
 

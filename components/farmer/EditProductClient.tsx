@@ -24,6 +24,9 @@ export default function EditProductClient({
   const [productName, setProductName] = useState(product.name || '');
   const [price, setPrice] = useState(product.pricePerKg?.toString() || '');
   const [stock, setStock] = useState(product.stockKg?.toString() || '');
+  const [minOrderQty, setMinOrderQty] = useState(product.minOrderQty?.toString() || '1');
+  const [wholesalePrice, setWholesalePrice] = useState(product.wholesalePrice ? product.wholesalePrice.toString() : '');
+  const [wholesaleMinQty, setWholesaleMinQty] = useState(product.wholesaleMinQty ? product.wholesaleMinQty.toString() : '');
   const [deliveryAvail, setDeliveryAvail] = useState(product.deliveryAvail || false);
   const [category, setCategory] = useState<string>(product.category || PRODUCT_CATEGORIES[0]);
   const [description, setDescription] = useState(product.description || '');
@@ -32,6 +35,8 @@ export default function EditProductClient({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [priceError, setPriceError] = useState('');
   const [stockError, setStockError] = useState('');
+  const [moqError, setMoqError] = useState('');
+  const [wholesaleError, setWholesaleError] = useState('');
 
   const totalPhotosCount = existingPhotos.length + newPhotos.length;
 
@@ -53,6 +58,8 @@ export default function EditProductClient({
   const handleSubmit = async () => {
     setPriceError('');
     setStockError('');
+    setMoqError('');
+    setWholesaleError('');
     let hasError = false;
 
     if (!productName || !price || !stock) {
@@ -73,6 +80,28 @@ export default function EditProductClient({
     if (isNaN(stockNum) || stockNum <= 0 || !Number.isInteger(stockNum)) {
       setStockError('Stock must be a positive whole number.');
       hasError = true;
+    }
+
+    const moqNum = Number(minOrderQty);
+    if (isNaN(moqNum) || moqNum < 1 || !Number.isInteger(moqNum)) {
+      setMoqError('Minimum order quantity must be a whole number of at least 1.');
+      hasError = true;
+    }
+
+    if (wholesalePrice) {
+      const wpNum = parseFloat(wholesalePrice);
+      if (isNaN(wpNum) || wpNum <= 0) {
+        setWholesaleError('Wholesale price must be greater than ₱0.');
+        hasError = true;
+      }
+    }
+
+    if (wholesaleMinQty) {
+      const wmqNum = Number(wholesaleMinQty);
+      if (isNaN(wmqNum) || wmqNum < 1 || !Number.isInteger(wmqNum)) {
+        setWholesaleError('Wholesale minimum quantity must be a whole number.');
+        hasError = true;
+      }
     }
 
     if (hasError) return;
@@ -116,6 +145,9 @@ export default function EditProductClient({
       productFormData.append('category', category);
       productFormData.append('pricePerKg', price);
       productFormData.append('stockKg', stock);
+      productFormData.append('minOrderQty', minOrderQty || '1');
+      if (wholesalePrice) productFormData.append('wholesalePrice', wholesalePrice);
+      if (wholesaleMinQty) productFormData.append('wholesaleMinQty', wholesaleMinQty);
       productFormData.append('deliveryAvail', deliveryAvail.toString());
       productFormData.append('photos', JSON.stringify(finalPhotosList));
       
@@ -224,9 +256,9 @@ export default function EditProductClient({
           </div>
         </div>
 
-        {/* SECTION 3 - Pricing & Inventory */}
-        <div className="bg-surface-container-lowest p-[16px] rounded-xl shadow-[0_4px_20px_rgba(27,67,50,0.04)]">
-          <div className="grid grid-cols-2 gap-[16px]">
+        {/* SECTION 3 - Pricing, MOQ & Wholesale */}
+        <div className="bg-surface-container-lowest p-[16px] rounded-xl shadow-[0_4px_20px_rgba(27,67,50,0.04)] space-y-[16px]">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-[16px]">
             <div>
               <label className="block text-[14px] font-medium text-on-background mb-[8px]">Price per kg *</label>
               <div className="relative">
@@ -240,6 +272,44 @@ export default function EditProductClient({
               <input type="number" required placeholder="100" value={stock} onChange={(e) => { setStock(e.target.value); setStockError(''); }} className="w-full bg-background border border-outline-variant rounded-lg px-4 py-3 text-[16px] text-on-background focus:outline-none focus:border-primary-container focus:ring-1 focus:ring-primary-container transition-colors placeholder:text-outline" />
               {stockError && <p className="text-error text-[12px] mt-1">{stockError}</p>}
             </div>
+            <div>
+              <label className="block text-[14px] font-medium text-on-background mb-[8px]">Minimum Order Qty (MOQ) *</label>
+              <div className="relative">
+                <input type="number" min="1" required placeholder="1" value={minOrderQty} onChange={(e) => { setMinOrderQty(e.target.value); setMoqError(''); }} className="w-full bg-background border border-outline-variant rounded-lg px-4 py-3 text-[16px] text-on-background focus:outline-none focus:border-primary-container focus:ring-1 focus:ring-primary-container transition-colors placeholder:text-outline" />
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[13px] text-outline font-medium">kg</span>
+              </div>
+              {moqError && <p className="text-error text-[12px] mt-1">{moqError}</p>}
+              <p className="text-[11px] text-on-surface-variant mt-1">Smallest quantity a customer can order</p>
+            </div>
+          </div>
+
+          {/* Wholesale Pricing Tier (Optional) */}
+          <div className="pt-4 border-t border-outline-variant/40">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="material-symbols-outlined text-primary text-[18px]">verified</span>
+              <span className="text-[14px] font-semibold text-on-background">Wholesale Pricing (Bulk Tier / Contract Discount)</span>
+              <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-primary/10 text-primary">Optional</span>
+            </div>
+            <p className="text-[12px] text-on-surface-variant mb-3">
+              Offer a discounted rate for bulk buyers or scheduled recurring wholesale contracts.
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-[16px]">
+              <div>
+                <label className="block text-[13px] font-medium text-on-background mb-[6px]">Wholesale Price (per kg)</label>
+                <div className="relative">
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[16px] text-outline">₱</span>
+                  <input type="number" placeholder="Discounted price (e.g. 80.00)" value={wholesalePrice} onChange={(e) => { setWholesalePrice(e.target.value); setWholesaleError(''); }} className="w-full bg-background border border-outline-variant rounded-lg pl-8 pr-4 py-2.5 text-[15px] text-on-background focus:outline-none focus:border-primary-container focus:ring-1 focus:ring-primary-container transition-colors placeholder:text-outline" />
+                </div>
+              </div>
+              <div>
+                <label className="block text-[13px] font-medium text-on-background mb-[6px]">Wholesale Minimum Qty</label>
+                <div className="relative">
+                  <input type="number" min="1" placeholder="e.g. 20" value={wholesaleMinQty} onChange={(e) => { setWholesaleMinQty(e.target.value); setWholesaleError(''); }} className="w-full bg-background border border-outline-variant rounded-lg px-4 py-2.5 text-[15px] text-on-background focus:outline-none focus:border-primary-container focus:ring-1 focus:ring-primary-container transition-colors placeholder:text-outline" />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[13px] text-outline font-medium">kg</span>
+                </div>
+              </div>
+            </div>
+            {wholesaleError && <p className="text-error text-[12px] mt-1.5">{wholesaleError}</p>}
           </div>
         </div>
 

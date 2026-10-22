@@ -75,12 +75,15 @@ async function main() {
     data: {
       farmId: farm.id,
       name: 'Fresh Organic Carrots',
-      description: 'Newly harvested, premium organic carrots from Benguet.',
+      description: 'Newly harvested, premium organic carrots from Benguet and La Union.',
       pricePerKg: 45.0,
       stockKg: 2000,
+      minOrderQty: 2,
+      wholesalePrice: 38.0,
+      wholesaleMinQty: 20,
       category: 'VEGETABLES',
       status: 'ACTIVE',
-      photos: ['https://images.unsplash.com/photo-1598170845058-32b9d6a5da37?w=800&q=80'],
+      photos: ['/images/crops/carrots.jpg'],
     },
   });
 

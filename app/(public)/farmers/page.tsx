@@ -103,7 +103,7 @@ export default async function FarmersDirectoryPage({ searchParams }: Props) {
                 {/* Cover Photo */}
                 <div className="h-40 w-full bg-surface-container relative overflow-hidden">
                   <Image
-                    src={farm.coverPhoto || 'https://images.unsplash.com/photo-1500937386664-56d1dfef4525?q=80&w=800'}
+                    src={farm.coverPhoto || 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?q=80&w=800'}
                     alt={farm.farmName}
                     fill
                     className="object-cover group-hover:scale-105 transition-transform duration-700"
@@ -157,7 +157,7 @@ export default async function FarmersDirectoryPage({ searchParams }: Props) {
                       <div className="flex gap-3">
                         {farm.products.map(p => (
                           <div key={p.id} className="w-14 h-14 rounded-xl relative overflow-hidden border border-surface-variant/50 group/img bg-surface-container shadow-sm">
-                            <Image src={p.photos[0] || 'https://images.unsplash.com/photo-1546094096-0df4bcaaa337?w=100&q=80'} alt={p.name} fill className="object-cover group-hover/img:scale-110 transition-transform duration-500" sizes="56px" />
+                            <Image src={p.photos[0] || '/images/crops/generic.jpg'} alt={p.name} fill className="object-cover group-hover/img:scale-110 transition-transform duration-500" sizes="56px" />
                           </div>
                         ))}
                         {farm._count.products > 3 && (

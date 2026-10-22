@@ -10,6 +10,20 @@ export interface CartItem {
   photo: string;
   farmerName: string;
   farmId?: string;
+  minOrderQty?: number;
+  wholesalePrice?: number | null;
+  wholesaleMinQty?: number | null;
+}
+
+export function getItemUnitPrice(item: CartItem): number {
+  if (
+    item.wholesalePrice &&
+    item.wholesaleMinQty &&
+    item.quantityKg >= item.wholesaleMinQty
+  ) {
+    return Number(item.wholesalePrice);
+  }
+  return item.pricePerKg;
 }
 
 interface CartStore {
@@ -34,6 +48,7 @@ interface CartStore {
   selectedTotal: () => number;
   selectedItems: () => CartItem[];
   selectedCount: () => number;
+  getItemPrice: (item: CartItem) => number;
 }
 
 export const useCartStore = create<CartStore>()(
@@ -44,18 +59,27 @@ export const useCartStore = create<CartStore>()(
 
       addItem: (item) =>
         set((state) => {
+          const minQty = item.minOrderQty || 1;
+          const initialQty = Math.max(item.quantityKg || minQty, minQty);
           const exists = state.items.find(
             (i) => i.productId === item.productId
           );
           if (exists) {
             const newQty = Math.min(
-              exists.quantityKg + item.quantityKg,
+              exists.quantityKg + (item.quantityKg || minQty),
               item.stockKg > 0 ? item.stockKg : 9999
             );
             return {
               items: state.items.map((i) =>
                 i.productId === item.productId
-                  ? { ...i, quantityKg: newQty, stockKg: item.stockKg }
+                  ? {
+                      ...i,
+                      quantityKg: newQty,
+                      stockKg: item.stockKg,
+                      minOrderQty: item.minOrderQty ?? i.minOrderQty,
+                      wholesalePrice: item.wholesalePrice !== undefined ? item.wholesalePrice : i.wholesalePrice,
+                      wholesaleMinQty: item.wholesaleMinQty !== undefined ? item.wholesaleMinQty : i.wholesaleMinQty,
+                    }
                   : i
               ),
               // Auto-select newly added item
@@ -65,7 +89,7 @@ export const useCartStore = create<CartStore>()(
             };
           }
           return {
-            items: [...state.items, item],
+            items: [...state.items, { ...item, quantityKg: initialQty }],
             selectedIds: [...state.selectedIds, item.productId],
           };
         }),
@@ -80,8 +104,9 @@ export const useCartStore = create<CartStore>()(
         set((state) => {
           const item = state.items.find((i) => i.productId === productId);
           if (!item) return state;
+          const minQty = item.minOrderQty || 1;
           const maxQty = item.stockKg > 0 ? item.stockKg : 9999;
-          const clampedQty = Math.max(1, Math.min(quantity, maxQty));
+          const clampedQty = Math.max(minQty, Math.min(quantity, maxQty));
           return {
             items: state.items.map((i) =>
               i.productId === productId ? { ...i, quantityKg: clampedQty } : i
@@ -115,9 +140,11 @@ export const useCartStore = create<CartStore>()(
         );
       },
 
+      getItemPrice: (item: CartItem) => getItemUnitPrice(item),
+
       total: () =>
         get().items.reduce(
-          (sum, item) => sum + item.pricePerKg * item.quantityKg,
+          (sum, item) => sum + getItemUnitPrice(item) * item.quantityKg,
           0
         ),
 
@@ -130,7 +157,7 @@ export const useCartStore = create<CartStore>()(
         const state = get();
         return state.items
           .filter((i) => state.selectedIds.includes(i.productId))
-          .reduce((sum, item) => sum + item.pricePerKg * item.quantityKg, 0);
+          .reduce((sum, item) => sum + getItemUnitPrice(item) * item.quantityKg, 0);
       },
 
       selectedCount: () => get().selectedIds.length,

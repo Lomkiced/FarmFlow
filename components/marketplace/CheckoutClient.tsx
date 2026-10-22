@@ -35,6 +35,11 @@ export default function CheckoutClient({ addresses }: { addresses: Address[] }) 
     addresses.find(a => a.isDefault)?.id || addresses[0]?.id || ''
   );
 
+  // Requirement 2: Wholesale Contract / Scheduled Recurring Delivery State
+  const [orderMode, setOrderMode] = useState<'STANDARD' | 'WHOLESALE_CONTRACT'>('STANDARD');
+  const [deliveryScheduleDay, setDeliveryScheduleDay] = useState<string>('Every Saturday');
+  const [contractWeeks, setContractWeeks] = useState<number>(4);
+
   const [isNewAddress, setIsNewAddress] = useState(addresses.length === 0);
   const [isPending, startTransition] = useTransition();
   const [mounted, setMounted] = useState(false);
@@ -43,9 +48,51 @@ export default function CheckoutClient({ addresses }: { addresses: Address[] }) 
     setMounted(true);
   }, []);
 
-  const subtotal = checkoutItems.reduce((sum, item) => sum + item.pricePerKg * item.quantityKg, 0);
-  const deliveryFee = 50;
-  const total = subtotal + deliveryFee;
+  const isContract = orderMode === 'WHOLESALE_CONTRACT';
+  const weeks = isContract ? contractWeeks : 1;
+
+  // Helper for computing item price with wholesale / contract discount
+  const getItemEffectivePrice = (item: any) => {
+    if (item.wholesalePrice && item.wholesaleMinQty && item.quantityKg >= item.wholesaleMinQty) {
+      return Number(item.wholesalePrice);
+    }
+    if (isContract) {
+      if (item.wholesalePrice) return Number(item.wholesalePrice);
+      // 5% produce discount for recurring wholesale contract
+      return Math.round(item.pricePerKg * 0.95 * 100) / 100;
+    }
+    return item.pricePerKg;
+  };
+
+  const subtotalPerDelivery = checkoutItems.reduce(
+    (sum, item) => sum + getItemEffectivePrice(item) * item.quantityKg,
+    0
+  );
+  const deliveryFeePerDelivery = 50;
+  const totalProduceAmount = subtotalPerDelivery * weeks;
+  const totalDeliveryFee = deliveryFeePerDelivery * weeks;
+  const total = totalProduceAmount + totalDeliveryFee;
+
+  const getFirstDeliveryDate = (scheduleDay: string) => {
+    const dayMap: Record<string, number> = {
+      Sunday: 0,
+      Monday: 1,
+      Tuesday: 2,
+      Wednesday: 3,
+      Thursday: 4,
+      Friday: 5,
+      Saturday: 6,
+    };
+    const targetDayName = scheduleDay.replace('Every ', '').trim();
+    const targetDay = dayMap[targetDayName] ?? 6;
+    const now = new Date();
+    const currentDay = now.getDay();
+    let diff = (targetDay - currentDay + 7) % 7;
+    if (diff === 0) diff = 7;
+    const nextDate = new Date(now);
+    nextDate.setDate(now.getDate() + diff);
+    return nextDate;
+  };
 
   const hasOutOfStockItems = checkoutItems.some(
     (i) => i.stockKg <= 0 || i.quantityKg > i.stockKg
@@ -93,6 +140,12 @@ export default function CheckoutClient({ addresses }: { addresses: Address[] }) 
       orderFormData.append('addressId', finalAddressId);
       orderFormData.append('paymentMethod', paymentMethod);
       orderFormData.append('items', JSON.stringify(checkoutItems.map(i => ({ productId: i.productId, quantityKg: i.quantityKg }))));
+      orderFormData.append('orderType', orderMode);
+      orderFormData.append('isContract', isContract.toString());
+      if (isContract) {
+        orderFormData.append('deliveryScheduleDay', deliveryScheduleDay);
+        orderFormData.append('contractWeeks', contractWeeks.toString());
+      }
 
       if (notes) orderFormData.append('notes', notes);
 
@@ -102,7 +155,7 @@ export default function CheckoutClient({ addresses }: { addresses: Address[] }) 
           toast.error((result as any).error || 'Failed to place order');
         } else {
           clearCart();
-          toast.success('Order placed successfully!');
+          toast.success(isContract ? 'Wholesale contract created successfully!' : 'Order placed successfully!');
         }
       } catch (error: any) {
         if (error.message === 'NEXT_REDIRECT') {
@@ -134,13 +187,188 @@ export default function CheckoutClient({ addresses }: { addresses: Address[] }) 
     );
   }
 
+  const firstDeliveryDate = getFirstDeliveryDate(deliveryScheduleDay);
+  const formattedFirstDelivery = firstDeliveryDate.toLocaleDateString('en-PH', {
+    weekday: 'long',
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+
   return (
     <form onSubmit={handlePlaceOrder} className="grid grid-cols-1 lg:grid-cols-12 gap-6">
 
       {/* LEFT COLUMN */}
       <div className="lg:col-span-8 flex flex-col gap-[32px]">
 
-        {/* SECTION 1: DELIVERY DETAILS */}
+        {/* SECTION 1: ORDER MODE / PURCHASE TYPE */}
+        <div className="bg-surface-container-lowest rounded-xl p-[24px] md:p-[32px] shadow-level-1">
+          <div className="mb-[16px]">
+            <h2 className="flex items-center gap-2 font-['Manrope'] text-[24px] font-semibold tracking-[-0.01em] text-primary">
+              <span className="material-symbols-outlined text-secondary">handshake</span>
+              Order Mode & Fulfillment
+            </h2>
+            <p className="text-sm text-on-surface-variant mt-1">
+              Select whether you are placing a standard one-time delivery or setting up a recurring wholesale contract.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Standard Mode Card */}
+            <div
+              onClick={() => setOrderMode('STANDARD')}
+              className={`p-5 rounded-2xl border-2 cursor-pointer transition-all flex flex-col justify-between ${
+                orderMode === 'STANDARD'
+                  ? 'border-primary bg-primary-container/10 ring-2 ring-primary/20 shadow-sm'
+                  : 'border-outline-variant bg-surface-container-lowest hover:border-outline'
+              }`}
+            >
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <span className="material-symbols-outlined text-primary text-[24px]">local_shipping</span>
+                    <span className="font-['Manrope'] font-bold text-on-surface text-[17px]">Standard Order</span>
+                  </div>
+                  <span
+                    className={`material-symbols-outlined ${orderMode === 'STANDARD' ? 'text-primary' : 'text-outline/40'}`}
+                    style={{ fontVariationSettings: "'FILL' 1" }}
+                  >
+                    {orderMode === 'STANDARD' ? 'check_circle' : 'radio_button_unchecked'}
+                  </span>
+                </div>
+                <div className="text-xs font-semibold uppercase tracking-wider text-secondary mb-2">One-Time Delivery</div>
+                <p className="text-xs text-on-surface-variant leading-relaxed">
+                  Regular single delivery for everyday fresh farm produce dispatched directly from our verified local farmers.
+                </p>
+              </div>
+            </div>
+
+            {/* Wholesale Contract Mode Card */}
+            <div
+              onClick={() => setOrderMode('WHOLESALE_CONTRACT')}
+              className={`p-5 rounded-2xl border-2 cursor-pointer transition-all flex flex-col justify-between relative overflow-hidden ${
+                orderMode === 'WHOLESALE_CONTRACT'
+                  ? 'border-emerald-600 bg-emerald-50/70 ring-2 ring-emerald-600/20 shadow-sm'
+                  : 'border-outline-variant bg-surface-container-lowest hover:border-emerald-500/50'
+              }`}
+            >
+              <div className="absolute top-0 right-0 bg-emerald-600 text-white text-[10px] font-bold px-3 py-0.5 rounded-bl-lg uppercase tracking-wider">
+                Wholesale
+              </div>
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <span className="material-symbols-outlined text-emerald-700 text-[24px]">event_repeat</span>
+                    <span className="font-['Manrope'] font-bold text-on-surface text-[17px]">Wholesale Contract</span>
+                  </div>
+                  <span
+                    className={`material-symbols-outlined ${orderMode === 'WHOLESALE_CONTRACT' ? 'text-emerald-700' : 'text-outline/40'}`}
+                    style={{ fontVariationSettings: "'FILL' 1" }}
+                  >
+                    {orderMode === 'WHOLESALE_CONTRACT' ? 'check_circle' : 'radio_button_unchecked'}
+                  </span>
+                </div>
+                <div className="text-xs font-semibold uppercase tracking-wider text-emerald-800 mb-2">
+                  One-Time Full Payment • Weekly Deliveries
+                </div>
+                <p className="text-xs text-on-surface-variant leading-relaxed">
+                  Pay once upfront for the entire contract. Fresh produce will be delivered to you weekly on your chosen day (e.g., Every Saturday). Includes contract savings.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Wholesale Contract Options (Accordion / Dropdown when active) */}
+          {isContract && (
+            <div className="mt-6 pt-6 border-t border-emerald-200/80 bg-emerald-50/40 -mx-[24px] md:-mx-[32px] -mb-[24px] md:-mb-[32px] p-[24px] md:p-[32px] rounded-b-xl flex flex-col gap-5">
+              <div className="flex items-center gap-2 text-emerald-900 font-semibold text-sm">
+                <span className="material-symbols-outlined text-emerald-700">settings_suggest</span>
+                Customize Your Wholesale Delivery Schedule
+              </div>
+
+              {/* Delivery Day Selection */}
+              <div>
+                <label className="text-xs font-bold uppercase tracking-wider text-on-surface-variant block mb-2">
+                  Choose Weekly Delivery Day:
+                </label>
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
+                  {[
+                    { day: 'Every Saturday', label: 'Sat (Weekend)' },
+                    { day: 'Every Sunday', label: 'Sun (Weekend)' },
+                    { day: 'Every Monday', label: 'Mon (Start)' },
+                    { day: 'Every Wednesday', label: 'Wed (Midweek)' },
+                    { day: 'Every Friday', label: 'Fri (Pre-Weekend)' },
+                  ].map(({ day, label }) => {
+                    const isSelected = deliveryScheduleDay === day;
+                    return (
+                      <button
+                        key={day}
+                        type="button"
+                        onClick={() => setDeliveryScheduleDay(day)}
+                        className={`py-2.5 px-3 rounded-xl text-xs font-medium border text-center transition-all ${
+                          isSelected
+                            ? 'bg-emerald-700 text-white border-emerald-700 shadow-sm font-semibold'
+                            : 'bg-white text-on-surface border-outline-variant hover:border-emerald-600'
+                        }`}
+                      >
+                        <div className="text-[13px]">{day.replace('Every ', '')}</div>
+                        <div className={`text-[10px] ${isSelected ? 'text-emerald-100' : 'text-on-surface-variant'}`}>{label}</div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Contract Duration Selection */}
+              <div>
+                <label className="text-xs font-bold uppercase tracking-wider text-on-surface-variant block mb-2">
+                  Contract Duration (Total Weekly Deliveries):
+                </label>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  {[
+                    { weeks: 2, label: '2 Weeks', desc: '2 Weekly Deliveries' },
+                    { weeks: 4, label: '4 Weeks / 1 Month', desc: '4 Weekly Deliveries (Most Popular)' },
+                    { weeks: 8, label: '8 Weeks / 2 Months', desc: '8 Weekly Deliveries' },
+                  ].map((tier) => {
+                    const isSelected = contractWeeks === tier.weeks;
+                    return (
+                      <button
+                        key={tier.weeks}
+                        type="button"
+                        onClick={() => setContractWeeks(tier.weeks)}
+                        className={`p-3 rounded-xl border text-left transition-all ${
+                          isSelected
+                            ? 'bg-emerald-700 text-white border-emerald-700 shadow-sm'
+                            : 'bg-white text-on-surface border-outline-variant hover:border-emerald-600'
+                        }`}
+                      >
+                        <div className="font-bold text-sm">{tier.label}</div>
+                        <div className={`text-xs mt-0.5 ${isSelected ? 'text-emerald-100' : 'text-on-surface-variant'}`}>
+                          {tier.desc}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Delivery Preview Banner */}
+              <div className="bg-white/90 border border-emerald-200 rounded-xl p-3.5 flex items-start gap-3 text-xs text-emerald-950">
+                <span className="material-symbols-outlined text-emerald-700 text-[20px] shrink-0 mt-0.5">calendar_month</span>
+                <div>
+                  <div className="font-semibold text-emerald-900">
+                    Schedule: {deliveryScheduleDay} for {contractWeeks} consecutive weeks
+                  </div>
+                  <div className="text-emerald-800/80 mt-0.5">
+                    First batch delivery: <span className="font-bold underline">{formattedFirstDelivery}</span>. The farmer will prepare your harvest weekly and notify you on each drop.
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* SECTION 2: DELIVERY DETAILS */}
         <div className="bg-surface-container-lowest rounded-xl p-[24px] md:p-[32px] shadow-level-1">
           <div className="flex justify-between items-center mb-[16px]">
             <h2 className="flex items-center gap-2 font-['Manrope'] text-[24px] font-semibold tracking-[-0.01em] text-primary">
@@ -217,26 +445,26 @@ export default function CheckoutClient({ addresses }: { addresses: Address[] }) 
           )}
         </div>
 
-        {/* SECTION 2: PAYMENT METHOD */}
+        {/* SECTION 3: PAYMENT METHOD */}
         <div className="bg-surface-container-lowest rounded-xl p-[24px] md:p-[32px] shadow-level-1">
           <h2 className="flex items-center gap-2 font-['Manrope'] text-[24px] font-semibold tracking-[-0.01em] text-primary mb-[16px]">
             <span className="material-symbols-outlined text-secondary">payments</span>
             Payment Method
           </h2>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-[8px]">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-[12px]">
             {[
-              { id: 'cod', title: 'Cash on Delivery', subtitle: 'Pay when it arrives' },
-              { id: 'gcash', title: 'GCash (PayMongo)', subtitle: 'Instant digital payment' },
+              { id: 'gcash', title: 'GCash / Online (PayMongo)', subtitle: isContract ? 'Pay entire contract upfront' : 'Instant digital payment' },
+              { id: 'cod', title: 'Cash on Delivery (COD)', subtitle: isContract ? 'Pay in full upon 1st delivery' : 'Pay when it arrives' },
             ].map((method) => {
               const isSelected = paymentMethod === method.id;
               return (
                 <div
                   key={method.id}
                   onClick={() => setPaymentMethod(method.id as PaymentMethod)}
-                  className={`flex items-center justify-between p-4 rounded-lg cursor-pointer transition-colors ${
+                  className={`flex items-center justify-between p-4 rounded-xl cursor-pointer transition-colors ${
                     isSelected
-                      ? 'border-primary ring-1 ring-primary bg-primary-container/5'
+                      ? 'border-primary ring-2 ring-primary/20 bg-primary-container/10 border-2'
                       : 'border border-outline-variant bg-background hover:border-secondary'
                   }`}
                 >
@@ -256,20 +484,20 @@ export default function CheckoutClient({ addresses }: { addresses: Address[] }) 
           </div>
         </div>
 
-        {/* SECTION 3: NOTES */}
+        {/* SECTION 4: NOTES */}
         <div className="bg-surface-container-lowest rounded-xl p-[24px] md:p-[32px] shadow-level-1">
           <label className="flex items-center gap-2 font-['Manrope'] text-[20px] font-semibold tracking-[-0.01em] text-primary mb-[16px]">
             <span className="material-symbols-outlined text-secondary">note_alt</span>
             Delivery Notes (Optional)
           </label>
-          <textarea name="notes" rows={2} placeholder="Landmarks, preferred delivery time, etc." className="w-full bg-background border border-outline-variant focus:border-primary focus:ring-1 focus:ring-primary rounded-lg px-4 py-3 font-body-md text-on-surface transition-colors placeholder:text-outline outline-none resize-none"></textarea>
+          <textarea name="notes" rows={2} placeholder="Landmarks, preferred gate, instructions for weekly batches, etc." className="w-full bg-background border border-outline-variant focus:border-primary focus:ring-1 focus:ring-primary rounded-lg px-4 py-3 font-body-md text-on-surface transition-colors placeholder:text-outline outline-none resize-none"></textarea>
         </div>
 
       </div>
 
       {/* RIGHT COLUMN - READ-ONLY ORDER SUMMARY */}
       <div className="lg:col-span-4 relative">
-        <div className="sticky top-[100px] bg-surface-container-lowest rounded-xl p-[24px] md:p-[32px] shadow-level-1 flex flex-col gap-[24px]">
+        <div className="sticky top-[100px] bg-surface-container-lowest rounded-xl p-[24px] md:p-[32px] shadow-level-1 flex flex-col gap-[20px]">
 
           <div className="flex items-center justify-between border-b border-surface-variant pb-[16px]">
             <div className="font-['Manrope'] text-[20px] font-semibold text-primary">
@@ -284,39 +512,97 @@ export default function CheckoutClient({ addresses }: { addresses: Address[] }) 
             </Link>
           </div>
 
+          {/* Wholesale Contract Summary Callout */}
+          {isContract && (
+            <div className="p-3.5 bg-emerald-50 border border-emerald-300 rounded-xl text-xs flex flex-col gap-1.5 text-emerald-950">
+              <div className="flex items-center gap-1.5 font-bold text-emerald-800 uppercase tracking-wider text-[11px]">
+                <span className="material-symbols-outlined text-[16px] text-emerald-700">event_repeat</span>
+                Wholesale Recurring Delivery
+              </div>
+              <div>
+                <strong>Schedule:</strong> {deliveryScheduleDay}
+              </div>
+              <div>
+                <strong>Contract Duration:</strong> {contractWeeks} Weekly Batches
+              </div>
+              <div className="text-[11px] text-emerald-700">
+                Produce is fresh-harvested and delivered weekly.
+              </div>
+            </div>
+          )}
+
           {/* Read-only item list */}
           <div className="flex flex-col gap-[12px] max-h-[280px] overflow-y-auto pr-1 no-scrollbar">
-            {checkoutItems.map(item => (
-              <div key={item.productId} className="flex gap-3 items-center">
-                <div className="w-12 h-12 rounded-lg overflow-hidden shrink-0 bg-surface-container relative border border-surface-variant">
-                  <Image src={item.photo} alt={item.name} fill className="object-cover" sizes="48px" />
-                </div>
-                <div className="flex-grow min-w-0">
-                  <div className="font-medium text-on-surface text-sm line-clamp-1">{item.name}</div>
-                  <div className="text-on-surface-variant text-xs">
-                    {item.quantityKg} kg × ₱{item.pricePerKg.toFixed(2)}
+            {checkoutItems.map(item => {
+              const effectivePrice = getItemEffectivePrice(item);
+              const hasWholesaleDiscount = effectivePrice < item.pricePerKg;
+
+              return (
+                <div key={item.productId} className="flex gap-3 items-center">
+                  <div className="w-12 h-12 rounded-lg overflow-hidden shrink-0 bg-surface-container relative border border-surface-variant">
+                    <Image src={item.photo} alt={item.name} fill className="object-cover" sizes="48px" />
+                  </div>
+                  <div className="flex-grow min-w-0">
+                    <div className="font-medium text-on-surface text-sm line-clamp-1">{item.name}</div>
+                    <div className="text-on-surface-variant text-xs flex items-center gap-1.5">
+                      <span>{item.quantityKg} kg/unit × ₱{effectivePrice.toFixed(2)}</span>
+                      {hasWholesaleDiscount && (
+                        <span className="text-[10px] bg-emerald-100 text-emerald-800 font-semibold px-1 rounded">
+                          Wholesale
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="font-semibold text-primary text-sm flex-shrink-0 text-right">
+                    <div>₱{(effectivePrice * item.quantityKg).toFixed(2)}</div>
+                    {isContract && <div className="text-[10px] text-on-surface-variant">/ delivery</div>}
                   </div>
                 </div>
-                <div className="font-semibold text-primary text-sm flex-shrink-0">
-                  ₱{(item.pricePerKg * item.quantityKg).toFixed(2)}
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
+          {/* Price Breakdown */}
           <div className="flex flex-col gap-[8px] border-t border-surface-variant pt-[16px]">
-            <div className="flex justify-between font-body-md text-on-surface-variant">
-              <span>Subtotal ({checkoutItems.length} item{checkoutItems.length !== 1 ? 's' : ''})</span>
-              <span>₱{subtotal.toFixed(2)}</span>
-            </div>
-            <div className="flex justify-between font-body-md text-on-surface-variant">
-              <span>Delivery Fee</span>
-              <span>₱{deliveryFee.toFixed(2)}</span>
-            </div>
-            <div className="flex justify-between font-['Manrope'] text-[20px] font-semibold text-primary mt-[8px] pt-[8px] border-t border-surface-container">
-              <span>Total</span>
-              <span>₱{total.toFixed(2)}</span>
-            </div>
+            {isContract ? (
+              <>
+                <div className="flex justify-between font-body-md text-on-surface-variant text-xs">
+                  <span>Produce Subtotal (per batch)</span>
+                  <span>₱{subtotalPerDelivery.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between font-body-md text-on-surface-variant text-xs">
+                  <span>Delivery Fee (per batch)</span>
+                  <span>₱{deliveryFeePerDelivery.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between font-body-md text-on-surface font-medium pt-1 border-t border-dashed border-outline-variant">
+                  <span>Cost per Weekly Batch</span>
+                  <span>₱{(subtotalPerDelivery + deliveryFeePerDelivery).toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between font-body-md text-emerald-800 font-medium">
+                  <span>Number of Weekly Deliveries</span>
+                  <span>× {contractWeeks} weeks</span>
+                </div>
+                <div className="flex justify-between font-['Manrope'] text-[20px] font-semibold text-primary mt-[8px] pt-[8px] border-t border-surface-container">
+                  <span>Total Upfront Contract</span>
+                  <span>₱{total.toFixed(2)}</span>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="flex justify-between font-body-md text-on-surface-variant">
+                  <span>Subtotal ({checkoutItems.length} item{checkoutItems.length !== 1 ? 's' : ''})</span>
+                  <span>₱{subtotalPerDelivery.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between font-body-md text-on-surface-variant">
+                  <span>Delivery Fee</span>
+                  <span>₱{deliveryFeePerDelivery.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between font-['Manrope'] text-[20px] font-semibold text-primary mt-[8px] pt-[8px] border-t border-surface-container">
+                  <span>Total</span>
+                  <span>₱{total.toFixed(2)}</span>
+                </div>
+              </>
+            )}
           </div>
 
           {hasOutOfStockItems && (
@@ -335,13 +621,15 @@ export default function CheckoutClient({ addresses }: { addresses: Address[] }) 
               {isPending ? (
                 <span className="material-symbols-outlined animate-spin text-[20px]">progress_activity</span>
               ) : (
-                <span className="material-symbols-outlined text-[20px]">lock</span>
+                <span className="material-symbols-outlined text-[20px]">
+                  {isContract ? 'assignment_turned_in' : 'lock'}
+                </span>
               )}
-              {isPending ? 'Processing...' : 'Place Order'}
+              {isPending ? 'Processing...' : isContract ? `Pay & Start Wholesale Contract (₱${total.toFixed(2)})` : 'Place Order'}
             </button>
             <div className="flex items-center justify-center gap-1 mt-[8px] font-body-md text-on-surface-variant text-xs text-center">
               <span className="material-symbols-outlined text-[14px]">verified_user</span>
-              Secure Checkout
+              Secure Checkout • 100% Farm Fresh Guarantee
             </div>
           </div>
 

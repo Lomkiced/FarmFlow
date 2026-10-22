@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useState, useTransition, useEffect } from 'react';
-import { updateOrderStatusAction, cancelOrderAction, resolveOrderRefundAction } from '@/app/actions/orders';
+import { updateOrderStatusAction, cancelOrderAction, resolveOrderRefundAction, recordContractDeliveryAction } from '@/app/actions/orders';
 import toast from 'react-hot-toast';
 import { format, formatDistanceToNow } from 'date-fns';
 import FarmerOrderDispatchModal, { DispatchOrder } from './FarmerOrderDispatchModal';
@@ -96,6 +96,18 @@ export default function OrdersClient({
         router.refresh();
       } else {
         toast.error(result.error || 'Failed to update order status');
+      }
+    });
+  };
+
+  const handleRecordContractDelivery = (orderId: string) => {
+    startTransition(async () => {
+      const result = await recordContractDeliveryAction(orderId);
+      if (result.success) {
+        toast.success(result.message || 'Weekly batch delivery recorded!');
+        router.refresh();
+      } else {
+        toast.error(result.error || 'Failed to record contract delivery');
       }
     });
   };
@@ -203,13 +215,19 @@ export default function OrdersClient({
               {initials}
             </div>
             <div className="min-w-0">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <p className="text-sm sm:text-base font-bold text-on-surface truncate">
                   {recipientName}
                 </p>
                 <span className="text-[10px] font-mono text-on-surface-variant bg-surface-container px-1.5 py-0.5 rounded">
                   #{order.id.slice(0, 8).toUpperCase()}
                 </span>
+                {order.isContract && (
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-800 border border-emerald-300 flex items-center gap-1">
+                    <span className="material-symbols-outlined text-[12px]">event_repeat</span>
+                    Wholesale Contract
+                  </span>
+                )}
               </div>
               <p className="text-xs text-on-surface-variant truncate max-w-[220px] sm:max-w-md mt-0.5">
                 {productSummary}
@@ -239,6 +257,27 @@ export default function OrdersClient({
           </div>
         </div>
 
+        {/* WHOLESALE CONTRACT PROGRESS BANNER */}
+        {order.isContract && (
+          <div className="p-3 bg-emerald-50/90 border border-emerald-300 rounded-xl text-xs text-emerald-950 flex flex-col gap-1.5">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <span className="font-bold text-emerald-900 flex items-center gap-1.5">
+                <span className="material-symbols-outlined text-emerald-700 text-[16px]">calendar_month</span>
+                Schedule: {order.deliveryScheduleDay || 'Every Saturday'}
+              </span>
+              <span className="font-bold text-emerald-800 bg-white px-2 py-0.5 rounded border border-emerald-200">
+                Batch {order.deliveriesCompleted ?? 0} of {order.contractWeeks ?? 1} Delivered
+              </span>
+            </div>
+            {order.nextDeliveryDate && order.orderStatus !== 'DELIVERED' && (order.orderStatus as any) !== 'COMPLETED' && (
+              <div className="text-[11px] text-emerald-800 flex items-center gap-1">
+                <span className="material-symbols-outlined text-[14px] text-emerald-600">schedule</span>
+                Next Delivery: <strong>{format(new Date(order.nextDeliveryDate), 'EEEE, MMM d, yyyy')}</strong>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Cancellation details banner if cancelled */}
         {isOrderCancelled && (
           <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-900">
@@ -261,7 +300,7 @@ export default function OrdersClient({
             <div className="font-bold flex items-center justify-between">
               <span className="flex items-center gap-1">
                 <span className="material-symbols-outlined text-[16px]">assignment_return</span>
-                Refund Status: {order.refundStatus}
+                Return / Refund Status: {order.refundStatus}
               </span>
               {order.refundStatus === 'REQUESTED' && (
                 <button
@@ -364,7 +403,7 @@ export default function OrdersClient({
             )}
           </div>
 
-          <div className="flex items-center gap-2 ml-auto">
+          <div className="flex items-center gap-2 ml-auto flex-wrap">
             {/* Cancel Button */}
             {canFarmerCancel && (
               <button
@@ -373,6 +412,19 @@ export default function OrdersClient({
                 className="border border-rose-300 text-rose-700 hover:bg-rose-50 text-xs font-bold px-3 py-1.5 rounded-xl transition-all"
               >
                 Cancel
+              </button>
+            )}
+
+            {/* Wholesale Contract Batch Delivery Button */}
+            {order.isContract && order.orderStatus !== 'CANCELLED' && (order.deliveriesCompleted ?? 0) < (order.contractWeeks ?? 1) && (
+              <button
+                type="button"
+                disabled={isPending}
+                onClick={() => handleRecordContractDelivery(order.id)}
+                className="bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs px-3.5 py-2 rounded-xl transition-all shadow-sm active:scale-95 disabled:opacity-50 flex items-center gap-1.5"
+              >
+                <span className="material-symbols-outlined text-[16px]">local_shipping</span>
+                Record Batch Delivery ({(order.deliveriesCompleted ?? 0) + 1}/{order.contractWeeks ?? 1})
               </button>
             )}
 

@@ -24,6 +24,12 @@ type OrderData = {
   refundRequestedAt?: Date | string | null;
   refundResolvedAt?: Date | string | null;
   refundAdminNote?: string | null;
+  orderType?: string | null;
+  isContract?: boolean;
+  deliveryScheduleDay?: string | null;
+  contractWeeks?: number | null;
+  deliveriesCompleted?: number;
+  nextDeliveryDate?: Date | string | null;
   buyer: {
     name: string | null;
     email: string | null;
@@ -354,7 +360,16 @@ export default function OrdersClient({ initialOrders }: { initialOrders: OrderDa
                     className={`border-b border-admin-outline-variant/50 hover:bg-[#F1F5F9] cursor-pointer transition-colors ${selectedOrder?.id === order.id ? 'bg-admin-surface-container' : ''}`}
                     onClick={() => setSelectedOrder(order)}
                   >
-                    <td className="py-3 px-[16px] font-medium text-primary font-mono text-xs">{order.id.slice(0,8).toUpperCase()}</td>
+                    <td className="py-3 px-[16px] font-medium text-primary font-mono text-xs">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span>{order.id.slice(0,8).toUpperCase()}</span>
+                        {order.isContract && (
+                          <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-1.5 py-0.5 rounded border border-emerald-300">
+                            Wholesale
+                          </span>
+                        )}
+                      </div>
+                    </td>
                     <td className="py-3 px-[16px]">
                       <div className="font-medium">{order.buyer.name}</div>
                       <div className="text-xs text-admin-on-surface-variant">{order.buyer.email}</div>
@@ -415,6 +430,27 @@ export default function OrdersClient({ initialOrders }: { initialOrders: OrderDa
 
             <div className="p-[16px] flex flex-col gap-[20px] overflow-y-auto max-h-[calc(100vh-200px)]">
               
+              {/* WHOLESALE CONTRACT CARD */}
+              {selectedOrder.isContract && (
+                <div className="bg-emerald-50 border border-emerald-300 rounded-lg p-3 text-xs text-emerald-950 flex flex-col gap-1.5">
+                  <div className="font-bold flex items-center justify-between text-emerald-900">
+                    <span className="flex items-center gap-1.5">
+                      <span className="material-symbols-outlined text-[16px] text-emerald-700">event_repeat</span>
+                      Wholesale Contract
+                    </span>
+                    <span className="bg-white px-2 py-0.5 rounded border border-emerald-200 text-[11px]">
+                      {selectedOrder.deliveriesCompleted ?? 0}/{selectedOrder.contractWeeks ?? 1} Batches
+                    </span>
+                  </div>
+                  <div className="pt-1 border-t border-emerald-200/80 flex flex-col gap-1 text-[11px]">
+                    <div><strong>Schedule:</strong> {selectedOrder.deliveryScheduleDay || 'Every Saturday'}</div>
+                    {selectedOrder.nextDeliveryDate && (
+                      <div><strong>Next Batch:</strong> {format(new Date(selectedOrder.nextDeliveryDate), 'EEE, MMM d, yyyy')}</div>
+                    )}
+                  </div>
+                </div>
+              )}
+
               {/* ENTITIES */}
               <div className="bg-admin-surface p-3 rounded-lg border border-admin-outline-variant/50">
                 <div className="font-admin-label-caps text-admin-label-caps text-admin-on-surface-variant uppercase mb-1">Buyer Details</div>

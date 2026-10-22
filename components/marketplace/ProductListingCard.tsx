@@ -16,6 +16,9 @@ interface ProductListingCardProps {
   farmerName: string;
   rating: number;
   stockKg?: number;
+  minOrderQty?: number;
+  wholesalePrice?: number | string | null;
+  wholesaleMinQty?: number | null;
 }
 
 export default function ProductListingCard({
@@ -30,20 +33,28 @@ export default function ProductListingCard({
   farmerName,
   rating,
   stockKg = 0,
+  minOrderQty = 1,
+  wholesalePrice,
+  wholesaleMinQty,
 }: ProductListingCardProps) {
   const addItem = useCartStore((state) => state.addItem);
+
+  const effectiveMoq = minOrderQty && minOrderQty > 1 ? minOrderQty : 1;
 
   const handleAddToCart = () => {
     addItem({
       productId: id,
       name: productName,
       pricePerKg: parseFloat(price.replace('₱', '').replace(/,/g, '')),
-      quantityKg: 1,
+      quantityKg: effectiveMoq,
       stockKg,
       photo: image,
       farmerName: farmerName,
+      minOrderQty: effectiveMoq,
+      wholesalePrice: wholesalePrice ? Number(wholesalePrice) : null,
+      wholesaleMinQty: wholesaleMinQty ? Number(wholesaleMinQty) : null,
     });
-    toast.success(`${productName} added to cart!`, { icon: '🛒', duration: 2000 });
+    toast.success(`${productName} added to cart! (Min. Order: ${effectiveMoq} kg)`, { icon: '🛒', duration: 2000 });
   };
 
   const badgeStyles = {
@@ -61,6 +72,10 @@ export default function ProductListingCard({
       <div className="relative h-48 w-full bg-surface-variant overflow-hidden flex-shrink-0">
         <span className={`absolute top-3 left-3 z-10 px-2 py-1 rounded font-label-sm uppercase tracking-wider ${badgeStyles[badgeVariant]}`}>
           {badge}
+        </span>
+        <span className="absolute top-3 right-3 z-10 px-2.5 py-1 rounded-full bg-primary/90 backdrop-blur-sm text-on-primary text-[11px] font-bold tracking-wide shadow-sm flex items-center gap-1">
+          <span className="material-symbols-outlined text-[12px]">scale</span>
+          Min: {effectiveMoq} kg
         </span>
         <Image
           src={image}
@@ -81,6 +96,14 @@ export default function ProductListingCard({
             <span className="font-normal text-on-surface-variant text-sm">{unit}</span>
           </span>
         </div>
+
+        {/* Wholesale banner if configured */}
+        {wholesalePrice && wholesaleMinQty && (
+          <div className="text-[11px] font-semibold text-emerald-800 bg-emerald-50 border border-emerald-200/80 rounded-md px-2 py-1 flex items-center justify-between">
+            <span>Wholesale: ₱{Number(wholesalePrice).toFixed(2)}/kg</span>
+            <span className="text-[10px] text-emerald-600 font-bold uppercase tracking-wider">≥{wholesaleMinQty} kg</span>
+          </div>
+        )}
 
         {/* Row 2: Farmer Name */}
         <p className="flex items-center gap-1">

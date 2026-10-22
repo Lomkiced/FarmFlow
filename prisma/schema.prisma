@@ -168,6 +168,9 @@ model Product {
   photos        String[]
   harvestDate   DateTime?
   deliveryAvail Boolean       @default(false)
+  minOrderQty   Int           @default(1)
+  wholesalePrice Decimal?     @db.Decimal(10, 2)
+  wholesaleMinQty Int?
   status        ListingStatus @default(PENDING_REVIEW)
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
@@ -175,21 +178,27 @@ model Product {
 }
 
 model Order {
-  id                String        @id @default(uuid())
-  buyerId           String
-  buyer             User          @relation("BuyerOrders", fields: [buyerId], references: [id], onDelete: Cascade)
-  totalAmount       Float
-  deliveryFee       Float         @default(0)
-  orderStatus       OrderStatus   @default(PENDING)
-  paymentStatus     PaymentStatus @default(PENDING)
-  paymentRef        String?
-  addressId         String
-  address           Address       @relation(fields: [addressId], references: [id], onDelete: Cascade)
-  notes             String?
-  cancelReason      String?
-  cancelledBy       String?
-  cancelledAt       DateTime?
-  refundStatus      RefundStatus  @default(NONE)
+  id                  String        @id @default(uuid())
+  buyerId             String
+  buyer               User          @relation("BuyerOrders", fields: [buyerId], references: [id], onDelete: Cascade)
+  totalAmount         Float
+  deliveryFee         Float         @default(0)
+  orderStatus         OrderStatus   @default(PENDING)
+  paymentStatus       PaymentStatus @default(PENDING)
+  paymentRef          String?
+  addressId           String
+  address             Address       @relation(fields: [addressId], references: [id], onDelete: Cascade)
+  notes               String?
+  orderType           String        @default("STANDARD") // "STANDARD" | "WHOLESALE_CONTRACT"
+  isContract          Boolean       @default(false)
+  deliveryScheduleDay String?       // e.g., "Every Saturday"
+  contractWeeks       Int?          // e.g., 2, 4, 8, 12
+  deliveriesCompleted Int           @default(0)
+  nextDeliveryDate    DateTime?
+  cancelReason        String?
+  cancelledBy         String?
+  cancelledAt         DateTime?
+  refundStatus        RefundStatus  @default(NONE)
   refundReason      String?
   refundDetails     String?
   refundProofUrl    String?

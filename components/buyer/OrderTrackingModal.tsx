@@ -15,6 +15,12 @@ interface OrderTrackingModalProps {
     deliveryFee: number;
     orderStatus: OrderStatus;
     paymentStatus: PaymentStatus;
+    orderType?: string | null;
+    isContract?: boolean;
+    deliveryScheduleDay?: string | null;
+    contractWeeks?: number | null;
+    deliveriesCompleted?: number;
+    nextDeliveryDate?: Date | string | null;
     createdAt: Date | string;
     items: OrderItemProp[];
     cancelReason?: string | null;
@@ -81,12 +87,19 @@ export default function OrderTrackingModal({ isOpen, onClose, order }: OrderTrac
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto custom-scrollbar p-6 flex flex-col gap-8">
+        <div className="flex-1 overflow-y-auto custom-scrollbar p-6 flex flex-col gap-6">
           
           {/* Order Details Header */}
           <div className="flex justify-between items-start">
             <div className="flex flex-col">
-              <span className="font-bold text-lg text-on-surface">Order #{order.id.slice(0,8).toUpperCase()}</span>
+              <div className="flex items-center gap-2">
+                <span className="font-bold text-lg text-on-surface">Order #{order.id.slice(0,8).toUpperCase()}</span>
+                {order.isContract && (
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-800 border border-emerald-300">
+                    Wholesale
+                  </span>
+                )}
+              </div>
               <span className="text-sm text-on-surface-variant">Placed on {format(new Date(order.createdAt), 'MMM d, yyyy h:mm a')}</span>
             </div>
             <div className="flex flex-col items-end">
@@ -96,6 +109,34 @@ export default function OrderTrackingModal({ isOpen, onClose, order }: OrderTrac
               </span>
             </div>
           </div>
+
+          {/* Wholesale Contract Delivery Card */}
+          {order.isContract && (
+            <div className="bg-emerald-50 border border-emerald-300 rounded-xl p-4 text-xs text-emerald-950 flex flex-col gap-2">
+              <div className="flex items-center gap-2 font-bold text-emerald-900 text-sm">
+                <span className="material-symbols-outlined text-emerald-700">event_repeat</span>
+                Wholesale Recurring Delivery
+              </div>
+              <div className="grid grid-cols-2 gap-2 pt-1 border-t border-emerald-200">
+                <div>
+                  <span className="text-emerald-700 block">Weekly Schedule:</span>
+                  <span className="font-bold text-emerald-950">{order.deliveryScheduleDay || 'Every Saturday'}</span>
+                </div>
+                <div>
+                  <span className="text-emerald-700 block">Batches Delivered:</span>
+                  <span className="font-bold text-emerald-950">
+                    {order.deliveriesCompleted ?? 0} of {order.contractWeeks ?? 1} Batches
+                  </span>
+                </div>
+              </div>
+              {order.nextDeliveryDate && order.orderStatus !== 'DELIVERED' && (order.orderStatus as any) !== 'COMPLETED' && (
+                <div className="bg-white/80 p-2 rounded-lg border border-emerald-200 mt-1">
+                  <span className="text-emerald-800">Next Scheduled Delivery: </span>
+                  <strong className="text-emerald-950">{format(new Date(order.nextDeliveryDate), 'EEEE, MMMM d, yyyy')}</strong>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Timeline */}
           <div className="bg-surface-container rounded-xl p-6 border border-surface-variant">

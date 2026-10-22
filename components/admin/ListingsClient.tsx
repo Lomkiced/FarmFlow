@@ -120,7 +120,7 @@ export default function ListingsClient({ initialListings }: { initialListings: L
             {/* IMAGE */}
             <div className="h-48 w-full bg-admin-surface-container-highest relative overflow-hidden">
               <Image 
-                src={listing.photos[0] || 'https://images.unsplash.com/photo-1546094096-0df4bcaaa337?w=400&q=80'} 
+                src={listing.photos[0] || '/images/crops/generic.jpg'} 
                 fill 
                 sizes="(max-width: 768px) 100vw, 300px"
                 alt={listing.name} 

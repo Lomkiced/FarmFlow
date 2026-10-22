@@ -70,7 +70,7 @@ export default async function ProductsPage(props: { searchParams: SearchParams }
                     <Link key={product.id} href={`/products/${product.id}`} className="block h-full cursor-pointer hover:no-underline">
                       <ProductListingCard
                         id={product.id}
-                        image={product.photos[0] || 'https://images.unsplash.com/photo-1546094096-0df4bcaaa337?w=400&q=80'}
+                        image={product.photos[0] || '/images/crops/generic.jpg'}
                         alt={product.name}
                         badge={badge}
                         badgeVariant={badgeVariant as any}
@@ -79,6 +79,10 @@ export default async function ProductsPage(props: { searchParams: SearchParams }
                         unit="/kg"
                         farmerName={product.farm.farmName}
                         rating={product.farm.rating || 0}
+                        stockKg={product.stockKg}
+                        minOrderQty={product.minOrderQty}
+                        wholesalePrice={product.wholesalePrice ? Number(product.wholesalePrice) : null}
+                        wholesaleMinQty={product.wholesaleMinQty}
                       />
                     </Link>
                   );

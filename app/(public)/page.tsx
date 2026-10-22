@@ -15,8 +15,8 @@ export default async function HomePage() {
         <section className="w-full h-[600px] relative overflow-hidden">
           <div className="absolute inset-0 z-0">
             <Image
-              src="https://images.unsplash.com/photo-1574943320219-553eb213f72d?w=1600&q=80"
-              alt="Lush farmland in La Union at sunrise"
+              src="https://images.unsplash.com/photo-1544735716-392fe2489ffa?w=1600&q=80"
+              alt="Lush green rice terraces and farmland in the Philippines"
               fill
               className="object-cover"
               priority
