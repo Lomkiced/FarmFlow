@@ -5,6 +5,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCartStore, CartItem, getItemUnitPrice } from '@/store/cartStore';
+import { formatQuantity } from '@/lib/utils';
 import toast from 'react-hot-toast';
 
 // ─── Quantity Stepper ─────────────────────────────────────────────────────────
@@ -18,7 +19,7 @@ function QuantityStepper({
   removeItem: (id: string) => void;
 }) {
   const [inputVal, setInputVal] = useState(String(item.quantityKg));
-  const minQty = item.minOrderQty && item.minOrderQty > 1 ? item.minOrderQty : 1;
+  const minQty = (item.minOrderQty && item.minOrderQty > 1) ? item.minOrderQty : (item.minOrderQty ?? 0.25);
   const maxQty = item.stockKg > 0 ? item.stockKg : 9999;
   const atMax = item.quantityKg >= maxQty;
   const atMin = item.quantityKg <= minQty;
@@ -33,7 +34,8 @@ function QuantityStepper({
       removeItem(item.productId);
       toast(`Removed ${item.name} from cart`, { icon: '🗑️' });
     } else {
-      updateQuantity(item.productId, item.quantityKg - 1);
+      const nextQty = Number(Math.max(minQty, item.quantityKg - 0.25).toFixed(2));
+      updateQuantity(item.productId, nextQty);
     }
   };
 
@@ -42,7 +44,8 @@ function QuantityStepper({
       toast.error(`Only ${maxQty} kg available in stock`);
       return;
     }
-    updateQuantity(item.productId, item.quantityKg + 1);
+    const nextQty = Number(Math.min(maxQty, item.quantityKg + 0.25).toFixed(2));
+    updateQuantity(item.productId, nextQty);
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -50,18 +53,22 @@ function QuantityStepper({
   };
 
   const handleInputBlur = () => {
-    const parsed = parseInt(inputVal, 10);
+    const parsed = parseFloat(inputVal);
     if (isNaN(parsed) || parsed < minQty) {
-      setInputVal(String(Math.max(minQty, item.quantityKg)));
-      updateQuantity(item.productId, minQty);
+      const fallback = Math.max(minQty, item.quantityKg);
+      setInputVal(String(fallback));
+      updateQuantity(item.productId, fallback);
       return;
     }
     if (parsed > maxQty) {
       toast.error(`Only ${maxQty} kg available`);
+      setInputVal(String(maxQty));
       updateQuantity(item.productId, maxQty);
       return;
     }
-    updateQuantity(item.productId, parsed);
+    const cleanQty = Number(parsed.toFixed(2));
+    setInputVal(String(cleanQty));
+    updateQuantity(item.productId, cleanQty);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -70,56 +77,98 @@ function QuantityStepper({
     }
   };
 
+  const fractionPills = [
+    { label: '1/4 kg', val: 0.25 },
+    { label: '1/2 kg', val: 0.5 },
+    { label: '3/4 kg', val: 0.75 },
+    { label: '1 kg', val: 1.0 },
+  ];
+
   return (
-    <div className="flex items-center gap-1.5">
-      <div className="flex items-center border border-outline-variant rounded-lg overflow-hidden h-9 bg-surface-container-lowest shadow-sm">
-        <button
-          type="button"
-          onClick={handleDecrement}
-          className={`w-9 h-full flex items-center justify-center transition-colors ${
-            atMin
-              ? 'text-error hover:bg-error/10'
-              : 'text-on-surface hover:bg-surface-variant'
-          }`}
-          aria-label={atMin ? 'Remove item' : 'Decrease quantity'}
-        >
-          <span className="material-symbols-outlined text-[16px]">
-            {atMin ? 'delete' : 'remove'}
+    <div className="flex flex-col gap-2">
+      {/* Stepper & Formatted Label */}
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="flex items-center border border-outline-variant rounded-lg overflow-hidden h-9 bg-surface-container-lowest shadow-sm">
+          <button
+            type="button"
+            onClick={handleDecrement}
+            className={`w-9 h-full flex items-center justify-center transition-colors ${
+              atMin
+                ? 'text-error hover:bg-error/10'
+                : 'text-on-surface hover:bg-surface-variant'
+            }`}
+            aria-label={atMin ? 'Remove item' : 'Decrease quantity by 0.25 kg'}
+          >
+            <span className="material-symbols-outlined text-[16px]">
+              {atMin ? 'delete' : 'remove'}
+            </span>
+          </button>
+
+          <input
+            type="number"
+            step="0.25"
+            min={minQty}
+            max={maxQty}
+            value={inputVal}
+            onChange={handleInputChange}
+            onBlur={handleInputBlur}
+            onKeyDown={handleKeyDown}
+            className="w-16 text-center h-full border-x border-outline-variant/40 font-label-md bg-transparent text-on-surface outline-none focus:bg-primary/5 transition-colors font-bold text-sm"
+            aria-label="Quantity in kg"
+          />
+
+          <button
+            type="button"
+            onClick={handleIncrement}
+            disabled={atMax}
+            className="w-9 h-full flex items-center justify-center text-on-surface hover:bg-surface-variant transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+            aria-label="Increase quantity by 0.25 kg"
+          >
+            <span className="material-symbols-outlined text-[16px]">add</span>
+          </button>
+        </div>
+
+        {/* Formatted fraction display */}
+        <span className="font-semibold text-on-surface text-xs bg-surface-container-high px-2 py-1 rounded-md">
+          {formatQuantity(item.quantityKg, 'kg')}
+        </span>
+
+        {minQty > 1 && (
+          <span className="text-primary font-label-sm text-xs bg-primary/10 px-2 py-0.5 rounded-full border border-primary/20">
+            Min {minQty} kg
           </span>
-        </button>
-
-        <input
-          type="text"
-          inputMode="numeric"
-          value={inputVal}
-          onChange={handleInputChange}
-          onBlur={handleInputBlur}
-          onKeyDown={handleKeyDown}
-          className="w-10 text-center h-full border-x border-outline-variant/40 font-label-md bg-transparent text-on-surface outline-none focus:bg-primary/5 transition-colors font-bold"
-          aria-label="Quantity in kg"
-        />
-
-        <button
-          type="button"
-          onClick={handleIncrement}
-          disabled={atMax}
-          className="w-9 h-full flex items-center justify-center text-on-surface hover:bg-surface-variant transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-          aria-label="Increase quantity"
-        >
-          <span className="material-symbols-outlined text-[16px]">add</span>
-        </button>
+        )}
+        {atMax && (
+          <span className="text-amber-600 font-label-sm text-xs bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
+            Max {maxQty} kg
+          </span>
+        )}
       </div>
-      <span className="font-body-md text-on-surface-variant text-sm">kg</span>
-      {minQty > 1 && (
-        <span className="text-primary font-label-sm text-xs bg-primary/10 px-2 py-0.5 rounded-full border border-primary/20">
-          Min {minQty} kg
-        </span>
-      )}
-      {atMax && (
-        <span className="text-amber-600 font-label-sm text-xs ml-1 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
-          Max {maxQty} kg
-        </span>
-      )}
+
+      {/* Quick Fraction Pills */}
+      <div className="flex flex-wrap gap-1">
+        {fractionPills.map((pill) => {
+          const isSelected = Math.abs(item.quantityKg - pill.val) < 0.01;
+          const isDisabled = pill.val < minQty || pill.val > maxQty;
+          return (
+            <button
+              key={pill.val}
+              type="button"
+              disabled={isDisabled}
+              onClick={() => updateQuantity(item.productId, pill.val)}
+              className={`px-2 py-0.5 rounded text-[11px] font-semibold border transition-all ${
+                isSelected
+                  ? 'bg-primary text-on-primary border-primary shadow-xs'
+                  : isDisabled
+                  ? 'opacity-35 cursor-not-allowed bg-surface-container border-outline-variant/30 text-on-surface-variant'
+                  : 'bg-surface-container-lowest border-outline-variant/60 text-on-surface hover:border-primary/50 hover:bg-primary/5'
+              }`}
+            >
+              {pill.label}
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -210,7 +259,7 @@ function CartItemRow({
                 item.wholesaleMinQty &&
                 item.quantityKg >= item.wholesaleMinQty
               );
-              const minQty = item.minOrderQty && item.minOrderQty > 1 ? item.minOrderQty : 1;
+              const minQty = (item.minOrderQty && item.minOrderQty > 1) ? item.minOrderQty : (item.minOrderQty ?? 0.25);
 
               return (
                 <div className="flex flex-wrap items-center gap-2 mt-1">
@@ -357,7 +406,7 @@ function OrderSummary({
                 <div key={item.productId} className="flex justify-between items-center gap-2 text-sm">
                   <div className="flex flex-col flex-1 min-w-0">
                     <span className="text-on-surface-variant line-clamp-1">
-                      {item.name} × {item.quantityKg} kg
+                      {item.name} × {formatQuantity(item.quantityKg, 'kg')}
                     </span>
                     {isOverStock && (
                       <span className="text-rose-600 text-[11px] font-medium">

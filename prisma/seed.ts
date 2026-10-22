@@ -78,7 +78,7 @@ async function main() {
       description: 'Newly harvested, premium organic carrots from Benguet and La Union.',
       pricePerKg: 45.0,
       stockKg: 2000,
-      minOrderQty: 2,
+      minOrderQty: 0.25,
       wholesalePrice: 38.0,
       wholesaleMinQty: 20,
       category: 'VEGETABLES',

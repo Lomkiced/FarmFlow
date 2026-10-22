@@ -3,6 +3,7 @@
 import { useEffect } from 'react';
 import Image from 'next/image';
 import { format } from 'date-fns';
+import { formatQuantity } from '@/lib/utils';
 
 export interface DispatchOrderItem {
   id: string;
@@ -382,7 +383,7 @@ export default function FarmerOrderDispatchModal({
 
                   <div className="text-right shrink-0">
                     <span className="inline-block px-2.5 py-1 rounded-md bg-secondary-container text-on-secondary-container font-black text-xs font-mono">
-                      {item.quantityKg} kg
+                      {formatQuantity(item.quantityKg, 'kg')}
                     </span>
                     <p className="text-xs font-bold text-on-surface mt-1">
                       ₱{item.subtotal.toFixed(2)}

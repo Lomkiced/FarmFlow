@@ -2,6 +2,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { notFound } from 'next/navigation';
 import { getOrderAction } from '@/app/actions/orders';
+import { formatQuantity } from '@/lib/utils';
 
 const steps = [
   { label: 'Placed',    icon: 'check',       status: 'PENDING',   index: 0 },
@@ -164,8 +165,8 @@ function HarvestSummaryCard({ items, total }: { items: any[], total: number }) {
             <div className="flex-grow">
               <div className="font-h3 text-h3 text-primary">{item.product.name}</div>
               <div className="font-body-md text-on-surface-variant">{item.product.farm.farmName}</div>
-              <div className="mt-2 inline-block px-2 py-1 bg-surface-container text-on-surface font-label-sm text-label-sm rounded uppercase tracking-wider">
-                Qty: {item.quantityKg} kg
+              <div className="mt-2 inline-block px-2.5 py-1 bg-surface-container text-on-surface font-label-sm text-xs font-bold rounded uppercase tracking-wider">
+                Qty: {formatQuantity(item.quantityKg, 'kg')}
               </div>
             </div>
             <div className="text-right">

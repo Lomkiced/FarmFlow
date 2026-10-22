@@ -77,24 +77,36 @@ function ImageGallery({ images, name }: { images: string[], name: string }) {
   );
 }
 
+import { formatQuantity, formatFraction } from '@/lib/utils';
+
 export default function ProductDetailClient({ product, relatedProducts }: ProductDetailClientProps) {
-  const minOrder = product.minOrderQty && product.minOrderQty > 1 ? product.minOrderQty : 1;
+  // Effective MOQ: if farmer set explicit MOQ > 1, use it. Otherwise allow 0.25 kg.
+  const minOrder = (product.minOrderQty && product.minOrderQty > 1) ? product.minOrderQty : (product.minOrderQty ?? 0.25);
   const [quantity, setQuantity] = useState(minOrder);
+  const [inputVal, setInputVal] = useState(String(minOrder));
   const addItem = useCartStore((state) => state.addItem);
   const scrollRef = useRef<HTMLDivElement>(null);
 
+  const maxStock = product.stockKg > 0 ? product.stockKg : 9999;
   const hasWholesale = Boolean(product.wholesalePrice && product.wholesaleMinQty);
   const wholesaleActive = hasWholesale && quantity >= (product.wholesaleMinQty || 0);
   const effectiveUnitPrice = wholesaleActive ? Number(product.wholesalePrice) : product.pricePerKg;
 
   const badge = product.category === 'VEGETABLES' || product.category === 'Vegetables' ? 'Organic' : product.stockKg > 10 ? 'In Stock' : 'Low Stock';
 
+  const updateQuantityValue = (val: number) => {
+    const clamped = Number(Math.max(minOrder, Math.min(val, maxStock)).toFixed(2));
+    setQuantity(clamped);
+    setInputVal(String(clamped));
+  };
+
   const handleAddToCart = () => {
+    const finalQty = Number(Math.max(minOrder, quantity).toFixed(2));
     addItem({
       productId: product.id,
       name: product.name,
       pricePerKg: product.pricePerKg,
-      quantityKg: Math.max(minOrder, quantity),
+      quantityKg: finalQty,
       stockKg: product.stockKg,
       photo: product.photos[0] || '/images/crops/generic.jpg',
       farmerName: product.farm.farmName,
@@ -102,15 +114,15 @@ export default function ProductDetailClient({ product, relatedProducts }: Produc
       wholesalePrice: product.wholesalePrice ? Number(product.wholesalePrice) : null,
       wholesaleMinQty: product.wholesaleMinQty ? Number(product.wholesaleMinQty) : null,
     });
-    toast.success(`${product.name} (${Math.max(minOrder, quantity)} kg) added to cart!`, {
+    toast.success(`${product.name} (${formatQuantity(finalQty, 'kg')}) added to cart!`, {
       icon: '🛒',
-      duration: 2000,
+      duration: 2500,
     });
   };
 
   const handleRelatedAddToCart = (e: React.MouseEvent, related: any) => {
     e.preventDefault();
-    const relMoq = related.minOrderQty && related.minOrderQty > 1 ? related.minOrderQty : 1;
+    const relMoq = (related.minOrderQty && related.minOrderQty > 1) ? related.minOrderQty : (related.minOrderQty ?? 0.25);
     addItem({
       productId: related.id,
       name: related.name,
@@ -123,7 +135,7 @@ export default function ProductDetailClient({ product, relatedProducts }: Produc
       wholesalePrice: related.wholesalePrice ? Number(related.wholesalePrice) : null,
       wholesaleMinQty: related.wholesaleMinQty ? Number(related.wholesaleMinQty) : null,
     });
-    toast.success(`${related.name} added to cart! (MOQ: ${relMoq} kg)`, { icon: '🛒', duration: 2000 });
+    toast.success(`${related.name} added to cart! (${formatQuantity(relMoq, 'kg')})`, { icon: '🛒', duration: 2000 });
   };
 
   const scroll = (dir: 'left' | 'right') => {
@@ -224,40 +236,116 @@ export default function ProductDetailClient({ product, relatedProducts }: Produc
           </div>
 
           {/* Purchase Actions */}
-          <div className="flex flex-col gap-[16px] mb-[32px]">
+          <div className="flex flex-col gap-[20px] mb-[32px]">
             <div>
-              <div className="flex items-center gap-4">
-                <div className="flex items-center border border-outline-variant rounded-lg overflow-hidden h-12 w-36 bg-surface-container-lowest">
-                  <button 
-                    onClick={() => setQuantity(q => Math.max(minOrder, q - 1))}
-                    disabled={quantity <= minOrder}
-                    className="w-10 h-full flex items-center justify-center text-on-surface hover:bg-surface-variant transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                    aria-label="Decrease quantity"
+              {/* Quick Fraction Selector Pills */}
+              <div className="mb-3">
+                <label className="text-[12px] font-semibold uppercase tracking-wider text-on-surface-variant block mb-1.5">
+                  Quick Select Weight
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {[
+                    { label: '1/4 kg', val: 0.25, badge: '0.25' },
+                    { label: '1/2 kg', val: 0.5, badge: '0.5' },
+                    { label: '3/4 kg', val: 0.75, badge: '0.75' },
+                    { label: '1 kg', val: 1.0, badge: '1.0' },
+                  ].map((pill) => {
+                    const isSelected = Math.abs(quantity - pill.val) < 0.01;
+                    const isDisabled = pill.val < minOrder || pill.val > maxStock;
+                    return (
+                      <button
+                        key={pill.val}
+                        type="button"
+                        disabled={isDisabled}
+                        onClick={() => updateQuantityValue(pill.val)}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all flex items-center gap-1.5 ${
+                          isSelected
+                            ? 'bg-primary text-on-primary border-primary shadow-sm scale-105'
+                            : isDisabled
+                            ? 'opacity-40 cursor-not-allowed bg-surface-container border-outline-variant/30 text-on-surface-variant'
+                            : 'bg-surface-container-lowest border-outline-variant/60 text-on-surface hover:border-primary/50 hover:bg-primary/5'
+                        }`}
+                      >
+                        <span>{pill.label}</span>
+                        <span className={`text-[10px] px-1 py-0.2 rounded ${isSelected ? 'bg-white/20 text-white' : 'bg-surface-variant text-on-surface-variant'}`}>
+                          {pill.badge}
+                        </span>
+                      </button>
+                    );
+                  })}
+                  <button
+                    type="button"
+                    onClick={() => updateQuantityValue(Number((quantity + 0.5).toFixed(2)))}
+                    disabled={quantity + 0.5 > maxStock}
+                    className="px-3 py-1.5 rounded-lg text-xs font-semibold border border-dashed border-primary/40 bg-primary/5 text-primary hover:bg-primary/10 transition-colors flex items-center gap-1 disabled:opacity-40 disabled:cursor-not-allowed"
                   >
-                    <span className="material-symbols-outlined">remove</span>
-                  </button>
-                  <input
-                    type="text"
-                    aria-label="Quantity"
-                    value={quantity}
-                    onChange={(e) => {
-                      const val = parseInt(e.target.value);
-                      setQuantity(isNaN(val) ? minOrder : Math.max(minOrder, val));
-                    }}
-                    className="flex-grow text-center h-full border-none focus:ring-0 font-label-md bg-transparent text-on-surface p-0 w-12 outline-none font-bold"
-                  />
-                  <button 
-                    onClick={() => setQuantity(q => Math.min(product.stockKg > 0 ? product.stockKg : 9999, q + 1))}
-                    className="w-10 h-full flex items-center justify-center text-on-surface hover:bg-surface-variant transition-colors"
-                    aria-label="Increase quantity"
-                  >
-                    <span className="material-symbols-outlined">add</span>
+                    <span className="material-symbols-outlined text-[14px]">add</span>
+                    + 1/2 kg
                   </button>
                 </div>
-                <span className="font-body-md text-on-surface-variant font-medium">kg</span>
               </div>
+
+              {/* Quantity Stepper & Display */}
+              <div className="flex flex-wrap items-center gap-4">
+                <div className="flex items-center border border-outline-variant rounded-lg overflow-hidden h-12 w-44 bg-surface-container-lowest shadow-sm">
+                  <button 
+                    type="button"
+                    onClick={() => updateQuantityValue(Number((quantity - 0.25).toFixed(2)))}
+                    disabled={quantity <= minOrder}
+                    className="w-11 h-full flex items-center justify-center text-on-surface hover:bg-surface-variant transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                    aria-label="Decrease quantity by 0.25 kg"
+                  >
+                    <span className="material-symbols-outlined text-[18px]">remove</span>
+                  </button>
+                  <input
+                    type="number"
+                    step="0.25"
+                    min={minOrder}
+                    max={maxStock}
+                    aria-label="Quantity in kg"
+                    value={inputVal}
+                    onChange={(e) => {
+                      setInputVal(e.target.value);
+                      const val = parseFloat(e.target.value);
+                      if (!isNaN(val) && val >= minOrder) {
+                        setQuantity(Number(Math.min(val, maxStock).toFixed(2)));
+                      }
+                    }}
+                    onBlur={() => {
+                      const val = parseFloat(inputVal);
+                      if (isNaN(val) || val < minOrder) {
+                        updateQuantityValue(minOrder);
+                      } else {
+                        updateQuantityValue(Math.min(val, maxStock));
+                      }
+                    }}
+                    className="flex-grow text-center h-full border-none focus:ring-0 font-label-md bg-transparent text-on-surface p-0 w-16 outline-none font-bold text-base"
+                  />
+                  <button 
+                    type="button"
+                    onClick={() => updateQuantityValue(Number((quantity + 0.25).toFixed(2)))}
+                    disabled={quantity >= maxStock}
+                    className="w-11 h-full flex items-center justify-center text-on-surface hover:bg-surface-variant transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                    aria-label="Increase quantity by 0.25 kg"
+                  >
+                    <span className="material-symbols-outlined text-[18px]">add</span>
+                  </button>
+                </div>
+
+                <div className="flex flex-col">
+                  <div className="flex items-center gap-2">
+                    <span className="font-body-md text-on-surface font-bold text-base">
+                      {formatQuantity(quantity, 'kg')}
+                    </span>
+                  </div>
+                  <span className="text-xs text-on-surface-variant">
+                    Subtotal: <strong className="text-primary font-bold">₱{(effectiveUnitPrice * quantity).toFixed(2)}</strong>
+                  </span>
+                </div>
+              </div>
+
               {minOrder > 1 && (
-                <p className="text-[12px] text-on-surface-variant mt-1.5 flex items-center gap-1">
+                <p className="text-[12px] text-on-surface-variant mt-2 flex items-center gap-1">
                   <span className="material-symbols-outlined text-[14px] text-primary">info</span>
                   Minimum order for this product is <strong>{minOrder} kg</strong>.
                 </p>
@@ -266,10 +354,10 @@ export default function ProductDetailClient({ product, relatedProducts }: Produc
 
             <button 
               onClick={handleAddToCart}
-              className="w-full bg-primary text-on-primary font-label-md py-4 rounded-xl shadow-sm hover:opacity-90 transition-opacity active:scale-[0.98] flex justify-center items-center gap-2"
+              className="w-full bg-primary text-on-primary font-label-md py-4 rounded-xl shadow-sm hover:opacity-90 transition-opacity active:scale-[0.98] flex justify-center items-center gap-2 text-base font-semibold"
             >
               <span className="material-symbols-outlined">shopping_bag</span>
-              Add to Cart
+              Add to Cart • ₱{(effectiveUnitPrice * quantity).toFixed(2)}
             </button>
           </div>
 

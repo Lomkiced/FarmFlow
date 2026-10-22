@@ -15,6 +15,7 @@ import {
   sendFarmerNotification,
   sendUserNotification,
 } from '@/lib/notifications';
+import { formatQuantity } from '@/lib/utils';
 import type { ActionState } from './crops';
 
 // ─── Create Order (Checkout) ──────────────────────────────────────────────────
@@ -113,12 +114,13 @@ export async function createOrderAction(
       return { success: false, error: `Product not found: ${item.productId}` };
     }
 
-    // REQUIREMENT 1: Server-side MOQ enforcement
-    const minOrderQty = product.minOrderQty ?? 1;
-    if (item.quantityKg < minOrderQty) {
+    // Server-side MOQ enforcement:
+    // If farmer set explicit MOQ > 1, enforce it. Otherwise allow fractional orders down to 0.25 (or explicit minOrderQty)
+    const effectiveMinQty = (product.minOrderQty && product.minOrderQty > 1) ? product.minOrderQty : (product.minOrderQty ?? 0.25);
+    if (item.quantityKg < effectiveMinQty) {
       return {
         success: false,
-        error: `Minimum order quantity for "${product.name}" is ${minOrderQty} kg/units. (Your order: ${item.quantityKg})`,
+        error: `Minimum order quantity for "${product.name}" is ${effectiveMinQty} kg. (Your order: ${item.quantityKg} kg)`,
       };
     }
 
@@ -148,7 +150,7 @@ export async function createOrderAction(
       productId: item.productId,
       quantityKg: item.quantityKg,
       pricePerKg: unitPrice,
-      subtotal: unitPrice * item.quantityKg,
+      subtotal: Math.round(unitPrice * item.quantityKg * 100) / 100,
     });
   }
 
@@ -276,10 +278,10 @@ export async function createOrderAction(
                 show_line_items: true,
                 payment_method_types: ['gcash'],
                 line_items: orderItems.map(item => ({
-                  name: `${productMap.get(item.productId)?.name || 'Product'}${isContract ? ` (${weeks} weekly deliveries)` : ''}`,
-                  amount: Math.round(item.pricePerKg * (isContract ? weeks : 1) * 100), // in centavos
+                  name: `${productMap.get(item.productId)?.name || 'Product'} (${formatQuantity(item.quantityKg, 'kg')})${isContract ? ` (${weeks} weekly deliveries)` : ''}`,
+                  amount: Math.round(item.subtotal * (isContract ? weeks : 1) * 100), // in centavos for this line item
                   currency: 'PHP',
-                  quantity: Math.ceil(item.quantityKg) // PayMongo requires integer quantity
+                  quantity: 1 // Using exact item.subtotal centavos with quantity: 1 ensures precision for fractional purchases
                 })).concat([{
                   name: `Delivery Fee${isContract ? ` (${weeks} weekly batches)` : ''}`,
                   amount: Math.round(deliveryFee * 100),

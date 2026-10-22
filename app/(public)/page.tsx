@@ -15,14 +15,14 @@ export default async function HomePage() {
         <section className="w-full h-[600px] relative overflow-hidden">
           <div className="absolute inset-0 z-0">
             <Image
-              src="https://images.unsplash.com/photo-1544735716-392fe2489ffa?w=1600&q=80"
-              alt="Lush green rice terraces and farmland in the Philippines"
+              src="/images/FARMER1.jpg"
+              alt="Farmers harvesting in Agoo, La Union"
               fill
-              className="object-cover"
+              className="object-cover object-center"
               priority
             />
-            <div className="absolute inset-0 bg-primary/40 mix-blend-multiply" />
-            <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent" />
+            <div className="absolute inset-0 bg-black/40 mix-blend-multiply" />
+            <div className="absolute inset-0 bg-gradient-to-t from-background via-black/20 to-black/30" />
           </div>
 
           <div className="relative z-10 flex flex-col items-center justify-center h-full text-center max-w-3xl mx-auto gap-stack-lg px-4">

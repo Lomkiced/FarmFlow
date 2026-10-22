@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import { format } from 'date-fns';
 import type { OrderStatus, PaymentStatus } from '@prisma/client';
+import { formatQuantity } from '@/lib/utils';
 import type { OrderItemProp } from './OrderCard';
 
 interface OrderTrackingModalProps {
@@ -224,7 +225,7 @@ export default function OrderTrackingModal({ isOpen, onClose, order }: OrderTrac
                   </div>
                   <div className="flex-1 flex flex-col">
                     <span className="font-bold text-sm">{item.product.name}</span>
-                    <span className="text-xs text-on-surface-variant">{item.quantityKg} kg &times; {formatCurrency(item.pricePerKg)}</span>
+                    <span className="text-xs text-on-surface-variant">{formatQuantity(item.quantityKg, 'kg')} &times; {formatCurrency(item.pricePerKg)}</span>
                   </div>
                   <span className="font-bold text-sm">{formatCurrency(item.subtotal)}</span>
                 </div>

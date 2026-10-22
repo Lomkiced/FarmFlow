@@ -59,15 +59,18 @@ export const useCartStore = create<CartStore>()(
 
       addItem: (item) =>
         set((state) => {
-          const minQty = item.minOrderQty || 1;
-          const initialQty = Math.max(item.quantityKg || minQty, minQty);
+          const minQty = (item.minOrderQty && item.minOrderQty > 1) ? item.minOrderQty : (item.minOrderQty ?? 0.25);
+          const initialQty = Number(Math.max(item.quantityKg || minQty, minQty).toFixed(2));
           const exists = state.items.find(
             (i) => i.productId === item.productId
           );
           if (exists) {
-            const newQty = Math.min(
-              exists.quantityKg + (item.quantityKg || minQty),
-              item.stockKg > 0 ? item.stockKg : 9999
+            const addedQty = item.quantityKg || minQty;
+            const newQty = Number(
+              Math.min(
+                exists.quantityKg + addedQty,
+                item.stockKg > 0 ? item.stockKg : 9999
+              ).toFixed(2)
             );
             return {
               items: state.items.map((i) =>
@@ -104,9 +107,9 @@ export const useCartStore = create<CartStore>()(
         set((state) => {
           const item = state.items.find((i) => i.productId === productId);
           if (!item) return state;
-          const minQty = item.minOrderQty || 1;
+          const minQty = (item.minOrderQty && item.minOrderQty > 1) ? item.minOrderQty : (item.minOrderQty ?? 0.25);
           const maxQty = item.stockKg > 0 ? item.stockKg : 9999;
-          const clampedQty = Math.max(minQty, Math.min(quantity, maxQty));
+          const clampedQty = Number(Math.max(minQty, Math.min(quantity, maxQty)).toFixed(2));
           return {
             items: state.items.map((i) =>
               i.productId === productId ? { ...i, quantityKg: clampedQty } : i

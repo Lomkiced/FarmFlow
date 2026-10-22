@@ -14,13 +14,14 @@ export default function AuthLeftPanel({ variant, widthClass = 'w-1/2' }: AuthLef
     <div className={`hidden lg:flex flex-col ${widthClass} relative bg-primary-container overflow-hidden p-[40px] ${isLogin ? 'items-start justify-between' : 'justify-between'}`}>
       <div className="absolute inset-0 z-0">
         <Image
-          src={isFarmer ? "https://images.unsplash.com/photo-1544735716-392fe2489ffa?w=1600&q=80" : "https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=1600&q=80"}
-          alt="Philippine agricultural landscape"
+          src={isLogin ? "/images/FARMERLOG1.jpg" : isFarmer ? "https://images.unsplash.com/photo-1544735716-392fe2489ffa?w=1600&q=80" : "https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=1600&q=80"}
+          alt={isLogin ? "Rice farmers harvesting in Agoo" : "Philippine agricultural landscape"}
           fill
-          className={`object-cover ${isFarmer ? 'opacity-30' : 'mix-blend-overlay opacity-40'}`}
+          className={`object-cover object-center ${isLogin ? 'opacity-40' : isFarmer ? 'opacity-30' : 'mix-blend-overlay opacity-40'}`}
           priority
         />
         {isFarmer && <div className="absolute inset-0 bg-gradient-to-b from-primary/80 via-primary/50 to-primary z-10" />}
+        {isLogin && <div className="absolute inset-0 bg-gradient-to-b from-primary/85 via-primary/60 to-primary/85 z-10" />}
       </div>
 
       {isLogin && (

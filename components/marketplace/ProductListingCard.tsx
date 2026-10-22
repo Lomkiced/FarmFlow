@@ -2,6 +2,7 @@
 
 import Image from 'next/image';
 import { useCartStore } from '@/store/cartStore';
+import { formatQuantity } from '@/lib/utils';
 import toast from 'react-hot-toast';
 
 interface ProductListingCardProps {
@@ -33,13 +34,13 @@ export default function ProductListingCard({
   farmerName,
   rating,
   stockKg = 0,
-  minOrderQty = 1,
+  minOrderQty = 0.25,
   wholesalePrice,
   wholesaleMinQty,
 }: ProductListingCardProps) {
   const addItem = useCartStore((state) => state.addItem);
 
-  const effectiveMoq = minOrderQty && minOrderQty > 1 ? minOrderQty : 1;
+  const effectiveMoq = (minOrderQty && minOrderQty > 1) ? minOrderQty : (minOrderQty ?? 0.25);
 
   const handleAddToCart = () => {
     addItem({
@@ -54,7 +55,7 @@ export default function ProductListingCard({
       wholesalePrice: wholesalePrice ? Number(wholesalePrice) : null,
       wholesaleMinQty: wholesaleMinQty ? Number(wholesaleMinQty) : null,
     });
-    toast.success(`${productName} added to cart! (Min. Order: ${effectiveMoq} kg)`, { icon: '🛒', duration: 2000 });
+    toast.success(`${productName} added to cart! (${formatQuantity(effectiveMoq, 'kg')})`, { icon: '🛒', duration: 2000 });
   };
 
   const badgeStyles = {
@@ -75,7 +76,7 @@ export default function ProductListingCard({
         </span>
         <span className="absolute top-3 right-3 z-10 px-2.5 py-1 rounded-full bg-primary/90 backdrop-blur-sm text-on-primary text-[11px] font-bold tracking-wide shadow-sm flex items-center gap-1">
           <span className="material-symbols-outlined text-[12px]">scale</span>
-          Min: {effectiveMoq} kg
+          Min: {effectiveMoq >= 1 ? `${effectiveMoq} kg` : formatQuantity(effectiveMoq, 'kg')}
         </span>
         <Image
           src={image}

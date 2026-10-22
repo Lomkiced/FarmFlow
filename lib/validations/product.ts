@@ -11,10 +11,10 @@ export const productSchema = z.object({
   stockKg: z.coerce
     .number({ message: 'Stock must be a number.' })
     .positive('Stock must be greater than 0.')
-    .multipleOf(0.1, 'Stock can have at most 1 decimal place.'),
+    .min(0.01, 'Stock must be at least 0.01.'),
   minOrderQty: z.preprocess(
-    (val) => (val === '' || val === null || val === undefined ? 1 : Number(val)),
-    z.number().int('MOQ must be a whole number.').min(1, 'Minimum order quantity must be at least 1.').default(1)
+    (val) => (val === '' || val === null || val === undefined ? 0.25 : Number(val)),
+    z.number().positive('MOQ must be greater than 0.').min(0.25, 'Minimum order quantity must be at least 0.25.').default(0.25)
   ),
   wholesalePrice: z.preprocess(
     (val) => (val === '' || val === null || val === undefined ? null : Number(val)),
@@ -22,7 +22,7 @@ export const productSchema = z.object({
   ),
   wholesaleMinQty: z.preprocess(
     (val) => (val === '' || val === null || val === undefined ? null : Number(val)),
-    z.number().int('Wholesale minimum quantity must be a whole number.').min(1, 'Wholesale min quantity must be at least 1.').nullable().optional()
+    z.number().positive('Wholesale min quantity must be greater than 0.').min(0.25, 'Wholesale min quantity must be at least 0.25.').nullable().optional()
   ),
   harvestDate: z.coerce.date().optional(),
   deliveryAvail: z.boolean().default(false),
