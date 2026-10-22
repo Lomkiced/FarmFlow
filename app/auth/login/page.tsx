@@ -2,6 +2,7 @@
 
 import { useActionState, useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import AuthLeftPanel from '@/components/auth/AuthLeftPanel';
 import AuthInput from '@/components/auth/AuthInput';
 import { loginAction, type AuthActionState } from '@/app/actions/auth';
@@ -22,7 +23,15 @@ export default function LoginPage() {
 
         {/* Mobile top section */}
         <div className="lg:hidden text-center mb-6 flex flex-col items-center mt-2">
-          <span className="material-symbols-outlined text-[40px] text-primary mb-2" style={{ fontVariationSettings: "'FILL' 1" }}>eco</span>
+          <div className="relative w-16 h-16 rounded-2xl overflow-hidden mb-3 shadow-md border-2 border-primary/20">
+            <Image
+              src="/images/FARMERLOG1.jpg"
+              alt="Rice farmers harvesting in Agoo"
+              fill
+              className="object-cover"
+              priority
+            />
+          </div>
           <h2 className="text-[24px] font-semibold leading-tight tracking-[-0.02em] text-auth-on-surface mb-1">Welcome back</h2>
           <p className="text-[14px] text-auth-on-surface-variant">Sign in to your FarmFlow account</p>
         </div>
