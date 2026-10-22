@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useCartStore, CartItem } from '@/store/cartStore';
+import { useCartStore, CartItem, getItemUnitPrice } from '@/store/cartStore';
 import toast from 'react-hot-toast';
 
 // ─── Quantity Stepper ─────────────────────────────────────────────────────────
@@ -18,9 +18,10 @@ function QuantityStepper({
   removeItem: (id: string) => void;
 }) {
   const [inputVal, setInputVal] = useState(String(item.quantityKg));
+  const minQty = item.minOrderQty && item.minOrderQty > 1 ? item.minOrderQty : 1;
   const maxQty = item.stockKg > 0 ? item.stockKg : 9999;
   const atMax = item.quantityKg >= maxQty;
-  const atMin = item.quantityKg <= 1;
+  const atMin = item.quantityKg <= minQty;
 
   useEffect(() => {
     setInputVal(String(item.quantityKg));
@@ -50,8 +51,9 @@ function QuantityStepper({
 
   const handleInputBlur = () => {
     const parsed = parseInt(inputVal, 10);
-    if (isNaN(parsed) || parsed < 1) {
-      setInputVal(String(item.quantityKg));
+    if (isNaN(parsed) || parsed < minQty) {
+      setInputVal(String(Math.max(minQty, item.quantityKg)));
+      updateQuantity(item.productId, minQty);
       return;
     }
     if (parsed > maxQty) {
@@ -93,7 +95,7 @@ function QuantityStepper({
           onChange={handleInputChange}
           onBlur={handleInputBlur}
           onKeyDown={handleKeyDown}
-          className="w-10 text-center h-full border-x border-outline-variant/40 font-label-md bg-transparent text-on-surface outline-none focus:bg-primary/5 transition-colors"
+          className="w-10 text-center h-full border-x border-outline-variant/40 font-label-md bg-transparent text-on-surface outline-none focus:bg-primary/5 transition-colors font-bold"
           aria-label="Quantity in kg"
         />
 
@@ -108,6 +110,11 @@ function QuantityStepper({
         </button>
       </div>
       <span className="font-body-md text-on-surface-variant text-sm">kg</span>
+      {minQty > 1 && (
+        <span className="text-primary font-label-sm text-xs bg-primary/10 px-2 py-0.5 rounded-full border border-primary/20">
+          Min {minQty} kg
+        </span>
+      )}
       {atMax && (
         <span className="text-amber-600 font-label-sm text-xs ml-1 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
           Max {maxQty} kg
@@ -194,9 +201,36 @@ function CartItemRow({
               <span className="material-symbols-outlined text-[13px]">storefront</span>
               {item.farmerName}
             </div>
-            <div className="text-on-surface-variant text-xs mt-0.5">
-              ₱{item.pricePerKg.toFixed(2)} / kg
-            </div>
+            
+            {/* Price & Wholesale/MOQ indicator */}
+            {(() => {
+              const unitPrice = getItemUnitPrice(item);
+              const isWholesaleApplied = Boolean(
+                item.wholesalePrice &&
+                item.wholesaleMinQty &&
+                item.quantityKg >= item.wholesaleMinQty
+              );
+              const minQty = item.minOrderQty && item.minOrderQty > 1 ? item.minOrderQty : 1;
+
+              return (
+                <div className="flex flex-wrap items-center gap-2 mt-1">
+                  <span className={`text-xs ${isWholesaleApplied ? 'line-through text-on-surface-variant' : 'text-on-surface-variant font-medium'}`}>
+                    ₱{item.pricePerKg.toFixed(2)} / kg
+                  </span>
+                  {isWholesaleApplied && (
+                    <span className="inline-flex items-center gap-0.5 text-[11px] font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-300">
+                      <span className="material-symbols-outlined text-[12px]">verified</span>
+                      Wholesale: ₱{unitPrice.toFixed(2)}/kg
+                    </span>
+                  )}
+                  {minQty > 1 && (
+                    <span className="text-[10px] font-semibold text-primary bg-primary/10 px-1.5 py-0.5 rounded border border-primary/20">
+                      MOQ: {minQty} kg
+                    </span>
+                  )}
+                </div>
+              );
+            })()}
           </div>
           <button
             type="button"
@@ -213,7 +247,7 @@ function CartItemRow({
           <QuantityStepper item={item} updateQuantity={updateQuantity} removeItem={removeItem} />
           <div className="text-right">
             <div className="font-bold text-primary text-[17px]">
-              ₱{(item.pricePerKg * item.quantityKg).toFixed(2)}
+              ₱{(getItemUnitPrice(item) * item.quantityKg).toFixed(2)}
             </div>
           </div>
         </div>
@@ -292,7 +326,7 @@ function OrderSummary({
   onCheckout: () => void;
 }) {
   const subtotal = selectedItems.reduce(
-    (sum, i) => sum + i.pricePerKg * i.quantityKg,
+    (sum, i) => sum + getItemUnitPrice(i) * i.quantityKg,
     0
   );
   const deliveryFee = selectedItems.length > 0 ? 50 : 0;
@@ -318,6 +352,7 @@ function OrderSummary({
           <div className="flex flex-col gap-2 max-h-44 overflow-y-auto pr-1 no-scrollbar">
             {selectedItems.map((item) => {
               const isOverStock = item.stockKg <= 0 || item.quantityKg > item.stockKg;
+              const unitPrice = getItemUnitPrice(item);
               return (
                 <div key={item.productId} className="flex justify-between items-center gap-2 text-sm">
                   <div className="flex flex-col flex-1 min-w-0">
@@ -331,7 +366,7 @@ function OrderSummary({
                     )}
                   </div>
                   <span className="font-medium text-on-surface flex-shrink-0">
-                    ₱{(item.pricePerKg * item.quantityKg).toFixed(2)}
+                    ₱{(unitPrice * item.quantityKg).toFixed(2)}
                   </span>
                 </div>
               );
@@ -577,7 +612,7 @@ export default function CartPage() {
             {currentSelectedItems.length} item{currentSelectedItems.length !== 1 ? 's' : ''} selected
           </div>
           <div className="font-bold text-primary text-[18px]">
-            ₱{(currentSelectedItems.reduce((s, i) => s + i.pricePerKg * i.quantityKg, 0) + (currentSelectedItems.length > 0 ? 50 : 0)).toFixed(2)}
+            ₱{(currentSelectedItems.reduce((s, i) => s + getItemUnitPrice(i) * i.quantityKg, 0) + (currentSelectedItems.length > 0 ? 50 : 0)).toFixed(2)}
           </div>
         </div>
         <button

@@ -109,6 +109,9 @@ export async function getPublicProductsAction(params: ProductSearchParams = {}) 
         photos: true,
         harvestDate: true,
         deliveryAvail: true,
+        minOrderQty: true,
+        wholesalePrice: true,
+        wholesaleMinQty: true,
         createdAt: true,
         farm: {
           select: {
@@ -158,6 +161,9 @@ export async function getFeaturedProductsAction() {
       pricePerKg: true,
       stockKg: true,
       photos: true,
+      minOrderQty: true,
+      wholesalePrice: true,
+      wholesaleMinQty: true,
       farm: {
         select: {
           farmName: true,
@@ -206,6 +212,9 @@ export async function getPublicProductAction(productId: string) {
       pricePerKg: true,
       stockKg: true,
       photos: true,
+      minOrderQty: true,
+      wholesalePrice: true,
+      wholesaleMinQty: true,
       farm: {
         select: { farmName: true },
       },

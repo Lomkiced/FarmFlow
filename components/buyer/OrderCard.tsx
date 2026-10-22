@@ -29,6 +29,12 @@ export interface OrderCardProps {
     deliveryFee: number;
     orderStatus: OrderStatus;
     paymentStatus: PaymentStatus;
+    orderType?: string | null;
+    isContract?: boolean;
+    deliveryScheduleDay?: string | null;
+    contractWeeks?: number | null;
+    deliveriesCompleted?: number;
+    nextDeliveryDate?: Date | string | null;
     cancelReason?: string | null;
     cancelledBy?: string | null;
     cancelledAt?: Date | string | null;
@@ -87,10 +93,10 @@ const CANCEL_PRESETS = [
 ];
 
 const REFUND_PRESETS = [
-  'Damaged / Spoiled produce on arrival',
-  'Missing items in harvest parcel',
-  'Incorrect produce delivered',
-  'Quality substantially inferior to description',
+  'Return & Refund - Damaged/Spoiled Produce',
+  'Return & Refund - Wrong Item Delivered',
+  'Partial Refund - Missing Quantity',
+  'Quality Issue',
   'Other reason',
 ];
 
@@ -121,7 +127,7 @@ export default function OrderCard({ order }: OrderCardProps) {
   const progress = statusProgress[order.orderStatus];
   const canCancel = order.orderStatus === 'PENDING' || order.orderStatus === 'CONFIRMED';
   const canRequestRefund =
-    order.orderStatus === 'DELIVERED' &&
+    (order.orderStatus === 'DELIVERED' || (order.orderStatus as any) === 'COMPLETED') &&
     (!order.refundStatus || order.refundStatus === 'NONE' || order.refundStatus === 'REJECTED');
 
   const handleCancelOrder = async () => {
@@ -207,15 +213,21 @@ export default function OrderCard({ order }: OrderCardProps) {
         {/* Header */}
         <div className="px-6 py-4 border-b border-surface-variant flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-surface-container/30">
           <div className="flex flex-col">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <span className="text-[12px] uppercase font-bold text-on-surface-variant tracking-wider">Order #{order.id.slice(0, 8)}</span>
+              {order.isContract && (
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-800 border border-emerald-300 flex items-center gap-1">
+                  <span className="material-symbols-outlined text-[13px]">event_repeat</span>
+                  Wholesale Contract
+                </span>
+              )}
               {order.refundStatus && order.refundStatus !== 'NONE' && (
                 <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
                   order.refundStatus === 'REQUESTED' ? 'bg-amber-100 text-amber-900 border border-amber-300' :
                   order.refundStatus === 'APPROVED' ? 'bg-emerald-100 text-emerald-900 border border-emerald-300' :
                   'bg-rose-100 text-rose-900 border border-rose-300'
                 }`}>
-                  Refund {order.refundStatus.toLowerCase()}
+                  Return/Refund {order.refundStatus.toLowerCase()}
                 </span>
               )}
             </div>
@@ -235,6 +247,26 @@ export default function OrderCard({ order }: OrderCardProps) {
             )}
           </div>
         </div>
+
+        {/* WHOLESALE CONTRACT PROGRESS BANNER */}
+        {order.isContract && (
+          <div className="bg-emerald-50 border-b border-emerald-200 px-6 py-3 flex flex-wrap items-center justify-between gap-3 text-xs text-emerald-950">
+            <div className="flex items-center gap-2">
+              <span className="material-symbols-outlined text-emerald-700 text-[20px]">calendar_month</span>
+              <div>
+                <span className="font-bold text-emerald-900">Weekly Fulfillment:</span> {order.deliveryScheduleDay || 'Every Saturday'}
+                <span className="mx-2 text-emerald-400">•</span>
+                <span className="font-bold text-emerald-900">Batches Delivered:</span> {order.deliveriesCompleted ?? 0} of {order.contractWeeks ?? 1} Completed
+              </div>
+            </div>
+            {order.nextDeliveryDate && order.orderStatus !== 'DELIVERED' && (order.orderStatus as any) !== 'COMPLETED' && (
+              <div className="bg-white/90 text-emerald-800 font-semibold px-2.5 py-1 rounded-md border border-emerald-300 text-[11px] flex items-center gap-1">
+                <span className="material-symbols-outlined text-[14px] text-emerald-600">schedule</span>
+                Next Batch: {format(new Date(order.nextDeliveryDate), 'EEE, MMM d, yyyy')}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* CANCELLATION NOTICE BANNER */}
         {order.orderStatus === 'CANCELLED' && (
@@ -264,9 +296,9 @@ export default function OrderCard({ order }: OrderCardProps) {
             </span>
             <div className="flex-1">
               <p className="font-bold">
-                {order.refundStatus === 'REQUESTED' && 'Refund Request Under Review'}
-                {order.refundStatus === 'APPROVED' && 'Refund Approved & Processed'}
-                {order.refundStatus === 'REJECTED' && 'Refund Request Declined'}
+                {order.refundStatus === 'REQUESTED' && 'Return / Refund Request Under Review'}
+                {order.refundStatus === 'APPROVED' && 'Return / Refund Approved & Processed'}
+                {order.refundStatus === 'REJECTED' && 'Return / Refund Request Declined'}
               </p>
               {order.refundReason && <p className="mt-0.5">Reason: {order.refundReason}</p>}
               {order.refundAdminNote && <p className="font-medium mt-0.5">Reviewer note: "{order.refundAdminNote}"</p>}
@@ -329,7 +361,7 @@ export default function OrderCard({ order }: OrderCardProps) {
                 className="px-4 py-2 rounded-xl text-xs font-bold border border-amber-300 text-amber-800 hover:bg-amber-50 transition-colors flex items-center gap-1"
               >
                 <span className="material-symbols-outlined text-[16px]">assignment_return</span>
-                Refund / Return
+                Return / Refund Order
               </button>
             )}
 
@@ -422,7 +454,7 @@ export default function OrderCard({ order }: OrderCardProps) {
             <div className="flex items-center justify-between border-b pb-3">
               <div className="flex items-center gap-2 text-amber-700">
                 <span className="material-symbols-outlined text-[24px]">assignment_return</span>
-                <h3 className="font-bold text-gray-900 text-lg">Request Refund / Return</h3>
+                <h3 className="font-bold text-gray-900 text-lg">Return / Refund Order</h3>
               </div>
               <button onClick={() => setIsRefundModalOpen(false)} className="text-gray-400 hover:text-gray-600">
                 <span className="material-symbols-outlined text-[20px]">close</span>
@@ -430,12 +462,12 @@ export default function OrderCard({ order }: OrderCardProps) {
             </div>
 
             <p className="text-xs text-gray-600">
-              Delivered produce issues must be reported promptly. Please attach a clear photo of the delivered item as proof.
+              Delivered produce issues must be reported promptly. Please choose your issue type, describe the problem, and attach a clear photo of the delivered produce as proof.
             </p>
 
             <div className="space-y-3.5">
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">Issue Category *</label>
+                <label className="block text-xs font-semibold text-gray-700 mb-1">Return / Refund Type *</label>
                 <select 
                   value={refundReasonPreset}
                   onChange={(e) => setRefundReasonPreset(e.target.value)}
@@ -448,11 +480,11 @@ export default function OrderCard({ order }: OrderCardProps) {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">Explain the problem *</label>
+                <label className="block text-xs font-semibold text-gray-700 mb-1">Reason & Issue Details *</label>
                 <textarea
                   rows={3}
                   required
-                  placeholder="Describe the condition of the items received, defects, or missing quantities..."
+                  placeholder="Describe the condition of the items received, defects, spoiled produce, or missing quantities..."
                   value={refundDetails}
                   onChange={(e) => setRefundDetails(e.target.value)}
                   className="w-full text-xs border border-gray-300 rounded-lg p-2.5 outline-none focus:border-primary resize-none"
@@ -460,7 +492,7 @@ export default function OrderCard({ order }: OrderCardProps) {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">Proof Photo (Recommended)</label>
+                <label className="block text-xs font-semibold text-gray-700 mb-1">Photo Proof (Produce condition / Package label)</label>
                 <input 
                   type="file"
                   accept="image/*"
@@ -496,7 +528,7 @@ export default function OrderCard({ order }: OrderCardProps) {
                 onClick={handleRefundSubmit}
                 className="px-4 py-2 text-xs font-semibold rounded-lg bg-primary hover:bg-primary/90 text-on-primary flex items-center gap-1.5 shadow-sm disabled:opacity-50"
               >
-                {isSubmittingRefund ? 'Submitting...' : 'Submit Refund Request'}
+                {isSubmittingRefund ? 'Submitting...' : 'Submit Return / Refund Request'}
               </button>
             </div>
           </div>

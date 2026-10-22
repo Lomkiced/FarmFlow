@@ -175,7 +175,7 @@ export default function EditProfileModal({ farmProfile }: { farmProfile: any }) 
 
   const currentAvatarUrl = farmProfile.user?.avatarUrl;
   const currentCoverUrl = farmProfile.coverPhoto;
-  const defaultCoverUrl = 'https://images.unsplash.com/photo-1500382017468-9049fed747ef?w=800&q=80';
+  const defaultCoverUrl = 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=800&q=80';
   const defaultAvatarUrl = 'https://i.pravatar.cc/150?img=12';
 
   return (

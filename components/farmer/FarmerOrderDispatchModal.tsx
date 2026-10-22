@@ -53,6 +53,12 @@ export interface DispatchOrder {
   refundRequestedAt?: Date | string | null;
   refundResolvedAt?: Date | string | null;
   refundAdminNote?: string | null;
+  orderType?: string | null;
+  isContract?: boolean;
+  deliveryScheduleDay?: string | null;
+  contractWeeks?: number | null;
+  deliveriesCompleted?: number;
+  nextDeliveryDate?: Date | string | null;
 }
 
 interface Props {

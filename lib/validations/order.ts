@@ -13,7 +13,7 @@ export const orderStatusSchema = z.object({
 // Cart items submitted from client for server-side verification
 export const checkoutItemSchema = z.object({
   productId: z.string().uuid(),
-  quantityKg: z.number().positive('Quantity must be greater than 0.').multipleOf(0.1),
+  quantityKg: z.number().positive('Quantity must be greater than 0.'),
 });
 
 export const checkoutSchema = z.object({
@@ -24,6 +24,10 @@ export const checkoutSchema = z.object({
     .min(1, 'Your cart is empty.')
     .max(20, 'Too many items in cart.'),
   notes: z.string().max(300).trim().optional(),
+  orderType: z.enum(['STANDARD', 'WHOLESALE_CONTRACT']).default('STANDARD'),
+  isContract: z.boolean().default(false),
+  deliveryScheduleDay: z.string().max(50).trim().optional(),
+  contractWeeks: z.coerce.number().int().min(1).max(52).optional().nullable(),
 });
 
 export const cancelOrderSchema = z.object({
@@ -33,9 +37,9 @@ export const cancelOrderSchema = z.object({
 
 export const requestRefundSchema = z.object({
   orderId: z.string().uuid('Invalid order ID.'),
-  reason: z.string().min(3, 'Please provide a refund reason.').max(200, 'Reason cannot exceed 200 characters.').trim(),
+  reason: z.string().min(3, 'Please provide a return/refund reason.').max(200, 'Reason cannot exceed 200 characters.').trim(),
   details: z.string().max(1000, 'Details cannot exceed 1000 characters.').trim().optional(),
-  proofUrl: z.string().url('Proof photo URL is required for refund verification.').optional(),
+  proofUrl: z.string().url('Proof photo must be a valid URL.').optional().or(z.literal('')),
 });
 
 export const resolveRefundSchema = z.object({

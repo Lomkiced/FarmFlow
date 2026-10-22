@@ -84,7 +84,7 @@ export default function CategoryFilter({ products }: { products: Product[] }) {
               return (
                 <Link key={product.id} href={`/products/${product.id}`} className="block h-full cursor-pointer hover:no-underline">
                   <ProductCard
-                    image={product.photos[0] || 'https://images.unsplash.com/photo-1546094096-0df4bcaaa337?w=400&q=80'}
+                    image={product.photos[0] || '/images/crops/generic.jpg'}
                     alt={product.name}
                     badge={badge}
                     farmerAvatar={product.farm.user?.avatarUrl || 'https://i.pravatar.cc/150?img=11'}

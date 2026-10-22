@@ -14,8 +14,8 @@ export default function AuthLeftPanel({ variant, widthClass = 'w-1/2' }: AuthLef
     <div className={`hidden lg:flex flex-col ${widthClass} relative bg-primary-container overflow-hidden p-[40px] ${isLogin ? 'items-start justify-between' : 'justify-between'}`}>
       <div className="absolute inset-0 z-0">
         <Image
-          src={isFarmer ? "https://images.unsplash.com/photo-1500382017468-9049fed747ef?w=1600&q=80" : "https://images.unsplash.com/photo-1574943320219-553eb213f72d?w=1600&q=80"}
-          alt="Background"
+          src={isFarmer ? "https://images.unsplash.com/photo-1544735716-392fe2489ffa?w=1600&q=80" : "https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=1600&q=80"}
+          alt="Philippine agricultural landscape"
           fill
           className={`object-cover ${isFarmer ? 'opacity-30' : 'mix-blend-overlay opacity-40'}`}
           priority

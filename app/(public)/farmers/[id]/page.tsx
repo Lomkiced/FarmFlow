@@ -23,7 +23,7 @@ export default async function FarmerProfilePage({ params }: { params: Promise<{ 
         {/* Cover Photo */}
         <div className="w-full h-64 md:h-80 bg-surface-container relative">
           <Image 
-            src={farm.coverPhoto || 'https://images.unsplash.com/photo-1500937386664-56d1dfef4525?q=80&w=1600'} 
+            src={farm.coverPhoto || 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?q=80&w=1600'} 
             alt={`${farm.farmName} Cover`} 
             fill 
             className="object-cover" 
@@ -133,7 +133,7 @@ export default async function FarmerProfilePage({ params }: { params: Promise<{ 
               <Link href={`/products/${product.id}`} key={product.id} className="block group">
                 <ProductListingCard
                   id={product.id}
-                  image={product.photos[0] || 'https://images.unsplash.com/photo-1546094096-0df4bcaaa337?w=400&q=80'}
+                  image={product.photos[0] || '/images/crops/generic.jpg'}
                   alt={product.name}
                   badge={product.category === 'VEGETABLES' ? 'Organic' : (product.stockKg > 10 ? 'In Stock' : 'Low Stock')}
                   badgeVariant={product.category === 'VEGETABLES' ? 'organic' : (product.stockKg > 10 ? 'instock' : 'lowstock')}
@@ -143,6 +143,9 @@ export default async function FarmerProfilePage({ params }: { params: Promise<{ 
                   farmerName={farm.farmName}
                   rating={farm.rating || 0}
                   stockKg={product.stockKg}
+                  minOrderQty={product.minOrderQty}
+                  wholesalePrice={product.wholesalePrice ? Number(product.wholesalePrice) : null}
+                  wholesaleMinQty={product.wholesaleMinQty}
                 />
               </Link>
             ))}

@@ -16,11 +16,27 @@ function OrderPageHeader({ order }: { order: any }) {
   return (
     <div className="mb-[32px] flex flex-col md:flex-row md:items-end justify-between gap-4">
       <div>
-        <h1 className="font-['Manrope'] text-[48px] font-bold tracking-[-0.02em] leading-[1.1] text-primary mb-2">
-          Order #{order.id.slice(0, 8).toUpperCase()}
-        </h1>
-        <div className="font-body-lg text-on-surface-variant">
-          Placed on {new Date(order.createdAt).toLocaleDateString()}
+        <div className="flex items-center gap-3 flex-wrap mb-2">
+          <h1 className="font-['Manrope'] text-[36px] md:text-[44px] font-bold tracking-[-0.02em] leading-[1.1] text-primary">
+            Order #{order.id.slice(0, 8).toUpperCase()}
+          </h1>
+          {order.isContract && (
+            <span className="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-emerald-100 text-emerald-800 border border-emerald-300 flex items-center gap-1.5">
+              <span className="material-symbols-outlined text-[16px]">event_repeat</span>
+              Wholesale Contract
+            </span>
+          )}
+        </div>
+        <div className="font-body-lg text-on-surface-variant flex items-center gap-2 flex-wrap">
+          <span>Placed on {new Date(order.createdAt).toLocaleDateString()}</span>
+          {order.isContract && (
+            <>
+              <span>•</span>
+              <span className="text-emerald-800 font-semibold">
+                {order.deliveryScheduleDay || 'Every Saturday'} ({order.deliveriesCompleted ?? 0}/{order.contractWeeks ?? 1} Batches Delivered)
+              </span>
+            </>
+          )}
         </div>
       </div>
       <div className="inline-flex items-center gap-2 px-4 py-2 bg-secondary-container text-on-secondary-container rounded-full">
@@ -46,9 +62,11 @@ function ProgressStepper({ order }: { order: any }) {
     body = 'Waiting for the farmer to confirm your order.';
   } else if (status === 'CONFIRMED') {
     title = 'Order confirmed.';
-    body = 'The farmer is currently harvesting and packing your order.';
-  } else if (status === 'DELIVERED') {
-    title = 'Order delivered.';
+    body = order.isContract
+      ? `Farmer is preparing batch ${Math.min((order.deliveriesCompleted ?? 0) + 1, order.contractWeeks ?? 1)} of ${order.contractWeeks ?? 1}.`
+      : 'The farmer is currently harvesting and packing your order.';
+  } else if (status === 'DELIVERED' || status === 'COMPLETED') {
+    title = order.isContract ? 'Wholesale contract fully fulfilled!' : 'Order delivered.';
     body = 'Enjoy your fresh produce!';
   } else if (status === 'CANCELLED') {
     title = `Order cancelled${order.cancelledBy ? ` by ${order.cancelledBy.toLowerCase()}` : ''}.`;

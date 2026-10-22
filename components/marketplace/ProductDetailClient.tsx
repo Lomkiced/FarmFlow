@@ -16,6 +16,9 @@ interface ProductDetailClientProps {
     category: string;
     description: string | null;
     harvestDate: Date | null;
+    minOrderQty?: number | null;
+    wholesalePrice?: any;
+    wholesaleMinQty?: number | null;
     farm: {
       id: string;
       farmName: string;
@@ -31,13 +34,16 @@ interface ProductDetailClientProps {
     pricePerKg: number;
     stockKg: number;
     photos: string[];
+    minOrderQty?: number | null;
+    wholesalePrice?: any;
+    wholesaleMinQty?: number | null;
     farm: { farmName: string };
   }[];
 }
 
 function ImageGallery({ images, name }: { images: string[], name: string }) {
   const [activeImage, setActiveImage] = useState(0);
-  const displayImages = images.length > 0 ? images : ['https://images.unsplash.com/photo-1546094096-0df4bcaaa337?w=800&q=80'];
+  const displayImages = images.length > 0 ? images : ['/images/crops/generic.jpg'];
 
   return (
     <div className="lg:col-span-7 flex flex-col gap-[8px]">
@@ -72,23 +78,31 @@ function ImageGallery({ images, name }: { images: string[], name: string }) {
 }
 
 export default function ProductDetailClient({ product, relatedProducts }: ProductDetailClientProps) {
-  const [quantity, setQuantity] = useState(1);
+  const minOrder = product.minOrderQty && product.minOrderQty > 1 ? product.minOrderQty : 1;
+  const [quantity, setQuantity] = useState(minOrder);
   const addItem = useCartStore((state) => state.addItem);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  const badge = product.category === 'VEGETABLES' ? 'Organic' : product.stockKg > 10 ? 'In Stock' : 'Low Stock';
+  const hasWholesale = Boolean(product.wholesalePrice && product.wholesaleMinQty);
+  const wholesaleActive = hasWholesale && quantity >= (product.wholesaleMinQty || 0);
+  const effectiveUnitPrice = wholesaleActive ? Number(product.wholesalePrice) : product.pricePerKg;
+
+  const badge = product.category === 'VEGETABLES' || product.category === 'Vegetables' ? 'Organic' : product.stockKg > 10 ? 'In Stock' : 'Low Stock';
 
   const handleAddToCart = () => {
     addItem({
       productId: product.id,
       name: product.name,
       pricePerKg: product.pricePerKg,
-      quantityKg: quantity,
+      quantityKg: Math.max(minOrder, quantity),
       stockKg: product.stockKg,
-      photo: product.photos[0] || 'https://images.unsplash.com/photo-1546094096-0df4bcaaa337?w=800&q=80',
+      photo: product.photos[0] || '/images/crops/generic.jpg',
       farmerName: product.farm.farmName,
+      minOrderQty: minOrder,
+      wholesalePrice: product.wholesalePrice ? Number(product.wholesalePrice) : null,
+      wholesaleMinQty: product.wholesaleMinQty ? Number(product.wholesaleMinQty) : null,
     });
-    toast.success(`${product.name} added to cart!`, {
+    toast.success(`${product.name} (${Math.max(minOrder, quantity)} kg) added to cart!`, {
       icon: '🛒',
       duration: 2000,
     });
@@ -96,16 +110,20 @@ export default function ProductDetailClient({ product, relatedProducts }: Produc
 
   const handleRelatedAddToCart = (e: React.MouseEvent, related: any) => {
     e.preventDefault();
+    const relMoq = related.minOrderQty && related.minOrderQty > 1 ? related.minOrderQty : 1;
     addItem({
       productId: related.id,
       name: related.name,
       pricePerKg: related.pricePerKg,
-      quantityKg: 1,
+      quantityKg: relMoq,
       stockKg: related.stockKg ?? 0,
-      photo: related.photos[0] || 'https://images.unsplash.com/photo-1546094096-0df4bcaaa337?w=800&q=80',
+      photo: related.photos[0] || '/images/crops/generic.jpg',
       farmerName: related.farm.farmName,
+      minOrderQty: relMoq,
+      wholesalePrice: related.wholesalePrice ? Number(related.wholesalePrice) : null,
+      wholesaleMinQty: related.wholesaleMinQty ? Number(related.wholesaleMinQty) : null,
     });
-    toast.success(`${related.name} added to cart!`, { icon: '🛒', duration: 2000 });
+    toast.success(`${related.name} added to cart! (MOQ: ${relMoq} kg)`, { icon: '🛒', duration: 2000 });
   };
 
   const scroll = (dir: 'left' | 'right') => {
@@ -138,6 +156,10 @@ export default function ProductDetailClient({ product, relatedProducts }: Produc
             <span className="inline-flex items-center px-3 py-1 rounded-full bg-secondary-container text-on-secondary-container font-label-sm uppercase tracking-[0.03em]">
               {badge}
             </span>
+            <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-primary/10 text-primary border border-primary/20 font-label-sm uppercase tracking-[0.03em]">
+              <span className="material-symbols-outlined text-[14px]">scale</span>
+              Min. Order: {minOrder} kg
+            </span>
             <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-surface-container-high text-on-surface font-label-sm uppercase tracking-[0.03em]">
               <span className="material-symbols-outlined text-[14px] text-primary" style={{ fontVariationSettings: "'FILL' 1" }}>verified</span>
               Freshness Guaranteed
@@ -150,14 +172,41 @@ export default function ProductDetailClient({ product, relatedProducts }: Produc
           </h1>
 
           {/* Price Row */}
-          <div className="flex items-end gap-2 mb-[32px]">
-            <span className="font-h1 text-primary text-[32px] font-bold leading-[1.2] tracking-[-0.01em]">
-              ₱{product.pricePerKg.toFixed(2)}
+          <div className="flex flex-wrap items-baseline gap-2 mb-[16px]">
+            <span className="font-h1 text-primary text-[36px] font-bold leading-[1.2] tracking-[-0.01em]">
+              ₱{effectiveUnitPrice.toFixed(2)}
             </span>
-            <span className="font-body-md text-on-surface-variant mb-1">
+            {wholesaleActive && (
+              <span className="line-through text-on-surface-variant text-[20px] font-medium">
+                ₱{product.pricePerKg.toFixed(2)}
+              </span>
+            )}
+            <span className="font-body-md text-on-surface-variant">
               / kg
             </span>
+            {wholesaleActive && (
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-xs font-bold border border-emerald-300">
+                <span className="material-symbols-outlined text-[14px]">check_circle</span>
+                Wholesale Price Applied
+              </span>
+            )}
           </div>
+
+          {/* Wholesale Tier Callout */}
+          {hasWholesale && !wholesaleActive && (
+            <div className="mb-[24px] p-3 rounded-xl bg-emerald-50/70 border border-emerald-200 text-emerald-900 text-xs flex items-center justify-between">
+              <span className="font-medium">
+                💡 Order <strong>{product.wholesaleMinQty} kg</strong> or more to get the wholesale rate of <strong>₱{Number(product.wholesalePrice).toFixed(2)}/kg</strong>!
+              </span>
+              <button
+                type="button"
+                onClick={() => setQuantity(product.wholesaleMinQty || 1)}
+                className="ml-2 font-bold text-emerald-800 underline hover:text-emerald-950 shrink-0"
+              >
+                Set to {product.wholesaleMinQty} kg
+              </button>
+            </div>
+          )}
 
           {/* Description */}
           <div className="mb-[32px] border-b border-surface-variant pb-[32px] space-y-4">
@@ -176,29 +225,43 @@ export default function ProductDetailClient({ product, relatedProducts }: Produc
 
           {/* Purchase Actions */}
           <div className="flex flex-col gap-[16px] mb-[32px]">
-            <div className="flex items-center gap-4">
-              <div className="flex items-center border border-outline-variant rounded-lg overflow-hidden h-12 w-32 bg-surface-container-lowest">
-                <button 
-                  onClick={() => setQuantity(q => Math.max(1, q - 1))}
-                  className="w-10 h-full flex items-center justify-center text-on-surface hover:bg-surface-variant transition-colors"
-                >
-                  <span className="material-symbols-outlined">remove</span>
-                </button>
-                <input
-                  type="text"
-                  aria-label="Quantity"
-                  value={quantity}
-                  onChange={(e) => setQuantity(parseInt(e.target.value) || 1)}
-                  className="flex-grow text-center h-full border-none focus:ring-0 font-label-md bg-transparent text-on-surface p-0 w-12 outline-none"
-                />
-                <button 
-                  onClick={() => setQuantity(q => q + 1)}
-                  className="w-10 h-full flex items-center justify-center text-on-surface hover:bg-surface-variant transition-colors"
-                >
-                  <span className="material-symbols-outlined">add</span>
-                </button>
+            <div>
+              <div className="flex items-center gap-4">
+                <div className="flex items-center border border-outline-variant rounded-lg overflow-hidden h-12 w-36 bg-surface-container-lowest">
+                  <button 
+                    onClick={() => setQuantity(q => Math.max(minOrder, q - 1))}
+                    disabled={quantity <= minOrder}
+                    className="w-10 h-full flex items-center justify-center text-on-surface hover:bg-surface-variant transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                    aria-label="Decrease quantity"
+                  >
+                    <span className="material-symbols-outlined">remove</span>
+                  </button>
+                  <input
+                    type="text"
+                    aria-label="Quantity"
+                    value={quantity}
+                    onChange={(e) => {
+                      const val = parseInt(e.target.value);
+                      setQuantity(isNaN(val) ? minOrder : Math.max(minOrder, val));
+                    }}
+                    className="flex-grow text-center h-full border-none focus:ring-0 font-label-md bg-transparent text-on-surface p-0 w-12 outline-none font-bold"
+                  />
+                  <button 
+                    onClick={() => setQuantity(q => Math.min(product.stockKg > 0 ? product.stockKg : 9999, q + 1))}
+                    className="w-10 h-full flex items-center justify-center text-on-surface hover:bg-surface-variant transition-colors"
+                    aria-label="Increase quantity"
+                  >
+                    <span className="material-symbols-outlined">add</span>
+                  </button>
+                </div>
+                <span className="font-body-md text-on-surface-variant font-medium">kg</span>
               </div>
-              <span className="font-body-md text-on-surface-variant">kg</span>
+              {minOrder > 1 && (
+                <p className="text-[12px] text-on-surface-variant mt-1.5 flex items-center gap-1">
+                  <span className="material-symbols-outlined text-[14px] text-primary">info</span>
+                  Minimum order for this product is <strong>{minOrder} kg</strong>.
+                </p>
+              )}
             </div>
 
             <button 
@@ -264,7 +327,7 @@ export default function ProductDetailClient({ product, relatedProducts }: Produc
             {relatedProducts.map(related => (
               <Link href={`/products/${related.id}`} key={related.id} className="min-w-[280px] w-[280px] snap-start bg-surface-container-lowest rounded-xl shadow-level-1 overflow-hidden group cursor-pointer border border-transparent hover:border-surface-variant transition-colors block">
                 <div className="h-48 w-full bg-surface-container overflow-hidden relative">
-                  <Image src={related.photos[0] || 'https://images.unsplash.com/photo-1546094096-0df4bcaaa337?w=400&q=80'} alt={related.name} fill sizes="280px" className="object-cover group-hover:scale-105 transition-transform duration-500" />
+                  <Image src={related.photos[0] || '/images/crops/generic.jpg'} alt={related.name} fill sizes="280px" className="object-cover group-hover:scale-105 transition-transform duration-500" />
                 </div>
                 <div className="p-4 flex flex-col gap-2">
                   <div className="font-h3 text-on-surface line-clamp-1">{related.name}</div>

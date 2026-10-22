@@ -86,7 +86,7 @@ export default function FarmProfileClient({
 
                 return (
                   <div key={product.id} className="bg-surface-container-lowest rounded-xl overflow-hidden shadow-[0_4px_20px_rgba(27,67,50,0.04)] flex flex-col">
-                    <div className="h-32 w-full bg-cover bg-center" style={{ backgroundImage: `url('${product.photos[0] || 'https://images.unsplash.com/photo-1546094096-0df4bcaaa337?w=400&q=80'}')` }} />
+                    <div className="h-32 w-full bg-cover bg-center" style={{ backgroundImage: `url('${product.photos[0] || '/images/crops/generic.jpg'}')` }} />
                     <div className="p-3 flex-1 flex flex-col">
                       <div className="flex justify-between items-start mb-1 gap-1">
                         <p className="text-[14px] font-medium text-on-background truncate" title={product.name}>{product.name}</p>

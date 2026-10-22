@@ -12,6 +12,18 @@ export const productSchema = z.object({
     .number({ message: 'Stock must be a number.' })
     .positive('Stock must be greater than 0.')
     .multipleOf(0.1, 'Stock can have at most 1 decimal place.'),
+  minOrderQty: z.preprocess(
+    (val) => (val === '' || val === null || val === undefined ? 1 : Number(val)),
+    z.number().int('MOQ must be a whole number.').min(1, 'Minimum order quantity must be at least 1.').default(1)
+  ),
+  wholesalePrice: z.preprocess(
+    (val) => (val === '' || val === null || val === undefined ? null : Number(val)),
+    z.number().positive('Wholesale price must be greater than ₱0.').multipleOf(0.01, 'Wholesale price can have at most 2 decimal places.').nullable().optional()
+  ),
+  wholesaleMinQty: z.preprocess(
+    (val) => (val === '' || val === null || val === undefined ? null : Number(val)),
+    z.number().int('Wholesale minimum quantity must be a whole number.').min(1, 'Wholesale min quantity must be at least 1.').nullable().optional()
+  ),
   harvestDate: z.coerce.date().optional(),
   deliveryAvail: z.boolean().default(false),
   cropId: z.string().uuid('Invalid crop reference.').optional(),

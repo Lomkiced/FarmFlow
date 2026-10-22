@@ -8,8 +8,8 @@ export default function AboutPage() {
       <section className="relative w-full h-[60vh] min-h-[500px] flex items-center justify-center overflow-hidden">
         <div className="absolute inset-0 z-0 bg-primary/20">
           <Image
-            src="https://images.unsplash.com/photo-1595841696677-6489ff3f8cd1?q=80&w=2000"
-            alt="Farm landscape"
+            src="https://images.unsplash.com/photo-1544735716-392fe2489ffa?q=80&w=2000"
+            alt="Philippine rice terraces and tropical agricultural landscape"
             fill
             className="object-cover"
             priority
@@ -37,8 +37,8 @@ export default function AboutPage() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
           <div className="relative aspect-square lg:aspect-auto lg:h-[600px] rounded-3xl overflow-hidden shadow-level-2 group">
             <Image
-              src="https://images.unsplash.com/photo-1500937386664-56d1dfef4525?q=80&w=1200"
-              alt="Farmer holding fresh produce"
+              src="https://images.unsplash.com/photo-1592417817098-8f3d69109853?q=80&w=1200"
+              alt="Filipino farmer with fresh vegetable harvest"
               fill
               className="object-cover group-hover:scale-105 transition-transform duration-700"
             />
