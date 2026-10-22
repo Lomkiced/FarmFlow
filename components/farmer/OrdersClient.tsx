@@ -5,6 +5,7 @@ import { useState, useTransition, useEffect } from 'react';
 import { updateOrderStatusAction, cancelOrderAction, resolveOrderRefundAction, recordContractDeliveryAction } from '@/app/actions/orders';
 import toast from 'react-hot-toast';
 import { format, formatDistanceToNow } from 'date-fns';
+import { formatQuantity } from '@/lib/utils';
 import FarmerOrderDispatchModal, { DispatchOrder } from './FarmerOrderDispatchModal';
 
 export type Order = DispatchOrder;
@@ -182,7 +183,7 @@ export default function OrdersClient({
     const recipientPhone = order.address?.phone || order.buyer.phone || '';
     const initials = recipientName.substring(0, 2).toUpperCase();
     const productSummary = order.items
-      .map(i => `${i.product.name} (${i.quantityKg}kg)`)
+      .map(i => `${i.product.name} (${formatQuantity(i.quantityKg, 'kg')})`)
       .join(', ');
 
     const isOrderPending = order.orderStatus === 'PENDING';
@@ -577,7 +578,7 @@ export default function OrdersClient({
                         <span className="text-xs text-on-surface-variant font-mono">#{order.id.slice(0, 8)}</span>
                       </div>
                       <p className="text-xs text-on-surface-variant mt-0.5">
-                        {order.items.map(i => `${i.product.name} (${i.quantityKg}kg)`).join(', ')}
+                        {order.items.map(i => `${i.product.name} (${formatQuantity(i.quantityKg, 'kg')})`).join(', ')}
                       </p>
                     </div>
                     <span className={`px-2.5 py-1 rounded-full text-xs font-bold uppercase tracking-wide ${

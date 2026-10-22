@@ -168,9 +168,9 @@ model Product {
   photos        String[]
   harvestDate   DateTime?
   deliveryAvail Boolean       @default(false)
-  minOrderQty   Int           @default(1)
+  minOrderQty   Float         @default(0.25)
   wholesalePrice Decimal?     @db.Decimal(10, 2)
-  wholesaleMinQty Int?
+  wholesaleMinQty Float?
   status        ListingStatus @default(PENDING_REVIEW)
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt

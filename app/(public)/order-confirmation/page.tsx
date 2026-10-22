@@ -3,6 +3,7 @@ import Image from 'next/image';
 import { redirect } from 'next/navigation';
 import { format } from 'date-fns';
 import { getOrderAction } from '@/app/actions/orders';
+import { formatQuantity } from '@/lib/utils';
 import PrintReceiptButton from '@/components/marketplace/PrintReceiptButton';
 
 type Props = {
@@ -243,7 +244,7 @@ export default async function OrderConfirmationPage({ searchParams }: Props) {
 
                   <div className="text-right shrink-0">
                     <span className="inline-block px-2.5 py-0.5 rounded bg-surface-container font-mono text-xs font-bold text-on-surface">
-                      {item.quantityKg} kg
+                      {formatQuantity(item.quantityKg, 'kg')}
                     </span>
                     <p className="text-sm font-black text-on-surface mt-1">
                       ₱{item.subtotal.toFixed(2)}

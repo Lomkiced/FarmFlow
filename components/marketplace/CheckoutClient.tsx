@@ -10,6 +10,7 @@ import { createAddressAction } from '@/app/actions/addresses';
 import toast from 'react-hot-toast';
 import { PaymentMethod } from '@/types';
 import { AGOO_BARANGAYS } from '@/lib/constants/locations';
+import { formatQuantity } from '@/lib/utils';
 
 interface Address {
   id: string;
@@ -545,7 +546,7 @@ export default function CheckoutClient({ addresses }: { addresses: Address[] }) 
                   <div className="flex-grow min-w-0">
                     <div className="font-medium text-on-surface text-sm line-clamp-1">{item.name}</div>
                     <div className="text-on-surface-variant text-xs flex items-center gap-1.5">
-                      <span>{item.quantityKg} kg/unit × ₱{effectivePrice.toFixed(2)}</span>
+                      <span>{formatQuantity(item.quantityKg, 'kg')} × ₱{effectivePrice.toFixed(2)}</span>
                       {hasWholesaleDiscount && (
                         <span className="text-[10px] bg-emerald-100 text-emerald-800 font-semibold px-1 rounded">
                           Wholesale

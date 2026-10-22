@@ -17,7 +17,7 @@ export default function AddProductClient({
   const [productName, setProductName] = useState('');
   const [price, setPrice] = useState('');
   const [stock, setStock] = useState('');
-  const [minOrderQty, setMinOrderQty] = useState('1');
+  const [minOrderQty, setMinOrderQty] = useState('0.25');
   const [wholesalePrice, setWholesalePrice] = useState('');
   const [wholesaleMinQty, setWholesaleMinQty] = useState('');
   const [deliveryAvail, setDeliveryAvail] = useState(false);
@@ -63,14 +63,14 @@ export default function AddProductClient({
     }
 
     const stockNum = Number(stock);
-    if (isNaN(stockNum) || stockNum <= 0 || !Number.isInteger(stockNum)) {
-      setStockError('Stock must be a positive whole number.');
+    if (isNaN(stockNum) || stockNum <= 0) {
+      setStockError('Stock must be a positive number.');
       hasError = true;
     }
 
     const moqNum = Number(minOrderQty);
-    if (isNaN(moqNum) || moqNum < 1 || !Number.isInteger(moqNum)) {
-      setMoqError('Minimum order quantity must be a whole number of at least 1.');
+    if (isNaN(moqNum) || moqNum < 0.25) {
+      setMoqError('Minimum order quantity must be at least 0.25 kg.');
       hasError = true;
     }
 
@@ -84,8 +84,8 @@ export default function AddProductClient({
 
     if (wholesaleMinQty) {
       const wmqNum = Number(wholesaleMinQty);
-      if (isNaN(wmqNum) || wmqNum < 1 || !Number.isInteger(wmqNum)) {
-        setWholesaleError('Wholesale minimum quantity must be a whole number.');
+      if (isNaN(wmqNum) || wmqNum < 0.25) {
+        setWholesaleError('Wholesale minimum quantity must be at least 0.25 kg.');
         hasError = true;
       }
     }
@@ -239,17 +239,19 @@ export default function AddProductClient({
             </div>
             <div>
               <label className="block text-[14px] font-medium text-on-background mb-[8px]">Available stock (kg) *</label>
-              <input type="number" required placeholder="100" value={stock} onChange={(e) => { setStock(e.target.value); setStockError(''); }} className="w-full bg-background border border-outline-variant rounded-lg px-4 py-3 text-[16px] text-on-background focus:outline-none focus:border-primary-container focus:ring-1 focus:ring-primary-container transition-colors placeholder:text-outline" />
+              <input type="number" step="0.25" min="0.01" required placeholder="100" value={stock} onChange={(e) => { setStock(e.target.value); setStockError(''); }} className="w-full bg-background border border-outline-variant rounded-lg px-4 py-3 text-[16px] text-on-background focus:outline-none focus:border-primary-container focus:ring-1 focus:ring-primary-container transition-colors placeholder:text-outline" />
               {stockError && <p className="text-error text-[12px] mt-1">{stockError}</p>}
             </div>
             <div>
               <label className="block text-[14px] font-medium text-on-background mb-[8px]">Minimum Order Qty (MOQ) *</label>
               <div className="relative">
-                <input type="number" min="1" required placeholder="1" value={minOrderQty} onChange={(e) => { setMinOrderQty(e.target.value); setMoqError(''); }} className="w-full bg-background border border-outline-variant rounded-lg px-4 py-3 text-[16px] text-on-background focus:outline-none focus:border-primary-container focus:ring-1 focus:ring-primary-container transition-colors placeholder:text-outline" />
+                <input type="number" step="0.25" min="0.25" required placeholder="0.25" value={minOrderQty} onChange={(e) => { setMinOrderQty(e.target.value); setMoqError(''); }} className="w-full bg-background border border-outline-variant rounded-lg px-4 py-3 text-[16px] text-on-background focus:outline-none focus:border-primary-container focus:ring-1 focus:ring-primary-container transition-colors placeholder:text-outline" />
                 <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[13px] text-outline font-medium">kg</span>
               </div>
               {moqError && <p className="text-error text-[12px] mt-1">{moqError}</p>}
-              <p className="text-[11px] text-on-surface-variant mt-1">Smallest quantity a customer can order</p>
+              <p className="text-[11px] text-on-surface-variant mt-1">
+                Smallest quantity a customer can order. <span className="text-primary font-medium">Tip: For kg products, you can set 0.25 (1/4 kg) or 0.5 (1/2 kg) to allow buyers to purchase fractional kilos.</span>
+              </p>
             </div>
           </div>
 
@@ -274,7 +276,7 @@ export default function AddProductClient({
               <div>
                 <label className="block text-[13px] font-medium text-on-background mb-[6px]">Wholesale Minimum Qty</label>
                 <div className="relative">
-                  <input type="number" min="1" placeholder="e.g. 20" value={wholesaleMinQty} onChange={(e) => { setWholesaleMinQty(e.target.value); setWholesaleError(''); }} className="w-full bg-background border border-outline-variant rounded-lg px-4 py-2.5 text-[15px] text-on-background focus:outline-none focus:border-primary-container focus:ring-1 focus:ring-primary-container transition-colors placeholder:text-outline" />
+                  <input type="number" step="0.25" min="0.25" placeholder="e.g. 20" value={wholesaleMinQty} onChange={(e) => { setWholesaleMinQty(e.target.value); setWholesaleError(''); }} className="w-full bg-background border border-outline-variant rounded-lg px-4 py-2.5 text-[15px] text-on-background focus:outline-none focus:border-primary-container focus:ring-1 focus:ring-primary-container transition-colors placeholder:text-outline" />
                   <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[13px] text-outline font-medium">kg</span>
                 </div>
               </div>

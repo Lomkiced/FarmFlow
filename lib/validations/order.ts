@@ -11,10 +11,13 @@ export const orderStatusSchema = z.object({
 });
 
 // Cart items submitted from client for server-side verification
-export const checkoutItemSchema = z.object({
+export const orderItemSchema = z.object({
   productId: z.string().uuid(),
-  quantityKg: z.number().positive('Quantity must be greater than 0.'),
+  quantityKg: z.number().positive('Quantity must be greater than 0.').min(0.25, 'Minimum quantity is 0.25.'),
+  quantity: z.number().positive('Quantity must be greater than 0.').min(0.25, 'Minimum quantity is 0.25.').optional(),
 });
+
+export const checkoutItemSchema = orderItemSchema;
 
 export const checkoutSchema = z.object({
   addressId: z.string().uuid('Please select a valid delivery address.'),

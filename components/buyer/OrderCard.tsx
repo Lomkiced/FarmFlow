@@ -8,6 +8,7 @@ import type { OrderStatus, PaymentStatus } from '@prisma/client';
 import toast from 'react-hot-toast';
 import { cancelOrderAction, requestOrderRefundAction } from '@/app/actions/orders';
 import { uploadRefundProof } from '@/app/actions/upload';
+import { formatQuantity } from '@/lib/utils';
 import OrderTrackingModal from './OrderTrackingModal';
 
 export interface OrderItemProp {
@@ -329,8 +330,8 @@ export default function OrderCard({ order }: OrderCardProps) {
                   <span className="material-symbols-outlined text-[16px]">storefront</span>
                   {item.product.farm.farmName}
                 </span>
-                <span className="text-sm text-on-surface-variant mt-2">
-                  {item.quantityKg} kg &times; {formatCurrency(item.pricePerKg)}
+                <span className="text-sm text-on-surface-variant mt-2 font-medium">
+                  {formatQuantity(item.quantityKg, 'kg')} &times; {formatCurrency(item.pricePerKg)}
                 </span>
               </div>
             </div>
