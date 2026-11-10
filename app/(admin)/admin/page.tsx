@@ -1,152 +1,340 @@
 import { getAdminDashboardStatsAction } from '@/app/actions/admin';
 import Link from 'next/link';
-import { formatDistanceToNow } from 'date-fns';
 import RecentRegistrationsClient from './RecentRegistrationsClient';
 
 export const dynamic = 'force-dynamic';
 
+const STATUS_META: Record<
+  string,
+  { label: string; barColor: string; pillClass: string }
+> = {
+  DELIVERED: {
+    label: 'Delivered & Completed',
+    barColor: 'bg-green-800',
+    pillClass: 'border-green-200 bg-green-50 text-green-800',
+  },
+  COMPLETED: {
+    label: 'Escrow Released',
+    barColor: 'bg-green-900',
+    pillClass: 'border-green-200 bg-green-50 text-green-900 font-semibold',
+  },
+  OUT_FOR_DELIVERY: {
+    label: 'In Transit',
+    barColor: 'bg-green-700',
+    pillClass: 'border-gray-200 bg-gray-50 text-gray-700',
+  },
+  READY: {
+    label: 'Packed & Ready',
+    barColor: 'bg-green-600',
+    pillClass: 'border-gray-200 bg-gray-50 text-gray-700',
+  },
+  CONFIRMED: {
+    label: 'Farmer Confirmed',
+    barColor: 'bg-gray-400',
+    pillClass: 'border-gray-200 bg-gray-50 text-gray-700',
+  },
+  PENDING: {
+    label: 'Awaiting Confirmation',
+    barColor: 'bg-gray-300',
+    pillClass: 'border-gray-200 bg-gray-50 text-gray-700',
+  },
+  CANCELLED: {
+    label: 'Cancelled / Refunded',
+    barColor: 'bg-red-700',
+    pillClass: 'border-red-200 bg-red-50/60 text-red-700',
+  },
+};
+
 export default async function AdminDashboardPage() {
   const stats = await getAdminDashboardStatsAction();
 
-  // Helper to safely format numbers to K/M
   const formatCompact = (num: number) => {
-    return Intl.NumberFormat('en-US', { notation: 'compact', maximumFractionDigits: 1 }).format(num);
+    return Intl.NumberFormat('en-US', { notation: 'compact', maximumFractionDigits: 1 }).format(
+      num
+    );
   };
 
-  const revenueGrowthText = stats.revenueGrowth !== null 
-    ? (Number(stats.revenueGrowth) > 0 ? `+${stats.revenueGrowth}% this month` : `${stats.revenueGrowth}% this month`)
-    : 'No prior data';
+  const revenueGrowthText =
+    stats.revenueGrowth !== null
+      ? Number(stats.revenueGrowth) > 0
+        ? `+${stats.revenueGrowth}% vs last month`
+        : `${stats.revenueGrowth}% vs last month`
+      : 'Active month';
+
+  const totalPendingApprovals = stats.pendingFarmers + stats.pendingListings;
+  const totalStatusCount = Math.max(
+    1,
+    stats.ordersByStatus.reduce((acc, s) => acc + s._count.id, 0)
+  );
 
   return (
-    <div className="flex-1 p-[40px] flex flex-col gap-[24px]">
-      <div className="flex justify-between items-end">
-        <div>
-          <h2 className="font-admin-h1 text-admin-h1 text-admin-on-surface">Admin Dashboard</h2>
-          <p className="font-admin-body-base text-admin-body-base text-secondary mt-1">Overview of marketplace activity and system health.</p>
-        </div>
+    <div className="flex-1 p-6 md:p-8 bg-gray-50 min-h-[calc(100vh-4rem)] flex flex-col gap-6">
+      {/* COMMAND CENTER BANNER */}
+      <div className="rounded-xl bg-green-900 text-white p-6 border border-green-800">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+          <div className="space-y-1.5 max-w-2xl">
+            <span className="inline-block text-[11px] font-medium uppercase tracking-wider text-green-200 bg-white/10 px-2.5 py-0.5 rounded border border-white/15">
+              Agribusiness ERP • La Union Command Center
+            </span>
+            <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-white">
+              Executive Operations & KYC Governance
+            </h1>
+            <p className="text-xs text-green-100/80 leading-relaxed">
+              Monitor RSBSA farmer verifications, harvest catalog compliance, cold-chain checkpoints, and escrow-protected settlements across La Union.
+            </p>
+          </div>
 
+          {/* Quick Command Actions */}
+          <div className="flex flex-wrap items-center gap-2 shrink-0">
+            <Link
+              href="/admin/farmers?status=PENDING"
+              className="px-3.5 py-2 rounded-lg bg-white text-green-900 text-xs font-semibold hover:bg-gray-100 transition-colors"
+            >
+              Review KYC ({stats.pendingFarmers})
+            </Link>
+            <Link
+              href="/admin/listings"
+              className="px-3.5 py-2 rounded-lg bg-white/10 hover:bg-white/20 border border-white/20 text-white text-xs font-medium transition-colors"
+            >
+              Listings ({stats.pendingListings})
+            </Link>
+            <Link
+              href="/admin/orders"
+              className="px-3.5 py-2 rounded-lg bg-white/10 hover:bg-white/20 border border-white/20 text-white text-xs font-medium transition-colors"
+            >
+              Orders & Logistics
+            </Link>
+            <Link
+              href="/admin/analytics"
+              className="px-3.5 py-2 rounded-lg bg-white/10 hover:bg-white/20 border border-white/20 text-white text-xs font-medium transition-colors"
+            >
+              Analytics
+            </Link>
+          </div>
+        </div>
       </div>
 
-      {/* KPI BENTO GRID */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-[16px]">
-        
-        {/* Total Farmers */}
-        <div className="bg-admin-surface-container-lowest border border-admin-outline-variant p-[16px] rounded-xl flex flex-col justify-between">
-          <div className="flex justify-between items-start mb-4">
-            <span className="font-admin-label-caps text-admin-label-caps text-secondary uppercase">Total Farmers</span>
-            <div className="bg-admin-surface-container p-1.5 rounded-lg text-primary flex items-center justify-center">
-              <span className="material-symbols-outlined text-[18px]">agriculture</span>
+      {/* 5-CARD KPI BENTO GRID */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+        {/* 1. Total Farmers */}
+        <Link
+          href="/admin/farmers"
+          className="bg-white border border-gray-200 hover:border-green-800 p-5 rounded-xl transition-colors flex flex-col justify-between"
+        >
+          <span className="text-[11px] font-medium text-gray-500 uppercase tracking-wider">
+            Registered Farmers
+          </span>
+          <div className="mt-3">
+            <div className="text-2xl font-bold text-gray-900 tabular-nums">
+              {stats.totalFarmers.toLocaleString()}
+            </div>
+            <div className="text-xs text-green-800 font-medium mt-1">
+              RSBSA & KYC Tracked
             </div>
           </div>
-          <div>
-            <div className="font-admin-h2 text-admin-h2 text-admin-on-surface">{stats.totalFarmers.toLocaleString()}</div>
-            <div className="flex items-center gap-1 mt-1 font-admin-body-sm text-admin-body-sm text-primary">
-              <span className="material-symbols-outlined text-[16px]">trending_up</span>
-              All verified and pending
-            </div>
-          </div>
-        </div>
+        </Link>
 
-        {/* Active Listings */}
-        <div className="bg-admin-surface-container-lowest border border-admin-outline-variant p-[16px] rounded-xl flex flex-col justify-between">
-          <div className="flex justify-between items-start mb-4">
-            <span className="font-admin-label-caps text-admin-label-caps text-secondary uppercase">Active Listings</span>
-            <div className="bg-admin-surface-container p-1.5 rounded-lg text-primary flex items-center justify-center">
-              <span className="material-symbols-outlined text-[18px]">inventory_2</span>
+        {/* 2. Active Listings */}
+        <Link
+          href="/admin/listings"
+          className="bg-white border border-gray-200 hover:border-green-800 p-5 rounded-xl transition-colors flex flex-col justify-between"
+        >
+          <span className="text-[11px] font-medium text-gray-500 uppercase tracking-wider">
+            Live Listings
+          </span>
+          <div className="mt-3">
+            <div className="text-2xl font-bold text-gray-900 tabular-nums">
+              {stats.activeListings.toLocaleString()}
+            </div>
+            <div className="text-xs text-gray-500 mt-1">
+              Active marketplace catalog
             </div>
           </div>
-          <div>
-            <div className="font-admin-h2 text-admin-h2 text-admin-on-surface">{stats.activeListings.toLocaleString()}</div>
-            <div className="flex items-center gap-1 mt-1 font-admin-body-sm text-admin-body-sm text-secondary">
-              Currently live on marketplace
-            </div>
-          </div>
-        </div>
+        </Link>
 
-        {/* Monthly Orders */}
-        <div className="bg-admin-surface-container-lowest border border-admin-outline-variant p-[16px] rounded-xl flex flex-col justify-between">
-          <div className="flex justify-between items-start mb-4">
-            <span className="font-admin-label-caps text-admin-label-caps text-secondary uppercase">Total Orders</span>
-            <div className="bg-admin-surface-container p-1.5 rounded-lg text-primary flex items-center justify-center">
-              <span className="material-symbols-outlined text-[18px]">receipt_long</span>
+        {/* 3. Total Orders */}
+        <Link
+          href="/admin/orders"
+          className="bg-white border border-gray-200 hover:border-green-800 p-5 rounded-xl transition-colors flex flex-col justify-between"
+        >
+          <span className="text-[11px] font-medium text-gray-500 uppercase tracking-wider">
+            Platform Orders
+          </span>
+          <div className="mt-3">
+            <div className="text-2xl font-bold text-gray-900 tabular-nums">
+              {stats.totalOrders.toLocaleString()}
+            </div>
+            <div className="text-xs text-gray-500 mt-1">
+              Cold-Chain Monitored
             </div>
           </div>
-          <div>
-            <div className="font-admin-h2 text-admin-h2 text-admin-on-surface">{stats.totalOrders.toLocaleString()}</div>
-            <div className="flex items-center gap-1 mt-1 font-admin-body-sm text-admin-body-sm text-secondary">
-              All-time orders
-            </div>
-          </div>
-        </div>
+        </Link>
 
-        {/* Total Sales Vol */}
-        <div className="bg-admin-surface-container-lowest border border-admin-outline-variant p-[16px] rounded-xl flex flex-col justify-between">
-          <div className="flex justify-between items-start mb-4">
-            <span className="font-admin-label-caps text-admin-label-caps text-secondary uppercase">This Month Sales</span>
-            <div className="bg-admin-surface-container p-1.5 rounded-lg text-primary flex items-center justify-center">
-              <span className="material-symbols-outlined text-[18px]">payments</span>
+        {/* 4. Monthly GMV */}
+        <Link
+          href="/admin/analytics"
+          className="bg-white border border-gray-200 hover:border-green-800 p-5 rounded-xl transition-colors flex flex-col justify-between"
+        >
+          <span className="text-[11px] font-medium text-gray-500 uppercase tracking-wider">
+            Monthly GMV
+          </span>
+          <div className="mt-3">
+            <div className="text-2xl font-bold text-gray-900 tabular-nums">
+              ₱{formatCompact(stats.thisMonthRevenue)}
             </div>
-          </div>
-          <div>
-            <div className="font-admin-h2 text-admin-h2 text-admin-on-surface">₱{formatCompact(stats.thisMonthRevenue)}</div>
-            <div className="flex items-center gap-1 mt-1 font-admin-body-sm text-admin-body-sm text-primary">
-              <span className="material-symbols-outlined text-[16px]">trending_up</span>
+            <div className="text-xs text-green-800 font-medium mt-1">
               {revenueGrowthText}
             </div>
           </div>
-        </div>
+        </Link>
 
-        {/* Pending Approvals */}
-        <div className="bg-[#FFFBEB] border border-[#FDE68A] p-[16px] rounded-xl relative overflow-hidden flex flex-col justify-between">
-          <div className="absolute top-0 right-0 w-24 h-24 bg-[#FDE68A] rounded-bl-full opacity-20"></div>
-          <div className="flex justify-between items-start mb-4 relative z-10">
-            <span className="text-[#92400E] uppercase font-admin-label-caps text-admin-label-caps">Pending Approvals</span>
-            <div className="bg-[#FEF3C7] text-[#D97706] p-1.5 rounded-lg flex items-center justify-center">
-              <span className="material-symbols-outlined text-[18px]">pending_actions</span>
+        {/* 5. Pending Approvals */}
+        <Link
+          href="/admin/farmers?status=PENDING"
+          className="bg-white border border-gray-200 hover:border-green-800 p-5 rounded-xl transition-colors flex flex-col justify-between"
+        >
+          <span className="text-[11px] font-medium text-gray-500 uppercase tracking-wider">
+            Pending Approvals
+          </span>
+          <div className="mt-3">
+            <div className="text-2xl font-bold text-gray-900 tabular-nums">
+              {totalPendingApprovals}
+            </div>
+            <div className="text-xs text-gray-600 font-medium mt-1">
+              {stats.pendingFarmers} Farmers • {stats.pendingListings} Listings
             </div>
           </div>
-          <div className="relative z-10">
-            <div className="font-admin-h2 text-admin-h2 text-[#92400E]">{stats.pendingFarmers + stats.pendingListings}</div>
-            <div className="flex items-center gap-1 mt-1 font-admin-body-sm text-admin-body-sm text-[#D97706] font-medium">
-              {stats.pendingFarmers} Farmers, {stats.pendingListings} Listings
-            </div>
-          </div>
-        </div>
-
+        </Link>
       </div>
 
-      {/* CHARTS & ACTIVITY ROW */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-[24px]">
-        
-        {/* RECENT REGISTRATIONS (Interactive Component) */}
+      {/* MAIN OPERATIONS ROW */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+        {/* LEFT (2 COLS): RECENT REGISTRATIONS & KYC QUEUE */}
         <RecentRegistrationsClient initialUsers={stats.recentRegistrations} />
 
-        {/* RIGHT COLUMN */}
-        <div className="flex flex-col gap-[24px] h-[400px]">
-          
-          {/* ORDERS BY STATUS */}
-          <div className="flex-1 bg-admin-surface-container-lowest border border-admin-outline-variant rounded-xl overflow-hidden flex flex-col">
-            <div className="p-[8px] px-[16px] border-b border-admin-outline-variant bg-admin-surface-bright/50 font-admin-body-base font-semibold text-admin-on-surface">
-              Orders by Status
+        {/* RIGHT (1 COL): ORDER PIPELINE & AUDIT CENTER */}
+        <div className="flex flex-col gap-6">
+          {/* Card 1: Order Fulfillment Distribution */}
+          <div className="bg-white border border-gray-200 rounded-xl overflow-hidden flex flex-col">
+            <div className="p-4 border-b border-gray-200 bg-gray-50/50 flex items-center justify-between">
+              <div>
+                <h3 className="font-semibold text-gray-900 text-xs uppercase tracking-wider">
+                  Order Fulfillment Status
+                </h3>
+                <p className="text-[11px] text-gray-500">
+                  {stats.totalOrders} Total Orders
+                </p>
+              </div>
+              <Link
+                href="/admin/orders"
+                className="text-xs font-medium text-green-800 hover:underline"
+              >
+                View All →
+              </Link>
             </div>
-            <div className="p-[16px] flex-1 flex flex-col justify-center px-4 gap-2">
-              {stats.ordersByStatus.map(status => (
-                <div key={status.orderStatus} className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className={`w-3 h-3 rounded-sm ${status.orderStatus === 'DELIVERED' ? 'bg-primary' : status.orderStatus === 'CANCELLED' ? 'bg-error' : 'bg-[#e1e3e4]'}`}></div>
-                    <span className="font-admin-label-caps text-admin-label-caps text-secondary">{status.orderStatus}</span>
-                  </div>
-                  <span className="font-medium text-admin-on-surface">{status._count.id}</span>
+
+            <div className="p-4 space-y-3.5">
+              {stats.ordersByStatus.length === 0 ? (
+                <div className="text-gray-400 text-center py-6 text-xs">
+                  No orders recorded yet.
                 </div>
-              ))}
-              {stats.ordersByStatus.length === 0 && (
-                <div className="text-secondary text-center text-sm">No orders yet</div>
+              ) : (
+                stats.ordersByStatus.map((statusObj) => {
+                  const meta = STATUS_META[statusObj.orderStatus] || {
+                    label: statusObj.orderStatus,
+                    barColor: 'bg-gray-400',
+                    pillClass: 'border-gray-200 bg-gray-50 text-gray-700',
+                  };
+                  const count = statusObj._count.id;
+                  const pct = Math.round((count / totalStatusCount) * 100);
+
+                  return (
+                    <div key={statusObj.orderStatus} className="space-y-1">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-medium uppercase tracking-wider border ${meta.pillClass}`}>
+                          {statusObj.orderStatus}
+                        </span>
+                        <div className="font-mono text-gray-700">
+                          <span className="font-semibold tabular-nums">{count}</span>{' '}
+                          <span className="text-[11px] text-gray-400">({pct}%)</span>
+                        </div>
+                      </div>
+                      <div className="w-full h-1.5 rounded-full bg-gray-100 overflow-hidden">
+                        <div
+                          className={`h-full rounded-full transition-all duration-500 ${meta.barColor}`}
+                          style={{ width: `${Math.max(pct, 4)}%` }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })
               )}
             </div>
           </div>
+
+          {/* Card 2: Compliance Checklist */}
+          <div className="bg-white border border-gray-200 rounded-xl overflow-hidden flex flex-col">
+            <div className="p-4 border-b border-gray-200 bg-gray-50/50">
+              <h3 className="font-semibold text-gray-900 text-xs uppercase tracking-wider">
+                Governance Quick Actions
+              </h3>
+            </div>
+
+            <div className="divide-y divide-gray-100 text-xs">
+              <Link
+                href="/admin/farmers?status=PENDING"
+                className="p-3.5 flex items-center justify-between hover:bg-gray-50 transition-colors"
+              >
+                <div>
+                  <div className="font-semibold text-gray-900">
+                    RSBSA & Gov ID Review
+                  </div>
+                  <div className="text-[11px] text-gray-500">
+                    {stats.pendingFarmers} farmer application(s) pending
+                  </div>
+                </div>
+                <span className="text-xs font-medium text-green-800">
+                  Review →
+                </span>
+              </Link>
+
+              <Link
+                href="/admin/listings"
+                className="p-3.5 flex items-center justify-between hover:bg-gray-50 transition-colors"
+              >
+                <div>
+                  <div className="font-semibold text-gray-900">
+                    Listing Moderation
+                  </div>
+                  <div className="text-[11px] text-gray-500">
+                    {stats.pendingListings} listing(s) pending approval
+                  </div>
+                </div>
+                <span className="text-xs font-medium text-green-800">
+                  Review →
+                </span>
+              </Link>
+
+              <Link
+                href="/admin/inbox"
+                className="p-3.5 flex items-center justify-between hover:bg-gray-50 transition-colors"
+              >
+                <div>
+                  <div className="font-semibold text-gray-900">
+                    Support Desk
+                  </div>
+                  <div className="text-[11px] text-gray-500">
+                    Inquiries and user requests
+                  </div>
+                </div>
+                <span className="text-xs font-medium text-green-800">
+                  Open →
+                </span>
+              </Link>
+            </div>
+          </div>
         </div>
       </div>
-
     </div>
   );
 }

@@ -1,10 +1,21 @@
 import { getAnalyticsStatsAction } from '@/app/actions/admin';
 import AnalyticsHeader from '@/components/admin/AnalyticsHeader';
+import PaginationBar from '@/components/ui/PaginationBar';
 
 export const dynamic = 'force-dynamic';
 
-export default async function AnalyticsPage() {
+type SearchParams = Promise<{ [key: string]: string | string[] | undefined }>;
+
+export default async function AnalyticsPage(props: { searchParams: SearchParams }) {
+  const searchParams = await props.searchParams;
+  const page = typeof searchParams.page === 'string' ? Math.max(1, parseInt(searchParams.page) || 1) : 1;
+  const pageSize = typeof searchParams.pageSize === 'string' ? Math.min(50, Math.max(3, parseInt(searchParams.pageSize) || 5)) : 5;
+
   const stats = await getAnalyticsStatsAction();
+  const totalTopFarmers = stats.mostActiveFarmers.length;
+  const totalFarmerPages = Math.max(1, Math.ceil(totalTopFarmers / pageSize));
+  const safePage = Math.min(page, totalFarmerPages);
+  const paginatedTopFarmers = stats.mostActiveFarmers.slice((safePage - 1) * pageSize, safePage * pageSize);
 
   const formatCompact = (num: number) =>
     Intl.NumberFormat('en-PH', { notation: 'compact', maximumFractionDigits: 1 }).format(num);
@@ -43,7 +54,7 @@ export default async function AnalyticsPage() {
             <div className="font-admin-h2 text-admin-h2 text-admin-on-surface mb-1">
               {stats.totalRevenue > 0 ? formatCompact(stats.totalRevenue) : '₱0'}
             </div>
-            <div className={`flex items-center gap-1 text-sm font-medium ${revenueGrowthPositive ? 'text-emerald-600' : 'text-rose-600'}`}>
+            <div className={`flex items-center gap-1 text-sm font-medium ${revenueGrowthPositive ? 'text-green-800' : 'text-red-700'}`}>
               <span className="material-symbols-outlined text-[16px]">
                 {revenueGrowthPositive ? 'trending_up' : 'trending_flat'}
               </span>
@@ -205,7 +216,7 @@ export default async function AnalyticsPage() {
                   </tr>
                 </thead>
                 <tbody className="font-admin-table-data text-admin-table-data text-admin-on-surface divide-y divide-admin-outline-variant/50">
-                  {stats.mostActiveFarmers.map((farmer, idx) => (
+                  {paginatedTopFarmers.map((farmer, idx) => (
                     <tr key={farmer.id} className="hover:bg-admin-surface-bright transition-colors">
                       <td className="py-[14px] px-[20px]">
                         <div className="flex items-center gap-3">
@@ -235,6 +246,18 @@ export default async function AnalyticsPage() {
                   ))}
                 </tbody>
               </table>
+              <div className="p-4 border-t border-admin-outline-variant bg-slate-50/50">
+                <PaginationBar
+                  currentPage={safePage}
+                  totalPages={totalFarmerPages}
+                  totalItems={totalTopFarmers}
+                  pageSize={pageSize}
+                  pageSizeOptions={[3, 5, 10, 20]}
+                  itemLabel="top farmers"
+                  compact
+                  className="shadow-none"
+                />
+              </div>
             </div>
           )}
         </div>

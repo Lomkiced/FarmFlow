@@ -3,16 +3,32 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { getPublicFarmerByIdAction } from '@/app/actions/farm';
 import ProductListingCard from '@/components/marketplace/ProductListingCard';
+import PaginationBar from '@/components/ui/PaginationBar';
 
 export const dynamic = 'force-dynamic';
 
-export default async function FarmerProfilePage({ params }: { params: Promise<{ id: string }> }) {
+export default async function FarmerProfilePage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ page?: string; pageSize?: string }>;
+}) {
   const { id } = await params;
+  const sp = await searchParams;
+  const page = typeof sp.page === 'string' ? Math.max(1, parseInt(sp.page) || 1) : 1;
+  const pageSize = typeof sp.pageSize === 'string' ? Math.min(36, Math.max(4, parseInt(sp.pageSize) || 8)) : 8;
+
   const farm = await getPublicFarmerByIdAction(id);
 
   if (!farm) {
     notFound();
   }
+
+  const totalProducts = farm.products.length;
+  const totalPages = Math.max(1, Math.ceil(totalProducts / pageSize));
+  const safePage = Math.min(page, totalPages);
+  const paginatedProducts = farm.products.slice((safePage - 1) * pageSize, safePage * pageSize);
 
   const joinDate = new Date(farm.createdAt).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 
@@ -128,8 +144,9 @@ export default async function FarmerProfilePage({ params }: { params: Promise<{ 
             <p className="font-body-md text-on-surface-variant">This farm doesn't have any products listed for sale right now.</p>
           </div>
         ) : (
+          <>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {farm.products.map(product => (
+            {paginatedProducts.map(product => (
               <Link href={`/products/${product.id}`} key={product.id} className="block group">
                 <ProductListingCard
                   id={product.id}
@@ -150,6 +167,17 @@ export default async function FarmerProfilePage({ params }: { params: Promise<{ 
               </Link>
             ))}
           </div>
+          <div className="mt-8">
+            <PaginationBar
+              currentPage={safePage}
+              totalPages={totalPages}
+              totalItems={totalProducts}
+              pageSize={pageSize}
+              pageSizeOptions={[4, 8, 12, 24]}
+              itemLabel="farm products"
+            />
+          </div>
+          </>
         )}
       </section>
     </main>

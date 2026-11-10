@@ -41,7 +41,7 @@ export default function FarmProfileClient({
       case 'ACTIVE':
         return { label: 'Active', bg: 'bg-secondary-container', color: 'text-on-secondary-container' };
       case 'PENDING_REVIEW':
-        return { label: 'Reviewing', bg: 'bg-[#fef3c7]', color: 'text-[#b45309]' };
+        return { label: 'Reviewing', bg: 'bg-gray-100', color: 'text-gray-700' };
       case 'REMOVED':
         return { label: 'Removed', bg: 'bg-error-container', color: 'text-on-error-container' };
       default:

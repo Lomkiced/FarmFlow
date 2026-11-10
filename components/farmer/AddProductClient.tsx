@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import { uploadProductImage } from '@/app/actions/upload';
@@ -20,15 +20,47 @@ export default function AddProductClient({
   const [minOrderQty, setMinOrderQty] = useState('0.25');
   const [wholesalePrice, setWholesalePrice] = useState('');
   const [wholesaleMinQty, setWholesaleMinQty] = useState('');
-  const [deliveryAvail, setDeliveryAvail] = useState(false);
+  const [deliveryAvail, setDeliveryAvail] = useState(true);
   const [category, setCategory] = useState<string>(PRODUCT_CATEGORIES[0]);
   const [description, setDescription] = useState('');
   const [cropId, setCropId] = useState('');
+  const [prefilledFromCrop, setPrefilledFromCrop] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [priceError, setPriceError] = useState('');
   const [stockError, setStockError] = useState('');
   const [moqError, setMoqError] = useState('');
   const [wholesaleError, setWholesaleError] = useState('');
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    const paramCropId = params.get('cropId');
+    const paramCropName = params.get('cropName');
+    const paramVariety = params.get('variety');
+    const paramQty = params.get('qty');
+
+    if (paramCropName) {
+      const fullTitle = paramVariety
+        ? `Fresh ${paramCropName} (${paramVariety})`
+        : `Fresh ${paramCropName}`;
+      setProductName(fullTitle);
+      setPrefilledFromCrop(fullTitle);
+      setDescription(
+        `Farm-fresh ${paramCropName}${paramVariety ? ` (${paramVariety} variety)` : ''} harvested directly from our La Union farm plot. Passed Quality & Freshness Inspection and eligible for FarmFlow Cold-Chain Express delivery.`
+      );
+    }
+    if (paramCropId) {
+      setCropId(paramCropId);
+    } else if (paramCropName) {
+      const matched = crops.find(
+        (c) => c.cropName.toLowerCase() === paramCropName.toLowerCase()
+      );
+      if (matched) setCropId(matched.id);
+    }
+    if (paramQty && !isNaN(Number(paramQty))) {
+      setStock(paramQty);
+    }
+  }, [crops]);
 
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
@@ -156,6 +188,22 @@ export default function AddProductClient({
   return (
     <>
       <form className="space-y-[32px]">
+        {prefilledFromCrop && (
+          <div className="p-4 rounded-lg bg-green-50 border border-green-200 text-green-950 flex flex-col gap-1">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-[10px] font-bold uppercase tracking-wider bg-green-800 text-white px-2 py-0.5 rounded">
+                ERP Pipeline Sync
+              </span>
+              <h3 className="text-xs font-bold">
+                Auto-Populated from Crop Tracker: {prefilledFromCrop}
+              </h3>
+            </div>
+            <p className="text-xs text-green-800 mt-0.5">
+              Product title, linked crop batch, estimated harvest yield ({stock} kg), and traceability description have been pre-filled. Add photos and set your price per kg.
+            </p>
+          </div>
+        )}
+
         {/* SECTION 1 - Photo Upload */}
         <div>
           <label className="text-[14px] font-medium text-on-background mb-[8px] block">Add Crop Photos (Max 5) *</label>

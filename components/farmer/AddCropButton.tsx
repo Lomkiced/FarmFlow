@@ -10,10 +10,9 @@ export default function AddCropButton() {
     <>
       <button 
         onClick={() => setShowModal(true)} 
-        className="bg-[#D4A373] text-white px-4 py-2 rounded-xl text-[14px] font-medium flex items-center gap-2 hover:bg-[#C28E5C] transition-colors shadow-sm"
+        className="bg-green-800 hover:bg-green-900 text-white px-4 py-2 rounded-lg text-xs font-semibold transition-colors cursor-pointer"
       >
-        <span className="material-symbols-outlined text-[18px]">add</span>
-        <span className="hidden sm:inline">Add Crop</span>
+        Add Crop
       </button>
 
       <AddCropModal 

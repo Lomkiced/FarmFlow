@@ -16,6 +16,11 @@ import {
   sendUserNotification,
 } from '@/lib/notifications';
 import { formatQuantity } from '@/lib/utils';
+import {
+  generateTrackingNumber,
+  COURIER_PRESETS,
+  type LogisticsCheckpoint,
+} from '@/lib/logistics-utils';
 import type { ActionState } from './crops';
 
 // ─── Create Order (Checkout) ──────────────────────────────────────────────────
@@ -187,6 +192,17 @@ export async function createOrderAction(
   try {
     const order = await prisma.$transaction(async (tx) => {
       // Create the order
+      const initialCheckpoint: LogisticsCheckpoint = {
+        id: `log-${Date.now()}`,
+        timestamp: new Date().toISOString(),
+        status: 'ORDER_PLACED',
+        title: 'Order Placed',
+        description: 'Order submitted. Payment secured in FarmFlow Escrow.',
+        location: `Brgy. ${address.barangay}, ${address.city || 'Agoo'}`,
+        actor: user.name || 'Buyer',
+        badge: 'Escrow Secured',
+      };
+
       const newOrder = await tx.order.create({
         data: {
           buyerId: user.id,
@@ -202,6 +218,10 @@ export async function createOrderAction(
           contractWeeks: isContract ? weeks : null,
           deliveriesCompleted: 0,
           nextDeliveryDate,
+          trackingNumber: `FF-LU-2026-${Math.floor(100000 + Math.random() * 900000)}`,
+          courierName: 'FarmFlow Cold-Chain Express',
+          estimatedDelivery: 'Today, 2:00 PM - 4:00 PM',
+          logisticsLogs: [initialCheckpoint] as any,
           items: {
             create: orderItems,
           },
@@ -547,6 +567,18 @@ export async function updateOrderStatusAction(
       id: orderId,
       items: { some: { product: { farmId } } },
     },
+    include: {
+      address: true,
+      items: {
+        include: {
+          product: {
+            select: {
+              farm: { select: { farmName: true, barangay: true } },
+            },
+          },
+        },
+      },
+    },
   });
 
   if (!order) {
@@ -570,6 +602,56 @@ export async function updateOrderStatusAction(
     };
   }
 
+  const farmName = order.items[0]?.product?.farm?.farmName || 'Partner Farm';
+  const farmBarangay = order.items[0]?.product?.farm?.barangay || 'Agoo';
+  const buyerBarangay = order.address?.barangay || 'Agoo';
+  const trackingNumber = order.trackingNumber || generateTrackingNumber(order.id);
+  const courierName = order.courierName || COURIER_PRESETS[0].courierName;
+  const driverName = order.driverName || COURIER_PRESETS[0].driverName;
+  const driverPhone = order.driverPhone || COURIER_PRESETS[0].driverPhone;
+  const vehicleInfo = order.vehicleInfo || COURIER_PRESETS[0].vehicleInfo;
+  const existingLogs: LogisticsCheckpoint[] = Array.isArray(order.logisticsLogs)
+    ? (order.logisticsLogs as unknown as LogisticsCheckpoint[])
+    : [];
+
+  let newCheckpoint: LogisticsCheckpoint | null = null;
+  if (newStatus === 'CONFIRMED') {
+    newCheckpoint = {
+      id: `log-${Date.now()}`,
+      timestamp: new Date().toISOString(),
+      status: 'CONFIRMED',
+      title: 'Order Confirmed',
+      description: `Farmer ${farmName} confirmed your order and scheduled harvest.`,
+      location: `Brgy. ${farmBarangay}, La Union`,
+      actor: farmName,
+      badge: 'Harvest Scheduled',
+    };
+  } else if (newStatus === 'READY') {
+    newCheckpoint = {
+      id: `log-${Date.now()}`,
+      timestamp: new Date().toISOString(),
+      status: 'DISPATCHED',
+      title: 'Sorting / Handed to Courier',
+      description: `Order handed over to ${courierName} — Rider: ${driverName} (${vehicleInfo}). Tracking #: ${trackingNumber}.`,
+      location: 'Agoo Agri-Consolidation Hub, La Union',
+      actor: courierName,
+      badge: 'In Transit',
+    };
+  } else if (newStatus === 'DELIVERED') {
+    newCheckpoint = {
+      id: `log-${Date.now()}`,
+      timestamp: new Date().toISOString(),
+      status: 'DELIVERED',
+      title: 'Delivered',
+      description: 'Parcel delivered to buyer address. Proof of delivery verified.',
+      location: `Brgy. ${buyerBarangay}, ${order.address?.city || 'Agoo'}`,
+      actor: driverName,
+      badge: 'Delivered',
+    };
+  }
+
+  const updatedLogs = newCheckpoint ? [...existingLogs, newCheckpoint] : existingLogs;
+
   try {
     if (newStatus === 'DELIVERED') {
       // Fetch this farmer's order items to compute their earned subtotal
@@ -585,6 +667,12 @@ export async function updateOrderStatusAction(
           where: { id: orderId },
           data: {
             orderStatus: 'DELIVERED',
+            trackingNumber,
+            courierName,
+            driverName,
+            driverPhone,
+            vehicleInfo,
+            logisticsLogs: updatedLogs as any,
             // COD orders (paymentStatus === 'PENDING') — cash is collected on delivery
             ...(order.paymentStatus === 'PENDING' ? { paymentStatus: 'PAID' } : {}),
           },
@@ -598,7 +686,15 @@ export async function updateOrderStatusAction(
     } else {
       await prisma.order.update({
         where: { id: orderId },
-        data: { orderStatus: newStatus },
+        data: {
+          orderStatus: newStatus,
+          trackingNumber,
+          courierName,
+          driverName,
+          driverPhone,
+          vehicleInfo,
+          logisticsLogs: updatedLogs as any,
+        },
       });
     }
 
@@ -1069,4 +1165,404 @@ export async function resolveOrderRefundAction(data: {
     return { success: false, error: 'Failed to resolve refund request.' };
   }
 }
+
+// ─── Shopee / TikTok Shop Logistics & Dispatch Actions ───────────────────────
+
+/**
+ * Updates courier, driver, vehicle, and ETA details and dispatches/updates the order.
+ */
+export async function dispatchOrderWithLogisticsAction(data: {
+  orderId: string;
+  courierName: string;
+  driverName: string;
+  driverPhone: string;
+  vehicleInfo: string;
+  estimatedDelivery: string;
+  advanceToStatus?: 'CONFIRMED' | 'READY' | 'DELIVERED';
+}): Promise<ActionState> {
+  const user = await requireAuth();
+
+  const order = await prisma.order.findUnique({
+    where: { id: data.orderId },
+    include: {
+      address: true,
+      items: {
+        include: {
+          product: {
+            select: {
+              farmId: true,
+              farm: { select: { userId: true, farmName: true, barangay: true } },
+            },
+          },
+        },
+      },
+    },
+  });
+
+  if (!order) return { success: false, error: 'Order not found.' };
+
+  const isFarmer =
+    user.role === 'FARMER' &&
+    order.items.some((i) => i.product.farm?.userId === user.id);
+  const isAdmin = user.role === 'ADMIN';
+  if (!isFarmer && !isAdmin) {
+    return { success: false, error: 'Unauthorized to dispatch this order.' };
+  }
+
+  const trackingNumber = order.trackingNumber || generateTrackingNumber(order.id);
+  const existingLogs: LogisticsCheckpoint[] = Array.isArray(order.logisticsLogs)
+    ? (order.logisticsLogs as unknown as LogisticsCheckpoint[])
+    : [];
+
+  const dispatchCheckpoint: LogisticsCheckpoint = {
+    id: `log-${Date.now()}`,
+    timestamp: new Date().toISOString(),
+    status: 'DISPATCHED',
+    title: 'Sorting / Handed to Courier',
+    description: `Order handed over to ${data.courierName} — Rider: ${data.driverName} (${data.vehicleInfo}). Tracking #: ${trackingNumber}.`,
+    location: 'Agoo Agri-Consolidation Hub, La Union',
+    actor: data.courierName,
+    badge: 'Cold-Chain Active',
+  };
+
+  const nextStatus = data.advanceToStatus || (order.orderStatus === 'PENDING' ? 'CONFIRMED' : 'READY');
+
+  try {
+    await prisma.order.update({
+      where: { id: data.orderId },
+      data: {
+        trackingNumber,
+        courierName: data.courierName,
+        driverName: data.driverName,
+        driverPhone: data.driverPhone,
+        vehicleInfo: data.vehicleInfo,
+        estimatedDelivery: data.estimatedDelivery,
+        orderStatus: nextStatus,
+        logisticsLogs: [...existingLogs, dispatchCheckpoint] as any,
+      },
+    });
+
+    sendUserNotification(order.buyerId, {
+      type: 'ORDER_STATUS_CHANGE',
+      title: '🚚 Courier & Rider Assigned!',
+      message: `Your Order #${order.id.slice(0, 8)} is being handled by ${data.courierName} (Rider: ${data.driverName}). Tracking #: ${trackingNumber}.`,
+      relatedId: order.id,
+      relatedType: 'order',
+    });
+
+    revalidatePath('/farmer/orders');
+    revalidatePath('/buyer/orders');
+    revalidatePath(`/orders/${order.id}`);
+    revalidatePath('/admin/orders');
+
+    return {
+      success: true,
+      message: `Courier & Rider assigned! Tracking #: ${trackingNumber}`,
+    };
+  } catch (err) {
+    console.error('[dispatchOrderWithLogisticsAction]', err);
+    return { success: false, error: 'Failed to save courier dispatch details.' };
+  }
+}
+
+/**
+ * Allows the Farmer or Admin to push 1-click Shopee/TikTok-style live checkpoints
+ */
+export async function pushLiveLogisticsCheckpointAction(data: {
+  orderId: string;
+  checkpointKey:
+    | 'HARVESTED_QC'
+    | 'DEPARTED_HUB'
+    | 'ARRIVED_MUNICIPALITY'
+    | 'OUT_FOR_DELIVERY_NEARBY'
+    | 'DELIVERED_POD';
+  proofOfDeliveryUrl?: string;
+}): Promise<ActionState> {
+  const user = await requireAuth();
+
+  const order = await prisma.order.findUnique({
+    where: { id: data.orderId },
+    include: {
+      address: true,
+      items: {
+        include: {
+          product: {
+            select: {
+              farmId: true,
+              farm: { select: { id: true, userId: true, farmName: true, barangay: true, municipality: true } },
+            },
+          },
+        },
+      },
+    },
+  });
+
+  if (!order) return { success: false, error: 'Order not found.' };
+
+  const isFarmer =
+    user.role === 'FARMER' &&
+    order.items.some((i) => i.product.farm?.userId === user.id);
+  const isAdmin = user.role === 'ADMIN';
+  if (!isFarmer && !isAdmin) {
+    return { success: false, error: 'Unauthorized.' };
+  }
+
+  const farmName = order.items[0]?.product?.farm?.farmName || 'Agoo Partner Farm';
+  const farmMunicipality = order.items[0]?.product?.farm?.municipality || 'Agoo';
+  const buyerBarangay = order.address?.barangay || 'Poblacion';
+  const buyerMunicipality = order.address?.city || 'Agoo';
+  const driverName = order.driverName || COURIER_PRESETS[0].driverName;
+  const trackingNumber = order.trackingNumber || generateTrackingNumber(order.id);
+
+  const existingLogs: LogisticsCheckpoint[] = Array.isArray(order.logisticsLogs)
+    ? (order.logisticsLogs as unknown as LogisticsCheckpoint[])
+    : [];
+
+  let checkpoint: LogisticsCheckpoint;
+  let newOrderStatus: 'CONFIRMED' | 'READY' | 'DELIVERED' | undefined = undefined;
+
+  switch (data.checkpointKey) {
+    case 'HARVESTED_QC':
+      checkpoint = {
+        id: `log-${Date.now()}`,
+        timestamp: new Date().toISOString(),
+        status: 'HARVESTED_QC',
+        title: 'Harvested & Quality Checked',
+        description:
+          'Fresh produce harvested, weighed, and passed Quality & Freshness Inspection.',
+        location: `${farmName} Packing Shed, ${farmMunicipality}`,
+        actor: farmName,
+        badge: '100% Freshness QC',
+      };
+      if (order.orderStatus === 'PENDING') newOrderStatus = 'CONFIRMED';
+      break;
+
+    case 'DEPARTED_HUB':
+      checkpoint = {
+        id: `log-${Date.now()}`,
+        timestamp: new Date().toISOString(),
+        status: 'IN_TRANSIT',
+        title: `Departed ${farmMunicipality} Consolidation Hub`,
+        description: `Parcel has left the ${farmMunicipality} Agricultural Consolidation Hub via Cold-Chain transport.`,
+        location: `${farmMunicipality} Consolidation Hub, La Union`,
+        actor: order.courierName || 'FarmFlow Cold-Chain Express',
+        badge: 'Departed Hub',
+      };
+      if (order.orderStatus !== 'DELIVERED') newOrderStatus = 'READY';
+      break;
+
+    case 'ARRIVED_MUNICIPALITY':
+      checkpoint = {
+        id: `log-${Date.now()}`,
+        timestamp: new Date().toISOString(),
+        status: 'IN_TRANSIT',
+        title: `Arrived at ${buyerMunicipality} Distribution Center`,
+        description: `Parcel arrived at ${buyerMunicipality} local sorting point and is queued for final-mile dispatch.`,
+        location: `${buyerMunicipality} Distribution Center, La Union`,
+        actor: order.courierName || 'FarmFlow Cold-Chain Express',
+        badge: 'At Local Hub',
+      };
+      if (order.orderStatus !== 'DELIVERED') newOrderStatus = 'READY';
+      break;
+
+    case 'OUT_FOR_DELIVERY_NEARBY':
+      checkpoint = {
+        id: `log-${Date.now()}`,
+        timestamp: new Date().toISOString(),
+        status: 'OUT_FOR_DELIVERY',
+        title: 'Out for Delivery — Rider Nearby',
+        description: `Out for Delivery — Rider ${driverName} is 10–15 mins away from Brgy. ${buyerBarangay}. Please prepare to receive your fresh harvest!`,
+        location: `Brgy. ${buyerBarangay}, ${buyerMunicipality}`,
+        actor: driverName,
+        badge: '10–15 Mins Away',
+      };
+      if (order.orderStatus !== 'DELIVERED') newOrderStatus = 'READY';
+      break;
+
+    case 'DELIVERED_POD':
+      checkpoint = {
+        id: `log-${Date.now()}`,
+        timestamp: new Date().toISOString(),
+        status: 'DELIVERED',
+        title: 'Delivered with Proof of Delivery',
+        description:
+          'Parcel delivered to buyer address. Proof of delivery photo uploaded.',
+        location: `Brgy. ${buyerBarangay}, ${buyerMunicipality}`,
+        actor: driverName,
+        badge: 'POD Verified',
+        proofPhotoUrl: data.proofOfDeliveryUrl,
+      };
+      newOrderStatus = 'DELIVERED';
+      break;
+  }
+
+  try {
+    if (newOrderStatus === 'DELIVERED' && order.orderStatus !== 'DELIVERED') {
+      const farmSubtotals = new Map<string, number>();
+      for (const item of order.items) {
+        const fId = item.product.farmId;
+        farmSubtotals.set(fId, (farmSubtotals.get(fId) || 0) + item.subtotal);
+      }
+
+      await prisma.$transaction([
+        prisma.order.update({
+          where: { id: data.orderId },
+          data: {
+            orderStatus: 'DELIVERED',
+            trackingNumber,
+            ...(data.proofOfDeliveryUrl ? { proofOfDeliveryUrl: data.proofOfDeliveryUrl } : {}),
+            ...(order.paymentStatus === 'PENDING' ? { paymentStatus: 'PAID' } : {}),
+            logisticsLogs: [...existingLogs, checkpoint] as any,
+          },
+        }),
+        ...Array.from(farmSubtotals.entries()).map(([fId, subtotal]) =>
+          prisma.farm.update({
+            where: { id: fId },
+            data: { totalSales: { increment: subtotal } },
+          })
+        ),
+      ]);
+    } else {
+      await prisma.order.update({
+        where: { id: data.orderId },
+        data: {
+          trackingNumber,
+          ...(newOrderStatus ? { orderStatus: newOrderStatus } : {}),
+          ...(data.proofOfDeliveryUrl ? { proofOfDeliveryUrl: data.proofOfDeliveryUrl } : {}),
+          logisticsLogs: [...existingLogs, checkpoint] as any,
+        },
+      });
+    }
+
+    sendUserNotification(order.buyerId, {
+      type: 'ORDER_STATUS_CHANGE',
+      title: `📦 ${checkpoint.title}`,
+      message: checkpoint.description,
+      relatedId: order.id,
+      relatedType: 'order',
+    });
+
+    revalidatePath('/farmer/orders');
+    revalidatePath('/buyer/orders');
+    revalidatePath(`/orders/${order.id}`);
+    revalidatePath('/admin/orders');
+
+    return {
+      success: true,
+      message: `Live tracking checkpoint pushed: "${checkpoint.title}"`,
+    };
+  } catch (err) {
+    console.error('[pushLiveLogisticsCheckpointAction]', err);
+    return { success: false, error: 'Failed to push live tracking checkpoint.' };
+  }
+}
+
+/**
+ * Buyer confirms order receipt ("Order Received"), releases escrow, and rates freshness (1-5 stars).
+ */
+export async function confirmOrderReceivedAndRateAction(data: {
+  orderId: string;
+  freshnessRating: number;
+  buyerReview?: string;
+}): Promise<ActionState> {
+  const user = await requireAuth();
+
+  const order = await prisma.order.findUnique({
+    where: { id: data.orderId },
+    include: {
+      address: true,
+      items: {
+        include: {
+          product: {
+            select: {
+              farmId: true,
+              farm: { select: { id: true, userId: true, farmName: true, rating: true } },
+            },
+          },
+        },
+      },
+    },
+  });
+
+  if (!order) return { success: false, error: 'Order not found.' };
+  if (order.buyerId !== user.id && user.role !== 'ADMIN') {
+    return { success: false, error: 'Only the buyer can confirm receipt of this order.' };
+  }
+
+  const rating = Math.min(5, Math.max(1, Math.round(data.freshnessRating || 5)));
+  const reviewText = data.buyerReview?.trim() || 'Freshly harvested and delivered on time!';
+  const existingLogs: LogisticsCheckpoint[] = Array.isArray(order.logisticsLogs)
+    ? (order.logisticsLogs as unknown as LogisticsCheckpoint[])
+    : [];
+
+  const completedCheckpoint: LogisticsCheckpoint = {
+    id: `log-${Date.now()}`,
+    timestamp: new Date().toISOString(),
+    status: 'COMPLETED',
+    title: 'Order Received & Rated',
+    description: `Buyer confirmed receipt in good condition (${rating}★ Freshness Rating). Escrow payout released to Farmer.`,
+    location: `Brgy. ${order.address?.barangay || 'Agoo'}, ${order.address?.city || 'La Union'}`,
+    actor: user.name || 'Buyer',
+    badge: 'Escrow Released',
+  };
+
+  try {
+    await prisma.$transaction(async (tx) => {
+      await tx.order.update({
+        where: { id: data.orderId },
+        data: {
+          orderStatus: 'DELIVERED',
+          paymentStatus: 'PAID',
+          buyerConfirmedAt: new Date(),
+          freshnessRating: rating,
+          buyerReview: reviewText,
+          logisticsLogs: [...existingLogs, completedCheckpoint] as any,
+        },
+      });
+
+      // Update farm rating
+      const farmIds = Array.from(new Set(order.items.map((i) => i.product.farmId)));
+      for (const fId of farmIds) {
+        const currentRating = order.items.find((i) => i.product.farmId === fId)?.product.farm?.rating || 4.8;
+        const updatedRating =
+          currentRating > 0
+            ? Number(((currentRating * 4 + rating) / 5).toFixed(1))
+            : rating;
+        await tx.farm.update({
+          where: { id: fId },
+          data: { rating: updatedRating },
+        });
+      }
+    });
+
+    // Notify farmers
+    const uniqueFarmerUsers = new Set(
+      order.items.map((i) => i.product.farm?.userId).filter(Boolean) as string[]
+    );
+    for (const farmerUserId of uniqueFarmerUsers) {
+      sendFarmerNotification(farmerUserId, {
+        type: 'ORDER_DELIVERED',
+        title: `⭐ Order Received & Rated ${rating}/5 Stars!`,
+        message: `Buyer confirmed Order #${order.id.slice(0, 8)} ("${reviewText}"). FarmFlow Escrow payout has been released!`,
+        relatedId: order.id,
+        relatedType: 'order',
+      });
+    }
+
+    revalidatePath('/buyer/orders');
+    revalidatePath(`/orders/${order.id}`);
+    revalidatePath('/farmer/orders');
+    revalidatePath('/farmer/dashboard');
+    revalidatePath('/products');
+
+    return {
+      success: true,
+      message: 'Order Received confirmed! Escrow payout released to Farmer & review published.',
+    };
+  } catch (err) {
+    console.error('[confirmOrderReceivedAndRateAction]', err);
+    return { success: false, error: 'Failed to confirm order receipt.' };
+  }
+}
+
 

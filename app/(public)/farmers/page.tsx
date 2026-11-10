@@ -2,9 +2,10 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { getPublicFarmersAction } from '@/app/actions/farm';
 import FarmersSearchBar from '@/components/marketplace/FarmersSearchBar';
+import PaginationBar from '@/components/ui/PaginationBar';
 
 type Props = {
-  searchParams: Promise<{ search?: string; sort?: string }>;
+  searchParams: Promise<{ search?: string; sort?: string; page?: string; pageSize?: string }>;
 };
 
 export const dynamic = 'force-dynamic';
@@ -13,8 +14,14 @@ export default async function FarmersDirectoryPage({ searchParams }: Props) {
   const params = await searchParams;
   const search = params.search || '';
   const sort = (params.sort as 'rating' | 'products' | 'name') || 'rating';
+  const page = typeof params.page === 'string' ? Math.max(1, parseInt(params.page) || 1) : 1;
+  const pageSize = typeof params.pageSize === 'string' ? Math.min(36, Math.max(3, parseInt(params.pageSize) || 6)) : 6;
 
   const farmers = await getPublicFarmersAction({ search, sort });
+  const totalFarmers = farmers.length;
+  const totalPages = Math.max(1, Math.ceil(totalFarmers / pageSize));
+  const safePage = Math.min(page, totalPages);
+  const paginatedFarmers = farmers.slice((safePage - 1) * pageSize, safePage * pageSize);
 
   const SORT_LABELS: Record<string, string> = {
     rating: 'Top Rated',
@@ -93,8 +100,9 @@ export default async function FarmersDirectoryPage({ searchParams }: Props) {
             )}
           </div>
         ) : (
+          <>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {farmers.map((farm) => (
+            {paginatedFarmers.map((farm) => (
               <Link
                 href={`/farmers/${farm.id}`}
                 key={farm.id}
@@ -176,6 +184,17 @@ export default async function FarmersDirectoryPage({ searchParams }: Props) {
               </Link>
             ))}
           </div>
+          <div className="mt-10">
+            <PaginationBar
+              currentPage={safePage}
+              totalPages={totalPages}
+              totalItems={totalFarmers}
+              pageSize={pageSize}
+              pageSizeOptions={[3, 6, 9, 18]}
+              itemLabel="verified farmers"
+            />
+          </div>
+          </>
         )}
       </div>
     </main>

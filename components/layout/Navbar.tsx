@@ -110,7 +110,7 @@ export default function Navbar({ user }: { user?: SessionUser | null }) {
             >
               <span className="material-symbols-outlined text-[24px]">shopping_cart</span>
               {cartCount > 0 && (
-                <span className="absolute top-1 right-1 bg-amber-500 text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center ring-2 ring-[#FAFAF7]">
+                <span className="absolute top-1 right-1 bg-green-800 text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center ring-2 ring-white">
                   {cartCount}
                 </span>
               )}

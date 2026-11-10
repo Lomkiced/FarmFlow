@@ -2,13 +2,19 @@
 
 import { useState } from 'react';
 import Image from 'next/image';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { formatDistanceToNow, format } from 'date-fns';
 import type { OrderStatus, PaymentStatus } from '@prisma/client';
 import toast from 'react-hot-toast';
-import { cancelOrderAction, requestOrderRefundAction } from '@/app/actions/orders';
+import {
+  cancelOrderAction,
+  requestOrderRefundAction,
+  confirmOrderReceivedAndRateAction,
+} from '@/app/actions/orders';
 import { uploadRefundProof } from '@/app/actions/upload';
 import { formatQuantity } from '@/lib/utils';
+import { resolveOrderLogistics } from '@/lib/logistics-utils';
 import OrderTrackingModal from './OrderTrackingModal';
 
 export interface OrderItemProp {
@@ -16,7 +22,7 @@ export interface OrderItemProp {
   product: {
     name: string;
     photos: string[];
-    farm: { farmName: string };
+    farm: { farmName: string; barangay?: string | null; location?: string | null };
   };
   quantityKg: number;
   pricePerKg: number;
@@ -47,6 +53,17 @@ export interface OrderCardProps {
     refundRequestedAt?: Date | string | null;
     refundResolvedAt?: Date | string | null;
     refundAdminNote?: string | null;
+    trackingNumber?: string | null;
+    courierName?: string | null;
+    driverName?: string | null;
+    driverPhone?: string | null;
+    vehicleInfo?: string | null;
+    estimatedDelivery?: string | null;
+    proofOfDeliveryUrl?: string | null;
+    buyerConfirmedAt?: Date | string | null;
+    freshnessRating?: number | null;
+    buyerReview?: string | null;
+    logisticsLogs?: any;
     createdAt: Date | string;
     items: OrderItemProp[];
     address: {
@@ -60,12 +77,12 @@ export interface OrderCardProps {
   };
 }
 
-const statusColors: Record<OrderStatus, string> = {
-  PENDING: 'bg-amber-100 text-amber-800 border-amber-200',
-  CONFIRMED: 'bg-blue-100 text-blue-800 border-blue-200',
-  READY: 'bg-indigo-100 text-indigo-800 border-indigo-200',
-  DELIVERED: 'bg-emerald-100 text-emerald-800 border-emerald-200',
-  CANCELLED: 'bg-red-100 text-red-800 border-red-200',
+const statusBadgeStyles: Record<OrderStatus, string> = {
+  PENDING: 'border-gray-200 bg-gray-50 text-gray-700',
+  CONFIRMED: 'border-gray-200 bg-gray-50 text-gray-700',
+  READY: 'border-green-200 bg-green-50 text-green-800',
+  DELIVERED: 'border-green-200 bg-green-50 text-green-800',
+  CANCELLED: 'border-red-200 bg-red-50/60 text-red-700',
 };
 
 const statusLabels: Record<OrderStatus, string> = {
@@ -118,6 +135,16 @@ export default function OrderCard({ order }: OrderCardProps) {
   const [refundProofFile, setRefundProofFile] = useState<File | null>(null);
   const [isSubmittingRefund, setIsSubmittingRefund] = useState(false);
 
+  // Order Received & Rate Freshness Modal State
+  const [isReceiveModalOpen, setIsReceiveModalOpen] = useState(false);
+  const [freshnessRating, setFreshnessRating] = useState<number>(5);
+  const [buyerReview, setBuyerReview] = useState<string>('');
+  const [isConfirmingReceipt, setIsConfirmingReceipt] = useState(false);
+
+  const logistics = resolveOrderLogistics(order);
+  const latestLog = logistics.logs[0];
+  const isBuyerCompleted = Boolean(order.buyerConfirmedAt);
+
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-PH', {
       style: 'currency',
@@ -130,6 +157,33 @@ export default function OrderCard({ order }: OrderCardProps) {
   const canRequestRefund =
     (order.orderStatus === 'DELIVERED' || (order.orderStatus as any) === 'COMPLETED') &&
     (!order.refundStatus || order.refundStatus === 'NONE' || order.refundStatus === 'REJECTED');
+  const canConfirmReceived =
+    order.orderStatus === 'DELIVERED' &&
+    !isBuyerCompleted &&
+    order.refundStatus !== 'APPROVED';
+
+  const handleConfirmOrderReceived = async () => {
+    setIsConfirmingReceipt(true);
+    const toastId = toast.loading('Confirming receipt & releasing escrow payout...');
+    try {
+      const res = await confirmOrderReceivedAndRateAction({
+        orderId: order.id,
+        freshnessRating,
+        buyerReview: buyerReview.trim() || undefined,
+      });
+      if (res.success) {
+        toast.success(res.message || 'Order received & freshness rating submitted!', { id: toastId });
+        setIsReceiveModalOpen(false);
+        router.refresh();
+      } else {
+        toast.error(res.error || 'Failed to confirm order receipt.', { id: toastId });
+      }
+    } catch (e: any) {
+      toast.error(e?.message || 'An error occurred.', { id: toastId });
+    } finally {
+      setIsConfirmingReceipt(false);
+    }
+  };
 
   const handleCancelOrder = async () => {
     const finalReason =
@@ -210,60 +264,91 @@ export default function OrderCard({ order }: OrderCardProps) {
 
   return (
     <>
-      <div className="bg-surface-container-lowest rounded-2xl border border-surface-variant shadow-sm overflow-hidden flex flex-col hover:shadow-md transition-all duration-300">
+      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden flex flex-col hover:border-green-800 transition-colors">
         {/* Header */}
-        <div className="px-6 py-4 border-b border-surface-variant flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-surface-container/30">
+        <div className="px-6 py-4 border-b border-gray-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-gray-50/50">
           <div className="flex flex-col">
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-[12px] uppercase font-bold text-on-surface-variant tracking-wider">Order #{order.id.slice(0, 8)}</span>
+              <span className="text-xs uppercase font-medium text-gray-500 tracking-wider">
+                Order #{order.id.slice(0, 8)}
+              </span>
               {order.isContract && (
-                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-800 border border-emerald-300 flex items-center gap-1">
-                  <span className="material-symbols-outlined text-[13px]">event_repeat</span>
+                <span className="px-2 py-0.5 rounded text-[10px] font-medium uppercase tracking-wider bg-gray-100 text-gray-700 border border-gray-200">
                   Wholesale Contract
                 </span>
               )}
               {order.refundStatus && order.refundStatus !== 'NONE' && (
-                <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
-                  order.refundStatus === 'REQUESTED' ? 'bg-amber-100 text-amber-900 border border-amber-300' :
-                  order.refundStatus === 'APPROVED' ? 'bg-emerald-100 text-emerald-900 border border-emerald-300' :
-                  'bg-rose-100 text-rose-900 border border-rose-300'
+                <span className={`px-2 py-0.5 rounded text-[10px] font-medium uppercase tracking-wider border ${
+                  order.refundStatus === 'REQUESTED' ? 'bg-gray-100 text-gray-700 border-gray-300' :
+                  order.refundStatus === 'APPROVED' ? 'bg-green-50 text-green-800 border-green-200' :
+                  'bg-red-50/60 text-red-700 border-red-200'
                 }`}>
-                  Return/Refund {order.refundStatus.toLowerCase()}
+                  Refund {order.refundStatus.toLowerCase()}
                 </span>
               )}
             </div>
-            <span className="text-xs text-on-surface-variant mt-0.5">Placed {formatDistanceToNow(new Date(order.createdAt), { addSuffix: true })}</span>
-          </div>
-          <div className="flex flex-col items-end gap-2">
-            <span className={`px-3 py-1 rounded-full text-[12px] font-bold uppercase tracking-wider border ${statusColors[order.orderStatus]}`}>
-              {statusLabels[order.orderStatus]}
+            <span className="text-xs text-gray-400 mt-0.5">
+              Placed {formatDistanceToNow(new Date(order.createdAt), { addSuffix: true })}
             </span>
+          </div>
+
+          <div className="flex flex-col items-end gap-1.5">
+            <div className="flex items-center gap-2">
+              {isBuyerCompleted && (
+                <span className="px-2.5 py-0.5 rounded text-[11px] font-medium uppercase tracking-wider bg-green-50 text-green-800 border border-green-200">
+                  Completed • {order.freshnessRating || 5}★
+                </span>
+              )}
+              <span className={`px-2.5 py-0.5 rounded text-[11px] font-medium uppercase tracking-wider border ${statusBadgeStyles[order.orderStatus]}`}>
+                {isBuyerCompleted ? 'Completed' : statusLabels[order.orderStatus]}
+              </span>
+            </div>
             {order.orderStatus !== 'CANCELLED' && (
-              <div className="w-32 h-1.5 bg-surface-variant rounded-full overflow-hidden">
+              <div className="w-28 h-1.5 bg-gray-200 rounded-full overflow-hidden">
                 <div 
-                  className="h-full bg-primary transition-all duration-1000 ease-out" 
+                  className="h-full bg-green-800 transition-all duration-500 ease-out" 
                   style={{ width: `${progress}%` }}
-                ></div>
+                />
               </div>
             )}
           </div>
         </div>
 
+        {/* LIVE LOGISTICS PREVIEW STRIP */}
+        {latestLog && (
+          <button
+            type="button"
+            onClick={() => setIsTrackingModalOpen(true)}
+            className="w-full text-left px-6 py-2.5 border-b border-gray-200 bg-gray-50/80 hover:bg-gray-100/80 transition-colors flex items-center justify-between gap-3 text-xs"
+          >
+            <div className="min-w-0 flex items-center gap-2 flex-wrap">
+              <span className="font-semibold text-gray-900 truncate">
+                {latestLog.title}
+              </span>
+              <span className="font-mono text-[11px] text-gray-500 bg-white px-1.5 py-0.5 rounded border border-gray-200">
+                {logistics.trackingNumber}
+              </span>
+              <span className="text-gray-500 hidden sm:inline">
+                • {logistics.courierName}
+              </span>
+            </div>
+            <span className="font-medium text-green-800 shrink-0 hover:underline">
+              Track Order →
+            </span>
+          </button>
+        )}
+
         {/* WHOLESALE CONTRACT PROGRESS BANNER */}
         {order.isContract && (
-          <div className="bg-emerald-50 border-b border-emerald-200 px-6 py-3 flex flex-wrap items-center justify-between gap-3 text-xs text-emerald-950">
-            <div className="flex items-center gap-2">
-              <span className="material-symbols-outlined text-emerald-700 text-[20px]">calendar_month</span>
-              <div>
-                <span className="font-bold text-emerald-900">Weekly Fulfillment:</span> {order.deliveryScheduleDay || 'Every Saturday'}
-                <span className="mx-2 text-emerald-400">•</span>
-                <span className="font-bold text-emerald-900">Batches Delivered:</span> {order.deliveriesCompleted ?? 0} of {order.contractWeeks ?? 1} Completed
-              </div>
+          <div className="bg-gray-50 border-b border-gray-200 px-6 py-2.5 flex flex-wrap items-center justify-between gap-2 text-xs text-gray-700">
+            <div>
+              <span className="font-medium text-gray-900">Weekly Fulfillment:</span> {order.deliveryScheduleDay || 'Every Saturday'}
+              <span className="mx-2 text-gray-300">•</span>
+              <span className="font-medium text-gray-900">Batches:</span> {order.deliveriesCompleted ?? 0} of {order.contractWeeks ?? 1} Delivered
             </div>
             {order.nextDeliveryDate && order.orderStatus !== 'DELIVERED' && (order.orderStatus as any) !== 'COMPLETED' && (
-              <div className="bg-white/90 text-emerald-800 font-semibold px-2.5 py-1 rounded-md border border-emerald-300 text-[11px] flex items-center gap-1">
-                <span className="material-symbols-outlined text-[14px] text-emerald-600">schedule</span>
-                Next Batch: {format(new Date(order.nextDeliveryDate), 'EEE, MMM d, yyyy')}
+              <div className="text-gray-600 font-mono text-[11px]">
+                Next: {format(new Date(order.nextDeliveryDate), 'EEE, MMM d, yyyy')}
               </div>
             )}
           </div>
@@ -271,66 +356,55 @@ export default function OrderCard({ order }: OrderCardProps) {
 
         {/* CANCELLATION NOTICE BANNER */}
         {order.orderStatus === 'CANCELLED' && (
-          <div className="bg-rose-50 border-b border-rose-200 px-6 py-3 flex items-start gap-2.5 text-xs text-rose-900">
-            <span className="material-symbols-outlined text-rose-600 text-[18px] shrink-0 mt-0.5">cancel</span>
-            <div>
-              <p className="font-bold">Order Cancelled {order.cancelledBy ? `by ${order.cancelledBy.toLowerCase()}` : ''}</p>
-              {order.cancelReason && <p className="text-rose-800 mt-0.5">Reason: "{order.cancelReason}"</p>}
-              {order.cancelledAt && (
-                <p className="text-rose-700/80 text-[11px] mt-0.5">
-                  Cancelled {format(new Date(order.cancelledAt), 'MMM d, yyyy h:mm a')} • Stock has been restored
-                </p>
-              )}
-            </div>
+          <div className="bg-red-50/60 border-b border-red-200 px-6 py-2.5 text-xs text-red-800">
+            <p className="font-medium">Order Cancelled {order.cancelledBy ? `by ${order.cancelledBy.toLowerCase()}` : ''}</p>
+            {order.cancelReason && <p className="text-red-700 mt-0.5">Reason: "{order.cancelReason}"</p>}
+            {order.cancelledAt && (
+              <p className="text-red-600 text-[11px] mt-0.5">
+                Cancelled {format(new Date(order.cancelledAt), 'MMM d, yyyy h:mm a')} • Stock restored
+              </p>
+            )}
           </div>
         )}
 
         {/* REFUND STATUS BANNER */}
         {order.refundStatus && order.refundStatus !== 'NONE' && (
-          <div className={`px-6 py-3 border-b flex items-start gap-2.5 text-xs ${
-            order.refundStatus === 'REQUESTED' ? 'bg-amber-50 border-amber-200 text-amber-900' :
-            order.refundStatus === 'APPROVED' ? 'bg-emerald-50 border-emerald-200 text-emerald-900' :
-            'bg-rose-50 border-rose-200 text-rose-900'
-          }`}>
-            <span className="material-symbols-outlined text-[18px] shrink-0 mt-0.5">
-              {order.refundStatus === 'REQUESTED' ? 'hourglass_top' : order.refundStatus === 'APPROVED' ? 'verified' : 'error'}
-            </span>
-            <div className="flex-1">
-              <p className="font-bold">
-                {order.refundStatus === 'REQUESTED' && 'Return / Refund Request Under Review'}
-                {order.refundStatus === 'APPROVED' && 'Return / Refund Approved & Processed'}
-                {order.refundStatus === 'REJECTED' && 'Return / Refund Request Declined'}
-              </p>
-              {order.refundReason && <p className="mt-0.5">Reason: {order.refundReason}</p>}
-              {order.refundAdminNote && <p className="font-medium mt-0.5">Reviewer note: "{order.refundAdminNote}"</p>}
-            </div>
+          <div className="px-6 py-2.5 border-b border-gray-200 bg-gray-50 text-xs text-gray-700">
+            <p className="font-medium text-gray-900">
+              {order.refundStatus === 'REQUESTED' && 'Return / Refund Request Under Review'}
+              {order.refundStatus === 'APPROVED' && 'Return / Refund Approved'}
+              {order.refundStatus === 'REJECTED' && 'Return / Refund Request Declined'}
+            </p>
+            {order.refundReason && <p className="mt-0.5 text-gray-600">Reason: {order.refundReason}</p>}
+            {order.refundAdminNote && <p className="mt-0.5 text-gray-500">Note: "{order.refundAdminNote}"</p>}
           </div>
         )}
 
         {/* Items */}
-        <div className="p-6 flex flex-col gap-6">
+        <div className="p-6 divide-y divide-gray-100">
           {order.items.map((item) => (
-            <div key={item.id} className="flex gap-4 items-start">
-              <div className="relative w-20 h-20 rounded-xl overflow-hidden bg-surface-variant shrink-0 border border-outline-variant group">
+            <div key={item.id} className="py-3 first:pt-0 last:pb-0 flex gap-4 items-start">
+              <div className="relative w-16 h-16 rounded-lg overflow-hidden bg-gray-100 shrink-0 border border-gray-200">
                 {item.product.photos && item.product.photos.length > 0 ? (
-                  <Image src={item.product.photos[0]} alt={item.product.name} fill className="object-cover group-hover:scale-110 transition-transform duration-500" />
+                  <Image src={item.product.photos[0]} alt={item.product.name} fill className="object-cover" />
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center text-outline">
-                    <span className="material-symbols-outlined">image</span>
+                  <div className="w-full h-full flex items-center justify-center text-gray-400 text-xs">
+                    No image
                   </div>
                 )}
               </div>
               
-              <div className="flex-1 flex flex-col">
-                <div className="flex justify-between items-start">
-                  <h4 className="font-display font-bold text-lg text-on-surface line-clamp-1">{item.product.name}</h4>
-                  <span className="font-bold text-on-surface shrink-0">{formatCurrency(item.subtotal)}</span>
+              <div className="flex-1 flex flex-col min-w-0">
+                <div className="flex justify-between items-start gap-2">
+                  <h4 className="font-semibold text-sm text-gray-900 truncate">{item.product.name}</h4>
+                  <span className="font-semibold text-gray-900 text-sm tabular-nums shrink-0">
+                    {formatCurrency(item.subtotal)}
+                  </span>
                 </div>
-                <span className="text-sm text-on-surface-variant flex items-center gap-1 mt-1">
-                  <span className="material-symbols-outlined text-[16px]">storefront</span>
+                <span className="text-xs text-gray-500 mt-0.5">
                   {item.product.farm.farmName}
                 </span>
-                <span className="text-sm text-on-surface-variant mt-2 font-medium">
+                <span className="text-xs text-gray-600 font-mono tabular-nums mt-1">
                   {formatQuantity(item.quantityKg, 'kg')} &times; {formatCurrency(item.pricePerKg)}
                 </span>
               </div>
@@ -339,18 +413,26 @@ export default function OrderCard({ order }: OrderCardProps) {
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t border-surface-variant bg-surface-container-lowest flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="px-6 py-4 border-t border-gray-200 bg-gray-50/50 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-4 w-full sm:w-auto">
             <div className="flex flex-col">
-              <span className="text-xs text-on-surface-variant">Order Total</span>
-              <span className="font-display font-black text-2xl text-primary">{formatCurrency(order.totalAmount)}</span>
+              <span className="text-xs text-gray-500">Order Total</span>
+              <span className="font-semibold text-lg text-green-800 tabular-nums">
+                {formatCurrency(order.totalAmount)}
+              </span>
             </div>
+            {isBuyerCompleted && order.buyerReview && (
+              <div className="hidden md:block pl-4 border-l border-gray-200 text-xs text-gray-600 max-w-xs truncate">
+                Review: &ldquo;{order.buyerReview}&rdquo;
+              </div>
+            )}
           </div>
-          <div className="flex flex-wrap gap-2.5 w-full sm:w-auto justify-end">
+
+          <div className="flex flex-wrap gap-2 w-full sm:w-auto justify-end items-center">
             {canCancel && (
               <button 
                 onClick={() => setIsCancelModalOpen(true)}
-                className="px-4 py-2 rounded-xl text-xs font-bold border border-rose-300 text-rose-700 hover:bg-rose-50 transition-colors"
+                className="px-3 py-1.5 rounded-lg text-xs font-medium border border-gray-300 text-red-700 hover:bg-red-50 transition-colors"
               >
                 Cancel Order
               </button>
@@ -359,19 +441,35 @@ export default function OrderCard({ order }: OrderCardProps) {
             {canRequestRefund && (
               <button 
                 onClick={() => setIsRefundModalOpen(true)}
-                className="px-4 py-2 rounded-xl text-xs font-bold border border-amber-300 text-amber-800 hover:bg-amber-50 transition-colors flex items-center gap-1"
+                className="px-3 py-1.5 rounded-lg text-xs font-medium border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
               >
-                <span className="material-symbols-outlined text-[16px]">assignment_return</span>
-                Return / Refund Order
+                Return / Refund
+              </button>
+            )}
+
+            {canConfirmReceived && (
+              <button
+                type="button"
+                onClick={() => setIsReceiveModalOpen(true)}
+                className="px-4 py-1.5 rounded-lg text-xs font-semibold bg-green-800 hover:bg-green-900 text-white transition-colors"
+              >
+                Order Received
               </button>
             )}
 
             <button 
               onClick={() => setIsTrackingModalOpen(true)}
-              className="px-5 py-2 rounded-xl text-xs font-bold border-2 border-outline-variant text-on-surface hover:border-primary hover:text-primary transition-colors"
+              className="px-3.5 py-1.5 rounded-lg text-xs font-medium border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 transition-colors"
             >
               Track Order
             </button>
+
+            <Link
+              href={`/orders/${order.id}`}
+              className="px-3.5 py-1.5 rounded-lg text-xs font-medium bg-gray-100 hover:bg-gray-200 text-gray-800 transition-colors"
+            >
+              Details
+            </Link>
           </div>
         </div>
       </div>
@@ -382,31 +480,112 @@ export default function OrderCard({ order }: OrderCardProps) {
         order={order}
       />
 
+      {/* ORDER RECEIVED & RATE FRESHNESS MODAL */}
+      {isReceiveModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-xl max-w-md w-full p-6 shadow-xl border border-gray-200 flex flex-col gap-4">
+            <div className="flex items-start justify-between border-b pb-3">
+              <div>
+                <h3 className="font-semibold text-gray-900 text-base leading-tight">Confirm Order Received</h3>
+                <p className="text-xs text-gray-500 mt-0.5">Release FarmFlow Escrow & Rate Harvest Freshness</p>
+              </div>
+              <button onClick={() => setIsReceiveModalOpen(false)} className="text-gray-400 hover:text-gray-600">
+                <span className="material-symbols-outlined text-[20px]">close</span>
+              </button>
+            </div>
+
+            <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-xs text-gray-700">
+              Confirming receipt releases <strong>{formatCurrency(order.totalAmount)}</strong> from escrow to <strong>{order.items[0]?.product.farm.farmName || 'the farmer'}</strong>.
+            </div>
+
+            <div className="bg-gray-50 rounded-lg p-4 border border-gray-200 text-center">
+              <label className="block text-xs font-semibold uppercase tracking-wider text-gray-600 mb-2">
+                Rate Harvest Freshness
+              </label>
+              <div className="flex items-center justify-center gap-2 my-1">
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <button
+                    key={star}
+                    type="button"
+                    onClick={() => setFreshnessRating(star)}
+                    className="p-1 focus:outline-none"
+                  >
+                    <span
+                      className={`text-2xl font-bold ${
+                        star <= freshnessRating ? 'text-green-800' : 'text-gray-300'
+                      }`}
+                    >
+                      ★
+                    </span>
+                  </button>
+                ))}
+              </div>
+              <p className="text-xs font-semibold text-green-800 mt-1">
+                {freshnessRating === 5 && '5/5 Stars — Farm-Direct Freshness'}
+                {freshnessRating === 4 && '4/5 Stars — Fresh & Good Condition'}
+                {freshnessRating === 3 && '3/5 Stars — Acceptable Quality'}
+                {freshnessRating === 2 && '2/5 Stars — Below Expectations'}
+                {freshnessRating === 1 && '1/5 Star — Poor Quality'}
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1.5">
+                Leave a Review for {order.items[0]?.product.farm.farmName || 'the Farm'} (Optional)
+              </label>
+              <textarea
+                rows={3}
+                placeholder="How was the freshness, packaging, and delivery speed?"
+                value={buyerReview}
+                onChange={(e) => setBuyerReview(e.target.value)}
+                className="w-full text-xs border border-gray-300 rounded-lg p-3 outline-none focus:border-green-800 resize-none"
+              />
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2 border-t border-gray-100">
+              <button
+                type="button"
+                disabled={isConfirmingReceipt}
+                onClick={() => setIsReceiveModalOpen(false)}
+                className="px-4 py-2 text-xs font-medium rounded-lg text-gray-700 hover:bg-gray-100"
+              >
+                Not Yet
+              </button>
+              <button
+                type="button"
+                disabled={isConfirmingReceipt}
+                onClick={handleConfirmOrderReceived}
+                className="px-4 py-2 text-xs font-semibold rounded-lg bg-green-800 hover:bg-green-900 text-white disabled:opacity-50"
+              >
+                {isConfirmingReceipt ? 'Releasing Escrow...' : 'Confirm & Release Payout'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* CANCEL ORDER MODAL */}
       {isCancelModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-150">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-gray-100 flex flex-col gap-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 text-rose-600">
-                <span className="material-symbols-outlined text-[24px]">cancel</span>
-                <h3 className="font-bold text-gray-900 text-lg">Cancel Order #{order.id.slice(0, 8)}</h3>
-              </div>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-xl max-w-md w-full p-6 shadow-xl border border-gray-200 flex flex-col gap-4">
+            <div className="flex items-center justify-between border-b pb-3">
+              <h3 className="font-semibold text-gray-900 text-base">Cancel Order #{order.id.slice(0, 8)}</h3>
               <button onClick={() => setIsCancelModalOpen(false)} className="text-gray-400 hover:text-gray-600">
                 <span className="material-symbols-outlined text-[20px]">close</span>
               </button>
             </div>
 
-            <p className="text-xs text-gray-500">
+            <p className="text-xs text-gray-600">
               Are you sure you want to cancel this order? Stock will be immediately restored to the farmer's inventory.
             </p>
 
             <div className="space-y-3">
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">Reason for cancellation *</label>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Reason for cancellation *</label>
                 <select 
                   value={cancelReasonPreset}
                   onChange={(e) => setCancelReasonPreset(e.target.value)}
-                  className="w-full text-xs border border-gray-300 rounded-lg p-2.5 bg-white text-gray-900 outline-none focus:border-rose-500"
+                  className="w-full text-xs border border-gray-300 rounded-lg p-2.5 bg-white text-gray-900 outline-none focus:border-green-800"
                 >
                   {CANCEL_PRESETS.map((p) => (
                     <option key={p} value={p}>{p}</option>
@@ -415,13 +594,13 @@ export default function OrderCard({ order }: OrderCardProps) {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">Additional details (Optional)</label>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Additional details (Optional)</label>
                 <textarea
                   rows={2}
                   placeholder="Provide more details if needed..."
                   value={cancelReasonCustom}
                   onChange={(e) => setCancelReasonCustom(e.target.value)}
-                  className="w-full text-xs border border-gray-300 rounded-lg p-2.5 outline-none focus:border-rose-500 resize-none"
+                  className="w-full text-xs border border-gray-300 rounded-lg p-2.5 outline-none focus:border-green-800 resize-none"
                 />
               </div>
             </div>
@@ -431,7 +610,7 @@ export default function OrderCard({ order }: OrderCardProps) {
                 type="button"
                 disabled={isCancelling}
                 onClick={() => setIsCancelModalOpen(false)}
-                className="px-4 py-2 text-xs font-semibold rounded-lg text-gray-700 hover:bg-gray-100"
+                className="px-4 py-2 text-xs font-medium rounded-lg text-gray-700 hover:bg-gray-100"
               >
                 Keep Order
               </button>
@@ -439,7 +618,7 @@ export default function OrderCard({ order }: OrderCardProps) {
                 type="button"
                 disabled={isCancelling}
                 onClick={handleCancelOrder}
-                className="px-4 py-2 text-xs font-semibold rounded-lg bg-rose-600 hover:bg-rose-700 text-white flex items-center gap-1.5 shadow-sm disabled:opacity-50"
+                className="px-4 py-2 text-xs font-semibold rounded-lg bg-red-700 hover:bg-red-800 text-white disabled:opacity-50"
               >
                 {isCancelling ? 'Cancelling...' : 'Confirm Cancellation'}
               </button>
@@ -448,31 +627,28 @@ export default function OrderCard({ order }: OrderCardProps) {
         </div>
       )}
 
-      {/* REQUEST REFUND / RETURN MODAL */}
+      {/* REQUEST REFUND MODAL */}
       {isRefundModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-150">
-          <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-gray-100 flex flex-col gap-4 max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-xl max-w-lg w-full p-6 shadow-xl border border-gray-200 flex flex-col gap-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b pb-3">
-              <div className="flex items-center gap-2 text-amber-700">
-                <span className="material-symbols-outlined text-[24px]">assignment_return</span>
-                <h3 className="font-bold text-gray-900 text-lg">Return / Refund Order</h3>
-              </div>
+              <h3 className="font-semibold text-gray-900 text-base">Return / Refund Order</h3>
               <button onClick={() => setIsRefundModalOpen(false)} className="text-gray-400 hover:text-gray-600">
                 <span className="material-symbols-outlined text-[20px]">close</span>
               </button>
             </div>
 
             <p className="text-xs text-gray-600">
-              Delivered produce issues must be reported promptly. Please choose your issue type, describe the problem, and attach a clear photo of the delivered produce as proof.
+              Please choose your issue type, describe the condition, and attach a photo of the produce as proof.
             </p>
 
             <div className="space-y-3.5">
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">Return / Refund Type *</label>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Return / Refund Type *</label>
                 <select 
                   value={refundReasonPreset}
                   onChange={(e) => setRefundReasonPreset(e.target.value)}
-                  className="w-full text-xs border border-gray-300 rounded-lg p-2.5 bg-white text-gray-900 outline-none focus:border-primary"
+                  className="w-full text-xs border border-gray-300 rounded-lg p-2.5 bg-white text-gray-900 outline-none focus:border-green-800"
                 >
                   {REFUND_PRESETS.map((p) => (
                     <option key={p} value={p}>{p}</option>
@@ -481,36 +657,30 @@ export default function OrderCard({ order }: OrderCardProps) {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">Reason & Issue Details *</label>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Reason & Issue Details *</label>
                 <textarea
                   rows={3}
                   required
-                  placeholder="Describe the condition of the items received, defects, spoiled produce, or missing quantities..."
+                  placeholder="Describe the condition of items received, defects, or missing quantities..."
                   value={refundDetails}
                   onChange={(e) => setRefundDetails(e.target.value)}
-                  className="w-full text-xs border border-gray-300 rounded-lg p-2.5 outline-none focus:border-primary resize-none"
+                  className="w-full text-xs border border-gray-300 rounded-lg p-2.5 outline-none focus:border-green-800 resize-none"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">Photo Proof (Produce condition / Package label)</label>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Photo Proof</label>
                 <input 
                   type="file"
                   accept="image/*"
                   onChange={(e) => setRefundProofFile(e.target.files?.[0] || null)}
-                  className="text-xs text-gray-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20 cursor-pointer"
+                  className="text-xs text-gray-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-gray-100 file:text-gray-800"
                 />
-                {refundProofFile && (
-                  <div className="mt-2 text-[11px] text-emerald-700 flex items-center gap-1">
-                    <span className="material-symbols-outlined text-[14px]">check_circle</span>
-                    Selected: {refundProofFile.name} ({(refundProofFile.size / 1024 / 1024).toFixed(2)} MB)
-                  </div>
-                )}
               </div>
 
-              <div className="bg-gray-50 p-3 rounded-xl border border-gray-200 text-xs text-gray-600 flex justify-between items-center">
+              <div className="bg-gray-50 p-3 rounded-lg border border-gray-200 text-xs text-gray-600 flex justify-between items-center">
                 <span>Eligible Refund Amount:</span>
-                <span className="font-bold text-gray-900 text-sm">{formatCurrency(order.totalAmount)}</span>
+                <span className="font-semibold text-gray-900 text-sm tabular-nums">{formatCurrency(order.totalAmount)}</span>
               </div>
             </div>
 
@@ -519,7 +689,7 @@ export default function OrderCard({ order }: OrderCardProps) {
                 type="button"
                 disabled={isSubmittingRefund}
                 onClick={() => setIsRefundModalOpen(false)}
-                className="px-4 py-2 text-xs font-semibold rounded-lg text-gray-700 hover:bg-gray-100"
+                className="px-4 py-2 text-xs font-medium rounded-lg text-gray-700 hover:bg-gray-100"
               >
                 Cancel
               </button>
@@ -527,9 +697,9 @@ export default function OrderCard({ order }: OrderCardProps) {
                 type="button"
                 disabled={isSubmittingRefund}
                 onClick={handleRefundSubmit}
-                className="px-4 py-2 text-xs font-semibold rounded-lg bg-primary hover:bg-primary/90 text-on-primary flex items-center gap-1.5 shadow-sm disabled:opacity-50"
+                className="px-4 py-2 text-xs font-semibold rounded-lg bg-green-800 hover:bg-green-900 text-white disabled:opacity-50"
               >
-                {isSubmittingRefund ? 'Submitting...' : 'Submit Return / Refund Request'}
+                {isSubmittingRefund ? 'Submitting...' : 'Submit Request'}
               </button>
             </div>
           </div>

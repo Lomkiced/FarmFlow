@@ -94,46 +94,56 @@ model Notification {
 }
 
 model User {
-  id            String       @id @default(uuid())
-  email         String       @unique
-  name          String
-  phone         String?
-  avatarUrl     String?
-  role          Role         @default(BUYER)
-  isSuspended   Boolean      @default(false)
-  idType        String?
-  idNumber      String?
-  idPhotoUrl    String?
-  createdAt     DateTime     @default(now())
-  updatedAt     DateTime     @updatedAt
-  farm          Farm?
-  ordersAsBuyer Order[]      @relation("BuyerOrders")
-  addresses     Address[]
+  id               String       @id @default(uuid())
+  email            String       @unique
+  name             String
+  phone            String?
+  avatarUrl        String?
+  role             Role         @default(BUYER)
+  isSuspended      Boolean      @default(false)
+  idType           String?
+  idNumber         String?
+  idPhotoUrl       String?
+  rsbsaNumber      String?
+  idNameOnDocument String?
+  idDocumentUrl    String?
+  idVerifiedMatch  Boolean      @default(false)
+  idMatchScore     Int          @default(0)
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+  farm             Farm?
+  ordersAsBuyer    Order[]      @relation("BuyerOrders")
+  addresses        Address[]
 }
 
 model Farm {
-  id           String       @id @default(uuid())
-  userId       String       @unique
-  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  farmName     String
-  barangay     String
-  municipality String       @default("Agoo")
-  province     String       @default("La Union")
-  landArea     Float
-  coverPhoto   String?
-  bio          String?
-  idType       String?
-  idNumber     String?
-  idPhotoUrl   String?
-  farmDocUrl   String?
-  status       FarmerStatus @default(PENDING)
-  rating       Float        @default(0)
-  totalSales   Float        @default(0)
-  createdAt    DateTime     @default(now())
-  updatedAt    DateTime     @updatedAt
-  crops        Crop[]
-  products     Product[]
-  activities   Activity[]
+  id               String       @id @default(uuid())
+  userId           String       @unique
+  user             User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  farmName         String
+  barangay         String
+  municipality     String       @default("Agoo")
+  province         String       @default("La Union")
+  landArea         Float
+  coverPhoto       String?
+  bio              String?
+  idType           String?
+  idNumber         String?
+  idPhotoUrl       String?
+  farmDocUrl       String?
+  rsbsaNumber      String?
+  idNameOnDocument String?
+  idDocumentUrl    String?
+  idVerifiedMatch  Boolean      @default(false)
+  idMatchScore     Int          @default(0)
+  status           FarmerStatus @default(PENDING)
+  rating           Float        @default(0)
+  totalSales       Float        @default(0)
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+  crops            Crop[]
+  products         Product[]
+  activities       Activity[]
 }
 
 model Crop {
@@ -206,6 +216,17 @@ model Order {
   refundRequestedAt DateTime?
   refundResolvedAt  DateTime?
   refundAdminNote   String?
+  trackingNumber    String?
+  courierName       String?
+  driverName        String?
+  driverPhone       String?
+  vehicleInfo       String?
+  estimatedDelivery String?
+  proofOfDeliveryUrl String?
+  buyerConfirmedAt  DateTime?
+  freshnessRating   Int?
+  buyerReview       String?
+  logisticsLogs     Json?
   createdAt         DateTime      @default(now())
   updatedAt         DateTime      @updatedAt
   items             OrderItem[]
