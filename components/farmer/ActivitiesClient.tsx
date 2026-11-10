@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import AddActivityModal from './AddActivityModal';
+import PaginationBar from '@/components/ui/PaginationBar';
 
 type Activity = {
   id: string;
@@ -23,7 +24,7 @@ const activityIcons: Record<string, { icon: string; bg: string; color: string }>
   FERTILIZING: { icon: 'eco', bg: 'bg-tertiary-container', color: 'text-on-tertiary-container' },
   PEST_CONTROL: { icon: 'pest_control', bg: 'bg-error-container', color: 'text-on-error-container' },
   WEEDING: { icon: 'grass', bg: 'bg-surface-variant', color: 'text-on-surface-variant' },
-  HARVESTING: { icon: 'spa', bg: 'bg-[#fef3c7]', color: 'text-[#b45309]' },
+  HARVESTING: { icon: 'spa', bg: 'bg-green-50', color: 'text-green-800' },
   OTHER: { icon: 'agriculture', bg: 'bg-surface-container-high', color: 'text-on-surface' },
 };
 
@@ -36,6 +37,8 @@ export default function ActivitiesClient({
 }) {
   const [activeFilter, setActiveFilter] = useState('All');
   const [showAddModal, setShowAddModal] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(8);
 
   const filters = ['All', 'Planting', 'Watering', 'Fertilizing', 'Pest Control', 'Weeding', 'Harvesting', 'Other'];
 
@@ -51,8 +54,12 @@ export default function ActivitiesClient({
     return false;
   });
 
+  const totalPages = Math.max(1, Math.ceil(filteredActivities.length / pageSize));
+  const safePage = Math.min(currentPage, totalPages);
+  const paginatedActivities = filteredActivities.slice((safePage - 1) * pageSize, safePage * pageSize);
+
   // Group by date
-  const grouped = filteredActivities.reduce((acc, act) => {
+  const grouped = paginatedActivities.reduce((acc, act) => {
     const dateStr = new Date(act.activityDate).toLocaleDateString('en-US', {
       weekday: 'short',
       month: 'short',
@@ -76,7 +83,10 @@ export default function ActivitiesClient({
         {filters.map(filter => (
           <button 
             key={filter} 
-            onClick={() => setActiveFilter(filter)}
+            onClick={() => {
+              setActiveFilter(filter);
+              setCurrentPage(1);
+            }}
             className={`px-4 py-2 rounded-full text-[14px] font-medium whitespace-nowrap transition-colors ${activeFilter === filter ? 'bg-secondary-container text-on-secondary-container' : 'border border-outline-variant bg-surface-container-lowest text-on-surface-variant hover:bg-surface-container'}`}
           >
             {filter}
@@ -131,6 +141,22 @@ export default function ActivitiesClient({
             </div>
           ))
         )}
+      </div>
+
+      <div className="mt-6">
+        <PaginationBar
+          currentPage={safePage}
+          totalPages={totalPages}
+          totalItems={filteredActivities.length}
+          pageSize={pageSize}
+          onPageChange={setCurrentPage}
+          onPageSizeChange={(size) => {
+            setPageSize(size);
+            setCurrentPage(1);
+          }}
+          pageSizeOptions={[4, 8, 16, 32]}
+          itemLabel="activity logs"
+        />
       </div>
 
       {/* FAB - Record Activity */}

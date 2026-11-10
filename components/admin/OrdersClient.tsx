@@ -4,6 +4,8 @@ import { useState, useTransition } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { updateOrderStatusAdminAction } from '@/app/actions/admin';
 import { cancelOrderAction, resolveOrderRefundAction } from '@/app/actions/orders';
+import { resolveOrderLogistics } from '@/lib/logistics-utils';
+import PaginationBar from '@/components/ui/PaginationBar';
 import toast from 'react-hot-toast';
 import { format, formatDistanceToNow } from 'date-fns';
 
@@ -68,6 +70,24 @@ export default function OrdersClient({ initialOrders }: { initialOrders: OrderDa
 
   const [selectedOrder, setSelectedOrder] = useState<OrderData | null>(null);
   const [isPending, startTransition] = useTransition();
+
+  const [quickSearch, setQuickSearch] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(8);
+
+  const filteredOrders = initialOrders.filter((o) => {
+    if (!quickSearch.trim()) return true;
+    const q = quickSearch.toLowerCase();
+    const matchId = o.id.toLowerCase().includes(q);
+    const matchBuyer = o.buyer.name?.toLowerCase().includes(q) || o.buyer.email?.toLowerCase().includes(q);
+    const matchLoc = o.address.barangay.toLowerCase().includes(q) || o.address.city.toLowerCase().includes(q);
+    const matchProd = o.items.some((it) => it.product.name.toLowerCase().includes(q));
+    return matchId || matchBuyer || matchLoc || matchProd;
+  });
+
+  const totalPages = Math.max(1, Math.ceil(filteredOrders.length / pageSize));
+  const safePage = Math.min(currentPage, totalPages);
+  const paginatedOrders = filteredOrders.slice((safePage - 1) * pageSize, safePage * pageSize);
 
   // Admin Cancel Modal State
   const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
@@ -157,7 +177,7 @@ export default function OrdersClient({ initialOrders }: { initialOrders: OrderDa
     }
 
     setIsCancelling(true);
-    const toastId = toast.loading('Cancelling order and restoring inventory...');
+    const toastId = toast.loading('Cancelling order...');
 
     try {
       const res = await cancelOrderAction(selectedOrder.id, adminCancelReason.trim());
@@ -186,7 +206,7 @@ export default function OrdersClient({ initialOrders }: { initialOrders: OrderDa
     if (!selectedOrder) return;
 
     setIsResolvingRefund(true);
-    const toastId = toast.loading(`${refundDecision === 'APPROVED' ? 'Approving' : 'Declining'} refund...`);
+    const toastId = toast.loading('Resolving refund...');
 
     try {
       const res = await resolveOrderRefundAction({
@@ -196,7 +216,7 @@ export default function OrdersClient({ initialOrders }: { initialOrders: OrderDa
       });
 
       if (res.success) {
-        toast.success(res.message || `Refund request ${refundDecision.toLowerCase()}!`, { id: toastId });
+        toast.success(res.message || `Refund request ${refundDecision.toLowerCase()}.`, { id: toastId });
         setIsRefundModalOpen(false);
         setSelectedOrder({
           ...selectedOrder,
@@ -216,24 +236,23 @@ export default function OrdersClient({ initialOrders }: { initialOrders: OrderDa
   };
 
   return (
-    <div className="flex-1 p-[40px] flex flex-col gap-[24px] bg-admin-background overflow-y-auto">
-      
+    <div className="flex-1 p-6 md:p-8 flex flex-col gap-6 bg-gray-50 overflow-y-auto">
       {/* PAGE HEADER */}
-      <div className="flex justify-between items-end mb-4">
+      <div className="flex justify-between items-end mb-1">
         <div>
-          <h2 className="font-admin-h1 text-admin-h1 text-admin-on-background">Orders Overview</h2>
-          <p className="font-admin-body-sm text-admin-on-surface-variant mt-1">Monitor all marketplace transactions, stock adjustments, and refund disputes.</p>
+          <h2 className="text-xl md:text-2xl font-bold text-gray-900 tracking-tight">Orders Overview</h2>
+          <p className="text-xs text-gray-500 mt-0.5">Monitor transactions, logistics checkpoints, and refund requests.</p>
         </div>
       </div>
 
       {/* FILTER BAR */}
-      <div className="bg-admin-surface-container-lowest p-[16px] rounded-xl border border-admin-outline-variant flex flex-wrap gap-4 items-center">
+      <div className="bg-white p-4 rounded-xl border border-gray-200 flex flex-wrap gap-3 items-center text-xs">
         <div className="flex flex-col gap-1">
-          <span className="font-admin-label-caps text-admin-label-caps text-admin-on-surface-variant">Order Status</span>
+          <span className="text-[11px] font-medium uppercase tracking-wider text-gray-500">Order Status</span>
           <select 
             value={activeStatus}
             onChange={(e) => handleStatusChange(e.target.value)}
-            className="border border-admin-outline-variant rounded-lg px-3 py-1.5 font-admin-body-sm bg-admin-surface-container-lowest text-admin-on-surface outline-none focus:border-primary"
+            className="border border-gray-300 rounded-lg px-2.5 py-1.5 bg-white text-gray-900 outline-none focus:border-green-800"
           >
             <option value="ALL">All Orders</option>
             <option value="PENDING">Pending</option>
@@ -241,249 +260,256 @@ export default function OrdersClient({ initialOrders }: { initialOrders: OrderDa
             <option value="READY">Ready</option>
             <option value="DELIVERED">Delivered</option>
             <option value="CANCELLED">Cancelled</option>
-            <option value="REFUNDS">⚠️ Refund Requests</option>
+            <option value="REFUNDS">Refund Requests</option>
             <option value="REFUNDED">Refunded</option>
           </select>
         </div>
-        <div className="flex-1"></div>
+
+        <div className="flex flex-col gap-1 min-w-[220px]">
+          <span className="text-[11px] font-medium uppercase tracking-wider text-gray-500">Search</span>
+          <input
+            type="text"
+            value={quickSearch}
+            onChange={(e) => {
+              setQuickSearch(e.target.value);
+              setCurrentPage(1);
+            }}
+            placeholder="Order ID, buyer, town..."
+            className="border border-gray-300 rounded-lg px-2.5 py-1.5 bg-white text-gray-900 outline-none focus:border-green-800"
+          />
+        </div>
+
+        <div className="flex-1" />
+
         <button 
           onClick={() => setIsFilterOpen(!isFilterOpen)}
-          className={`font-admin-body-sm font-medium flex items-center gap-1 px-3 py-1.5 rounded-lg transition-colors relative ${
+          className={`px-3 py-1.5 rounded-lg border text-xs font-medium transition-colors ${
             (buyerParam || dateFromParam || dateToParam || minAmountParam || maxAmountParam)
-              ? 'bg-primary text-on-primary border border-primary hover:bg-primary-container hover:text-on-primary-container'
-              : 'text-primary hover:bg-admin-surface-container-low'
+              ? 'bg-green-800 text-white border-green-800'
+              : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
           }`}
         >
-          <span className="material-symbols-outlined text-[18px]">tune</span>
-          More Filters
-          {(buyerParam || dateFromParam || dateToParam || minAmountParam || maxAmountParam) && (
-            <span className="w-2 h-2 rounded-full bg-error absolute -top-1 -right-1"></span>
-          )}
+          Filters {(buyerParam || dateFromParam || dateToParam || minAmountParam || maxAmountParam) ? '(Active)' : ''}
         </button>
       </div>
 
-      {/* INLINE MORE FILTERS PANEL */}
+      {/* FILTER PANEL */}
       {isFilterOpen && (
-        <div className="bg-admin-surface-container-lowest border border-admin-outline-variant rounded-xl p-4 flex flex-wrap items-end gap-4 shadow-sm transition-all duration-300">
-          <div className="flex-1 min-w-[200px]">
-            <label className="block text-xs font-admin-label-caps text-admin-on-surface-variant mb-1">Buyer Name</label>
+        <div className="bg-white border border-gray-200 rounded-xl p-4 flex flex-wrap items-end gap-3 text-xs">
+          <div className="flex-1 min-w-[180px]">
+            <label className="block text-gray-600 mb-1 font-medium">Buyer Name</label>
             <input 
               type="text" 
               value={filterBuyer}
               onChange={(e) => setFilterBuyer(e.target.value)}
               placeholder="Search by buyer..."
-              className="w-full bg-admin-surface border border-admin-outline-variant rounded p-2 text-sm text-admin-on-surface focus:border-primary outline-none"
+              className="w-full border border-gray-300 rounded-lg p-2 outline-none focus:border-green-800"
             />
           </div>
 
-          <div className="w-[140px]">
-            <label className="block text-xs font-admin-label-caps text-admin-on-surface-variant mb-1">Min Amount (₱)</label>
+          <div className="w-32">
+            <label className="block text-gray-600 mb-1 font-medium">Min Amount (₱)</label>
             <input 
               type="number" 
               value={filterMinAmount}
               onChange={(e) => setFilterMinAmount(e.target.value)}
-              placeholder="e.g. 100"
-              className="w-full bg-admin-surface border border-admin-outline-variant rounded p-2 text-sm text-admin-on-surface focus:border-primary outline-none"
+              placeholder="100"
+              className="w-full border border-gray-300 rounded-lg p-2 outline-none focus:border-green-800"
             />
           </div>
 
-          <div className="w-[140px]">
-            <label className="block text-xs font-admin-label-caps text-admin-on-surface-variant mb-1">Max Amount (₱)</label>
+          <div className="w-32">
+            <label className="block text-gray-600 mb-1 font-medium">Max Amount (₱)</label>
             <input 
               type="number" 
               value={filterMaxAmount}
               onChange={(e) => setFilterMaxAmount(e.target.value)}
-              placeholder="e.g. 5000"
-              className="w-full bg-admin-surface border border-admin-outline-variant rounded p-2 text-sm text-admin-on-surface focus:border-primary outline-none"
+              placeholder="5000"
+              className="w-full border border-gray-300 rounded-lg p-2 outline-none focus:border-green-800"
             />
           </div>
           
-          <div className="w-[140px]">
-            <label className="block text-xs font-admin-label-caps text-admin-on-surface-variant mb-1">Date From</label>
+          <div className="w-36">
+            <label className="block text-gray-600 mb-1 font-medium">Date From</label>
             <input 
               type="date" 
               value={filterDateFrom}
               onChange={(e) => setFilterDateFrom(e.target.value)}
-              className="w-full bg-admin-surface border border-admin-outline-variant rounded p-2 text-sm text-admin-on-surface focus:border-primary outline-none"
+              className="w-full border border-gray-300 rounded-lg p-2 outline-none focus:border-green-800"
             />
           </div>
           
-          <div className="w-[140px]">
-            <label className="block text-xs font-admin-label-caps text-admin-on-surface-variant mb-1">Date To</label>
+          <div className="w-36">
+            <label className="block text-gray-600 mb-1 font-medium">Date To</label>
             <input 
               type="date" 
               value={filterDateTo}
               onChange={(e) => setFilterDateTo(e.target.value)}
-              className="w-full bg-admin-surface border border-admin-outline-variant rounded p-2 text-sm text-admin-on-surface focus:border-primary outline-none"
+              className="w-full border border-gray-300 rounded-lg p-2 outline-none focus:border-green-800"
             />
           </div>
 
-          <div className="flex gap-2 ml-auto">
+          <div className="flex gap-2">
             <button 
               onClick={clearFilters}
-              className="px-6 py-2 border border-admin-outline-variant text-admin-on-surface-variant rounded text-sm font-medium hover:bg-admin-surface-container-low transition-colors"
+              className="px-3.5 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
             >
               Clear
             </button>
             <button 
               onClick={applyFilters}
-              className="px-6 py-2 bg-primary text-on-primary rounded text-sm font-medium hover:bg-primary-container transition-colors shadow-sm"
+              className="px-4 py-2 bg-green-800 hover:bg-green-900 text-white rounded-lg font-medium"
             >
-              Apply Filters
+              Apply
             </button>
           </div>
         </div>
       )}
 
       {/* MAIN LAYOUT */}
-      <div className="flex gap-[20px] items-start">
-        
-        {/* LEFT — DATA TABLE */}
-        <div className="flex-1 bg-admin-surface-container-lowest rounded-xl border border-admin-outline-variant overflow-hidden flex flex-col">
+      <div className="flex gap-6 items-start">
+        {/* DATA TABLE */}
+        <div className="flex-1 bg-white rounded-xl border border-gray-200 overflow-hidden flex flex-col">
           <div className="w-full overflow-x-auto">
-            <table className="w-full text-left border-collapse min-w-[800px]">
-              <thead className="bg-admin-surface border-b border-admin-outline-variant">
-                <tr>
-                  {['Order ID', 'Buyer', 'Location', 'Product'].map(h => (
-                    <th key={h} className="py-[8px] px-[16px] font-admin-label-caps text-admin-label-caps text-admin-on-surface-variant uppercase tracking-wider">{h}</th>
-                  ))}
-                  <th className="py-[8px] px-[16px] font-admin-label-caps text-admin-label-caps text-admin-on-surface-variant uppercase tracking-wider text-right">Amount (₱)</th>
-                  {['Status', 'Refund', 'Date'].map(h => (
-                    <th key={h} className="py-[8px] px-[16px] font-admin-label-caps text-admin-label-caps text-admin-on-surface-variant uppercase tracking-wider">{h}</th>
-                  ))}
+            <table className="w-full text-left border-collapse text-xs">
+              <thead className="bg-gray-50 border-b border-gray-200">
+                <tr className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
+                  <th className="py-2.5 px-4">Order ID</th>
+                  <th className="py-2.5 px-4">Buyer</th>
+                  <th className="py-2.5 px-4">Location</th>
+                  <th className="py-2.5 px-4">Product</th>
+                  <th className="py-2.5 px-4 text-right">Amount (₱)</th>
+                  <th className="py-2.5 px-4">Status</th>
+                  <th className="py-2.5 px-4">Refund</th>
+                  <th className="py-2.5 px-4">Date</th>
                 </tr>
               </thead>
-              <tbody className="font-admin-table-data text-admin-table-data text-admin-on-surface">
-                {initialOrders.map((order) => (
+              <tbody className="divide-y divide-gray-100">
+                {paginatedOrders.map((order) => (
                   <tr 
                     key={order.id} 
-                    className={`border-b border-admin-outline-variant/50 hover:bg-[#F1F5F9] cursor-pointer transition-colors ${selectedOrder?.id === order.id ? 'bg-admin-surface-container' : ''}`}
+                    className={`hover:bg-gray-50 cursor-pointer transition-colors ${selectedOrder?.id === order.id ? 'bg-green-50/40' : ''}`}
                     onClick={() => setSelectedOrder(order)}
                   >
-                    <td className="py-3 px-[16px] font-medium text-primary font-mono text-xs">
+                    <td className="py-3 px-4 font-mono font-medium text-gray-900">
                       <div className="flex items-center gap-1.5 flex-wrap">
                         <span>{order.id.slice(0,8).toUpperCase()}</span>
                         {order.isContract && (
-                          <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-1.5 py-0.5 rounded border border-emerald-300">
+                          <span className="text-[10px] bg-gray-100 text-gray-700 font-medium px-1.5 py-0.5 rounded border border-gray-200">
                             Wholesale
                           </span>
                         )}
                       </div>
                     </td>
-                    <td className="py-3 px-[16px]">
-                      <div className="font-medium">{order.buyer.name}</div>
-                      <div className="text-xs text-admin-on-surface-variant">{order.buyer.email}</div>
+                    <td className="py-3 px-4">
+                      <div className="font-semibold text-gray-900">{order.buyer.name}</div>
+                      <div className="text-[11px] text-gray-500">{order.buyer.email}</div>
                     </td>
-                    <td className="py-3 px-[16px] text-xs">{order.address.barangay}, {order.address.city}</td>
-                    <td className="py-3 px-[16px] text-xs">
-                      {order.items[0]?.product.name || 'Produce'} {order.items.length > 1 ? `+${order.items.length - 1} more` : ''}
+                    <td className="py-3 px-4 text-gray-600">{order.address.barangay}, {order.address.city}</td>
+                    <td className="py-3 px-4 text-gray-700">
+                      {order.items[0]?.product.name || 'Produce'} {order.items.length > 1 ? `+${order.items.length - 1}` : ''}
                     </td>
-                    <td className="py-3 px-[16px] text-right font-medium">₱{order.totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                    <td className="py-3 px-[16px]">
-                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full font-admin-label-caps text-[10px] uppercase font-bold ${
-                        order.orderStatus === 'DELIVERED' ? 'bg-emerald-100 text-emerald-800' : 
-                        order.orderStatus === 'CANCELLED' ? 'bg-rose-100 text-rose-800' : 
-                        'bg-amber-100 text-amber-800'
+                    <td className="py-3 px-4 text-right font-semibold text-gray-900 tabular-nums">
+                      ₱{order.totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </td>
+                    <td className="py-3 px-4">
+                      <span className={`px-2 py-0.5 rounded text-[10px] font-medium uppercase tracking-wider border ${
+                        order.orderStatus === 'DELIVERED' ? 'bg-green-50 text-green-800 border-green-200' : 
+                        order.orderStatus === 'CANCELLED' ? 'bg-red-50/60 text-red-700 border-red-200' : 
+                        'bg-gray-50 text-gray-700 border-gray-200'
                       }`}>
                         {order.orderStatus}
                       </span>
                     </td>
-                    <td className="py-3 px-[16px]">
+                    <td className="py-3 px-4">
                       {order.refundStatus && order.refundStatus !== 'NONE' ? (
-                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
-                          order.refundStatus === 'REQUESTED' ? 'bg-amber-100 text-amber-900 border border-amber-300' :
-                          order.refundStatus === 'APPROVED' ? 'bg-emerald-100 text-emerald-900 border border-emerald-300' :
-                          'bg-rose-100 text-rose-900 border border-rose-300'
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-medium uppercase tracking-wider border ${
+                          order.refundStatus === 'REQUESTED' ? 'bg-gray-100 text-gray-700 border-gray-300' :
+                          order.refundStatus === 'APPROVED' ? 'bg-green-50 text-green-800 border-green-200' :
+                          'bg-red-50/60 text-red-700 border-red-200'
                         }`}>
                           {order.refundStatus}
                         </span>
                       ) : (
-                        <span className="text-gray-400 text-xs">—</span>
+                        <span className="text-gray-400">—</span>
                       )}
                     </td>
-                    <td className="py-3 px-[16px] text-xs text-admin-on-surface-variant">{new Date(order.createdAt).toLocaleDateString()}</td>
+                    <td className="py-3 px-4 text-gray-500 tabular-nums">{new Date(order.createdAt).toLocaleDateString()}</td>
                   </tr>
                 ))}
-                {initialOrders.length === 0 && (
+                {paginatedOrders.length === 0 && (
                   <tr>
-                    <td colSpan={8} className="py-8 text-center text-admin-on-surface-variant">No orders found.</td>
+                    <td colSpan={8} className="py-8 text-center text-gray-400">No orders found.</td>
                   </tr>
                 )}
               </tbody>
             </table>
           </div>
+
+          <div className="p-3.5 border-t border-gray-200 bg-gray-50/50">
+            <PaginationBar
+              currentPage={safePage}
+              totalPages={totalPages}
+              totalItems={filteredOrders.length}
+              pageSize={pageSize}
+              onPageChange={setCurrentPage}
+              onPageSizeChange={(size) => {
+                setPageSize(size);
+                setCurrentPage(1);
+              }}
+              pageSizeOptions={[5, 8, 15, 30]}
+              itemLabel="orders"
+              className="shadow-none border-none bg-transparent"
+            />
+          </div>
         </div>
 
-        {/* RIGHT — DETAIL PANEL */}
+        {/* DETAIL PANEL */}
         {selectedOrder && (
-          <div className="w-96 sticky top-24 bg-admin-surface-container-lowest rounded-xl border border-admin-outline-variant shadow-[0px_10px_15px_-3px_rgba(0,0,0,0.05)] flex flex-col">
-            
-            <div className="p-[16px] border-b border-admin-outline-variant flex justify-between items-center bg-admin-surface rounded-t-xl">
+          <div className="w-96 sticky top-8 bg-white rounded-xl border border-gray-200 flex flex-col text-xs">
+            <div className="p-4 border-b border-gray-200 flex justify-between items-center bg-gray-50 rounded-t-xl">
               <div>
-                <h3 className="font-admin-h3 text-admin-h3 text-admin-on-surface">Order Details</h3>
-                <div className="font-admin-body-sm text-primary font-mono text-xs">{selectedOrder.id}</div>
+                <h3 className="font-semibold text-gray-900 text-sm">Order Details</h3>
+                <div className="font-mono text-gray-500 text-[11px]">#{selectedOrder.id.slice(0, 8).toUpperCase()}</div>
               </div>
-              <button onClick={() => setSelectedOrder(null)} className="text-admin-on-surface-variant hover:bg-admin-surface-container p-1 rounded-full transition-colors flex items-center justify-center">
-                <span className="material-symbols-outlined">close</span>
+              <button onClick={() => setSelectedOrder(null)} className="text-gray-400 hover:text-gray-700 text-xs">
+                Close
               </button>
             </div>
 
-            <div className="p-[16px] flex flex-col gap-[20px] overflow-y-auto max-h-[calc(100vh-200px)]">
-              
+            <div className="p-4 flex flex-col gap-4 overflow-y-auto max-h-[calc(100vh-200px)]">
               {/* WHOLESALE CONTRACT CARD */}
               {selectedOrder.isContract && (
-                <div className="bg-emerald-50 border border-emerald-300 rounded-lg p-3 text-xs text-emerald-950 flex flex-col gap-1.5">
-                  <div className="font-bold flex items-center justify-between text-emerald-900">
-                    <span className="flex items-center gap-1.5">
-                      <span className="material-symbols-outlined text-[16px] text-emerald-700">event_repeat</span>
-                      Wholesale Contract
-                    </span>
-                    <span className="bg-white px-2 py-0.5 rounded border border-emerald-200 text-[11px]">
-                      {selectedOrder.deliveriesCompleted ?? 0}/{selectedOrder.contractWeeks ?? 1} Batches
-                    </span>
+                <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 flex flex-col gap-1 text-gray-700">
+                  <div className="font-semibold text-gray-900 flex justify-between">
+                    <span>Wholesale Contract</span>
+                    <span>{selectedOrder.deliveriesCompleted ?? 0}/{selectedOrder.contractWeeks ?? 1} Batches</span>
                   </div>
-                  <div className="pt-1 border-t border-emerald-200/80 flex flex-col gap-1 text-[11px]">
-                    <div><strong>Schedule:</strong> {selectedOrder.deliveryScheduleDay || 'Every Saturday'}</div>
-                    {selectedOrder.nextDeliveryDate && (
-                      <div><strong>Next Batch:</strong> {format(new Date(selectedOrder.nextDeliveryDate), 'EEE, MMM d, yyyy')}</div>
-                    )}
-                  </div>
+                  <div>Schedule: {selectedOrder.deliveryScheduleDay || 'Every Saturday'}</div>
                 </div>
               )}
 
-              {/* ENTITIES */}
-              <div className="bg-admin-surface p-3 rounded-lg border border-admin-outline-variant/50">
-                <div className="font-admin-label-caps text-admin-label-caps text-admin-on-surface-variant uppercase mb-1">Buyer Details</div>
-                <div className="font-admin-body-sm font-medium text-admin-on-surface">{selectedOrder.buyer.name}</div>
-                <div className="text-xs text-admin-on-surface-variant">{selectedOrder.buyer.email}</div>
-                {selectedOrder.buyer.phone && <div className="text-xs text-admin-on-surface-variant mt-0.5">📞 {selectedOrder.buyer.phone}</div>}
+              {/* BUYER DETAILS */}
+              <div className="bg-gray-50 p-3 rounded-lg border border-gray-200 space-y-1">
+                <span className="text-[11px] font-medium uppercase tracking-wider text-gray-500 block">Buyer Details</span>
+                <div className="font-semibold text-gray-900">{selectedOrder.buyer.name}</div>
+                <div className="text-gray-500">{selectedOrder.buyer.email}</div>
+                {selectedOrder.buyer.phone && <div className="text-gray-600">Phone: {selectedOrder.buyer.phone}</div>}
               </div>
 
-              {/* CANCELLATION INFO */}
+              {/* CANCELLATION */}
               {selectedOrder.orderStatus === 'CANCELLED' && (
-                <div className="bg-rose-50 border border-rose-200 rounded-lg p-3 text-xs text-rose-900">
-                  <div className="font-bold flex items-center gap-1">
-                    <span className="material-symbols-outlined text-[16px]">cancel</span>
-                    Cancelled by {selectedOrder.cancelledBy || 'system'}
-                  </div>
-                  {selectedOrder.cancelReason && <div className="mt-1">Reason: "{selectedOrder.cancelReason}"</div>}
-                  {selectedOrder.cancelledAt && (
-                    <div className="text-[11px] text-rose-700/80 mt-1">
-                      Cancelled {format(new Date(selectedOrder.cancelledAt), 'MMM d, yyyy h:mm a')}
-                    </div>
-                  )}
+                <div className="bg-red-50/60 border border-red-200 rounded-lg p-3 text-red-800">
+                  <div className="font-semibold">Cancelled by {selectedOrder.cancelledBy || 'system'}</div>
+                  {selectedOrder.cancelReason && <div className="mt-0.5">Reason: "{selectedOrder.cancelReason}"</div>}
                 </div>
               )}
 
-              {/* REFUND DISPUTE INFO */}
+              {/* REFUND */}
               {selectedOrder.refundStatus && selectedOrder.refundStatus !== 'NONE' && (
-                <div className={`p-3.5 rounded-lg border text-xs flex flex-col gap-2 ${
-                  selectedOrder.refundStatus === 'REQUESTED' ? 'bg-amber-50 border-amber-300 text-amber-900' :
-                  selectedOrder.refundStatus === 'APPROVED' ? 'bg-emerald-50 border-emerald-300 text-emerald-900' :
-                  'bg-rose-50 border-rose-300 text-rose-900'
-                }`}>
-                  <div className="font-bold flex items-center justify-between">
-                    <span>Refund Dispute: {selectedOrder.refundStatus}</span>
+                <div className="p-3 rounded-lg border border-gray-200 bg-gray-50 flex flex-col gap-1.5 text-gray-700">
+                  <div className="font-semibold text-gray-900 flex items-center justify-between">
+                    <span>Refund: {selectedOrder.refundStatus}</span>
                     {selectedOrder.refundStatus === 'REQUESTED' && (
                       <button
                         type="button"
@@ -491,75 +517,68 @@ export default function OrdersClient({ initialOrders }: { initialOrders: OrderDa
                           setIsRefundModalOpen(true);
                           setRefundDecision('APPROVED');
                         }}
-                        className="px-2 py-0.5 rounded bg-amber-700 text-white font-bold text-[10px]"
+                        className="px-2 py-0.5 rounded bg-gray-900 text-white font-medium text-[10px]"
                       >
                         Resolve
                       </button>
                     )}
                   </div>
-                  {selectedOrder.refundReason && <div><span className="font-semibold">Reason:</span> {selectedOrder.refundReason}</div>}
-                  {selectedOrder.refundDetails && <div><span className="font-semibold">Details:</span> "{selectedOrder.refundDetails}"</div>}
-                  {selectedOrder.refundAdminNote && <div className="italic text-gray-700">Note: "{selectedOrder.refundAdminNote}"</div>}
-                  
+                  {selectedOrder.refundReason && <div>Reason: {selectedOrder.refundReason}</div>}
+                  {selectedOrder.refundDetails && <div>Details: &ldquo;{selectedOrder.refundDetails}&rdquo;</div>}
                   {selectedOrder.refundProofUrl && (
                     <button
                       type="button"
                       onClick={() => setPreviewProofUrl(selectedOrder.refundProofUrl || null)}
-                      className="text-left text-primary font-bold hover:underline flex items-center gap-1 mt-1"
+                      className="text-left text-green-800 hover:underline mt-1"
                     >
-                      <span className="material-symbols-outlined text-[14px]">image</span>
-                      View Buyer Proof Photo
+                      View Proof Photo
                     </button>
                   )}
                 </div>
               )}
 
-              {/* PRICE BREAKDOWN */}
-              <div>
-                <h4 className="font-admin-label-caps text-admin-label-caps text-admin-on-surface-variant uppercase mb-2">Summary</h4>
-                <div className="bg-admin-surface-container-low rounded-lg p-3 border border-admin-outline-variant/50 flex flex-col gap-2">
-                  <div className="flex justify-between items-center">
-                    <span className="font-admin-body-sm font-semibold text-admin-on-surface">Total Amount</span>
-                    <span className="font-admin-h3 text-admin-h3 text-primary">₱{selectedOrder.totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                  </div>
-                </div>
+              {/* SUMMARY */}
+              <div className="bg-gray-50 rounded-lg p-3 border border-gray-200 flex justify-between items-center">
+                <span className="font-medium text-gray-600">Total Amount</span>
+                <span className="font-bold text-green-800 text-base tabular-nums">
+                  ₱{selectedOrder.totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                </span>
               </div>
 
-              {/* PAYMENT INFO */}
-              <div>
-                <h4 className="font-admin-label-caps text-admin-label-caps text-admin-on-surface-variant uppercase mb-2">Payment / Status</h4>
-                <div className="flex flex-col gap-2 text-xs">
-                  <div className={`flex items-center gap-2.5 p-2.5 rounded-lg border ${selectedOrder.paymentStatus === 'PAID' ? 'bg-emerald-50 border-emerald-100 text-emerald-900' : 'bg-admin-surface border-admin-outline-variant text-admin-on-surface'}`}>
-                    <span className="material-symbols-outlined text-[18px]">
-                      {selectedOrder.paymentStatus === 'PAID' ? 'verified_user' : 'schedule'}
+              {/* LOGISTICS */}
+              {(() => {
+                const logistics = resolveOrderLogistics(selectedOrder);
+                return (
+                  <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 space-y-1 text-gray-700">
+                    <span className="text-[10px] font-semibold uppercase tracking-wider text-gray-500 block">
+                      Logistics Info
                     </span>
-                    <span className="font-medium">Payment: {selectedOrder.paymentStatus}</span>
+                    <div className="font-semibold text-gray-900">{logistics.courierName}</div>
+                    <div className="text-[11px] text-gray-600">
+                      Rider: {logistics.driverName} ({logistics.driverPhone})
+                    </div>
+                    <div className="text-[11px] font-mono text-gray-500">{logistics.vehicleInfo}</div>
+                    <div className="text-[11px] text-green-800 font-mono">#{logistics.trackingNumber}</div>
                   </div>
-
-                  <div className="flex items-center gap-2.5 p-2.5 rounded-lg border bg-admin-surface border-admin-outline-variant text-admin-on-surface">
-                    <span className="material-symbols-outlined text-[18px] text-primary">local_shipping</span>
-                    <span className="font-medium">Status: {selectedOrder.orderStatus}</span>
-                  </div>
-                </div>
-              </div>
-
+                );
+              })()}
             </div>
 
             {/* ACTION BUTTONS */}
-            <div className="p-3 border-t border-admin-outline-variant bg-admin-surface rounded-b-xl flex gap-2">
+            <div className="p-3 border-t border-gray-200 bg-gray-50 rounded-b-xl flex gap-2">
               {(selectedOrder.orderStatus !== 'DELIVERED' && selectedOrder.orderStatus !== 'CANCELLED') && (
                 <>
                   <button 
                     disabled={isPending}
                     onClick={() => handleUpdateStatus(selectedOrder.id, selectedOrder.orderStatus)}
-                    className="flex-1 bg-primary text-on-primary rounded-lg text-xs font-semibold py-2 hover:bg-primary/90 transition-colors disabled:opacity-50"
+                    className="flex-1 bg-green-800 hover:bg-green-900 text-white rounded-lg text-xs font-semibold py-2 transition-colors disabled:opacity-50"
                   >
                     Advance Status
                   </button>
                   <button 
                     disabled={isPending}
                     onClick={() => setIsCancelModalOpen(true)}
-                    className="px-3 border border-rose-300 text-rose-700 hover:bg-rose-50 rounded-lg text-xs font-semibold py-2 transition-colors disabled:opacity-50"
+                    className="px-3 border border-gray-300 text-red-700 hover:bg-red-50 rounded-lg text-xs font-medium py-2 transition-colors disabled:opacity-50"
                   >
                     Cancel
                   </button>
@@ -568,35 +587,31 @@ export default function OrdersClient({ initialOrders }: { initialOrders: OrderDa
             </div>
           </div>
         )}
-
       </div>
 
-      {/* ADMIN CANCEL ORDER MODAL */}
+      {/* ADMIN CANCEL MODAL */}
       {isCancelModalOpen && selectedOrder && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-150">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-gray-100 flex flex-col gap-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 text-rose-600">
-                <span className="material-symbols-outlined text-[24px]">cancel</span>
-                <h3 className="font-bold text-gray-900 text-lg">Admin Cancel Order</h3>
-              </div>
-              <button onClick={() => setIsCancelModalOpen(false)} className="text-gray-400 hover:text-gray-600">
-                <span className="material-symbols-outlined text-[20px]">close</span>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-xl max-w-md w-full p-6 shadow-xl border border-gray-200 flex flex-col gap-4 text-xs">
+            <div className="flex items-center justify-between border-b pb-2">
+              <h3 className="font-semibold text-gray-900 text-sm">Cancel Order</h3>
+              <button onClick={() => setIsCancelModalOpen(false)} className="text-gray-400 hover:text-gray-700">
+                Close
               </button>
             </div>
 
-            <p className="text-xs text-gray-600">
-              This will update the order status to CANCELLED, restore stock inventory in the database, and dispatch notifications to both buyer and farmer.
+            <p className="text-gray-600">
+              This will update the order status to CANCELLED and restore inventory.
             </p>
 
             <div>
-              <label className="block text-xs font-semibold text-gray-700 mb-1">Administrative Reason *</label>
+              <label className="block font-medium text-gray-700 mb-1">Reason *</label>
               <textarea
                 rows={3}
                 required
                 value={adminCancelReason}
                 onChange={(e) => setAdminCancelReason(e.target.value)}
-                className="w-full text-xs border border-gray-300 rounded-lg p-2.5 outline-none focus:border-rose-500 resize-none"
+                className="w-full text-xs border border-gray-300 rounded-lg p-2.5 outline-none focus:border-green-800 resize-none"
               />
             </div>
 
@@ -605,7 +620,7 @@ export default function OrdersClient({ initialOrders }: { initialOrders: OrderDa
                 type="button"
                 disabled={isCancelling}
                 onClick={() => setIsCancelModalOpen(false)}
-                className="px-4 py-2 text-xs font-semibold rounded-lg text-gray-700 hover:bg-gray-100"
+                className="px-3.5 py-1.5 rounded-lg text-gray-700 hover:bg-gray-100"
               >
                 Close
               </button>
@@ -613,7 +628,7 @@ export default function OrdersClient({ initialOrders }: { initialOrders: OrderDa
                 type="button"
                 disabled={isCancelling}
                 onClick={handleAdminCancelSubmit}
-                className="px-4 py-2 text-xs font-semibold rounded-lg bg-rose-600 hover:bg-rose-700 text-white shadow-sm disabled:opacity-50"
+                className="px-4 py-1.5 rounded-lg bg-red-700 hover:bg-red-800 text-white font-medium disabled:opacity-50"
               >
                 {isCancelling ? 'Cancelling...' : 'Confirm Cancellation'}
               </button>
@@ -622,68 +637,61 @@ export default function OrdersClient({ initialOrders }: { initialOrders: OrderDa
         </div>
       )}
 
-      {/* ADMIN RESOLVE REFUND MODAL */}
+      {/* ADMIN REFUND MODAL */}
       {isRefundModalOpen && selectedOrder && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-150">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-gray-100 flex flex-col gap-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 text-amber-700">
-                <span className="material-symbols-outlined text-[24px]">assignment_return</span>
-                <h3 className="font-bold text-gray-900 text-lg">
-                  Resolve Refund Dispute
-                </h3>
-              </div>
-              <button onClick={() => setIsRefundModalOpen(false)} className="text-gray-400 hover:text-gray-600">
-                <span className="material-symbols-outlined text-[20px]">close</span>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-xl max-w-md w-full p-6 shadow-xl border border-gray-200 flex flex-col gap-4 text-xs">
+            <div className="flex items-center justify-between border-b pb-2">
+              <h3 className="font-semibold text-gray-900 text-sm">Resolve Refund Dispute</h3>
+              <button onClick={() => setIsRefundModalOpen(false)} className="text-gray-400 hover:text-gray-700">
+                Close
               </button>
             </div>
 
-            <div className="bg-gray-50 p-3 rounded-xl border border-gray-200 text-xs text-gray-700 flex flex-col gap-1">
-              <div><span className="font-semibold">Order:</span> #{selectedOrder.id.slice(0, 8)}</div>
-              <div><span className="font-semibold">Buyer:</span> {selectedOrder.buyer.name}</div>
-              <div><span className="font-semibold">Reason:</span> {selectedOrder.refundReason}</div>
-              <div><span className="font-semibold">Amount:</span> ₱{selectedOrder.totalAmount.toFixed(2)}</div>
+            <div className="bg-gray-50 p-3 rounded-lg border border-gray-200 text-gray-700 space-y-1">
+              <div><span className="font-medium">Order:</span> #{selectedOrder.id.slice(0, 8)}</div>
+              <div><span className="font-medium">Buyer:</span> {selectedOrder.buyer.name}</div>
+              <div><span className="font-medium">Reason:</span> {selectedOrder.refundReason}</div>
+              <div><span className="font-medium">Amount:</span> ₱{selectedOrder.totalAmount.toFixed(2)}</div>
             </div>
 
             <div className="space-y-3">
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">Administrative Ruling</label>
+                <label className="block font-medium text-gray-700 mb-1">Ruling</label>
                 <div className="grid grid-cols-2 gap-2">
                   <button
                     type="button"
                     onClick={() => setRefundDecision('APPROVED')}
-                    className={`py-2 text-xs font-bold rounded-lg border transition-all ${
+                    className={`py-2 text-xs font-semibold rounded-lg border transition-all ${
                       refundDecision === 'APPROVED'
-                        ? 'bg-emerald-50 border-emerald-500 text-emerald-800'
+                        ? 'bg-green-50 border-green-800 text-green-900'
                         : 'border-gray-200 text-gray-600 hover:bg-gray-50'
                     }`}
                   >
-                    ✓ Approve Refund
+                    Approve Refund
                   </button>
                   <button
                     type="button"
                     onClick={() => setRefundDecision('REJECTED')}
-                    className={`py-2 text-xs font-bold rounded-lg border transition-all ${
+                    className={`py-2 text-xs font-semibold rounded-lg border transition-all ${
                       refundDecision === 'REJECTED'
-                        ? 'bg-rose-50 border-rose-500 text-rose-800'
+                        ? 'bg-red-50/60 border-red-700 text-red-800'
                         : 'border-gray-200 text-gray-600 hover:bg-gray-50'
                     }`}
                   >
-                    ✕ Decline Refund
+                    Decline Refund
                   </button>
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">
-                  Ruling Note / Audit Explanation
-                </label>
+                <label className="block font-medium text-gray-700 mb-1">Audit Note</label>
                 <textarea
                   rows={3}
-                  placeholder="Record justification for dispute resolution..."
+                  placeholder="Record ruling justification..."
                   value={refundAdminNote}
                   onChange={(e) => setRefundAdminNote(e.target.value)}
-                  className="w-full text-xs border border-gray-300 rounded-lg p-2.5 outline-none focus:border-primary resize-none"
+                  className="w-full text-xs border border-gray-300 rounded-lg p-2.5 outline-none focus:border-green-800 resize-none"
                 />
               </div>
             </div>
@@ -693,7 +701,7 @@ export default function OrdersClient({ initialOrders }: { initialOrders: OrderDa
                 type="button"
                 disabled={isResolvingRefund}
                 onClick={() => setIsRefundModalOpen(false)}
-                className="px-4 py-2 text-xs font-semibold rounded-lg text-gray-700 hover:bg-gray-100"
+                className="px-3.5 py-1.5 rounded-lg text-gray-700 hover:bg-gray-100"
               >
                 Cancel
               </button>
@@ -701,8 +709,8 @@ export default function OrdersClient({ initialOrders }: { initialOrders: OrderDa
                 type="button"
                 disabled={isResolvingRefund}
                 onClick={handleAdminRefundSubmit}
-                className={`px-4 py-2 text-xs font-semibold rounded-lg text-white shadow-sm disabled:opacity-50 ${
-                  refundDecision === 'APPROVED' ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-rose-600 hover:bg-rose-700'
+                className={`px-4 py-1.5 rounded-lg text-white font-medium transition-colors disabled:opacity-50 ${
+                  refundDecision === 'APPROVED' ? 'bg-green-800 hover:bg-green-900' : 'bg-red-700 hover:bg-red-800'
                 }`}
               >
                 {isResolvingRefund ? 'Submitting...' : `Confirm ${refundDecision === 'APPROVED' ? 'Approval' : 'Decline'}`}
@@ -715,26 +723,25 @@ export default function OrdersClient({ initialOrders }: { initialOrders: OrderDa
       {/* PROOF PHOTO PREVIEW MODAL */}
       {previewProofUrl && (
         <div 
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in duration-150"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
           onClick={() => setPreviewProofUrl(null)}
         >
           <div 
-            className="bg-white rounded-2xl max-w-2xl w-full p-4 shadow-2xl flex flex-col gap-3 overflow-hidden"
+            className="bg-white rounded-xl max-w-xl w-full p-4 shadow-xl flex flex-col gap-3 overflow-hidden text-xs"
             onClick={e => e.stopPropagation()}
           >
             <div className="flex justify-between items-center border-b pb-2">
-              <h3 className="font-bold text-sm text-gray-900">Buyer Refund Proof Photo</h3>
-              <button onClick={() => setPreviewProofUrl(null)} className="text-gray-400 hover:text-gray-600">
-                <span className="material-symbols-outlined text-[20px]">close</span>
+              <h3 className="font-semibold text-gray-900">Refund Proof Photo</h3>
+              <button onClick={() => setPreviewProofUrl(null)} className="text-gray-400 hover:text-gray-700">
+                Close
               </button>
             </div>
-            <div className="max-h-[75vh] flex items-center justify-center bg-gray-950 rounded-xl overflow-hidden">
-              <img src={previewProofUrl} alt="Refund proof" className="max-h-[70vh] w-auto object-contain" />
+            <div className="max-h-[70vh] flex items-center justify-center bg-gray-950 rounded-lg overflow-hidden">
+              <img src={previewProofUrl} alt="Refund proof" className="max-h-[65vh] w-auto object-contain" />
             </div>
           </div>
         </div>
       )}
-
     </div>
   );
 }

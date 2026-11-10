@@ -4,7 +4,14 @@ import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { prisma } from '@/lib/prisma';
-import { loginSchema, buyerRegisterSchema, farmerRegisterSchema, forgotPasswordSchema, updatePasswordSchema } from '@/lib/validations/auth';
+import {
+  loginSchema,
+  buyerRegisterSchema,
+  farmerRegisterSchema,
+  forgotPasswordSchema,
+  updatePasswordSchema,
+} from '@/lib/validations/auth';
+import { verifyIdentityMatch, getKycIdSpec } from '@/lib/kyc-utils';
 import { sendAdminNotification } from '@/lib/notifications';
 import { headers } from 'next/headers';
 
@@ -40,9 +47,11 @@ export async function loginAction(
     if (error.message.includes('Email not confirmed')) {
       return { message: 'Please check your email and confirm your account before logging in.' };
     }
-    return { message: error.message === 'Invalid login credentials'
-      ? 'Invalid email or password. Please try again.'
-      : error.message
+    return {
+      message:
+        error.message === 'Invalid login credentials'
+          ? 'Invalid email or password. Please try again.'
+          : error.message,
     };
   }
 
@@ -74,15 +83,24 @@ export async function registerBuyerAction(
   _prevState: AuthActionState | undefined,
   formData: FormData
 ): Promise<AuthActionState> {
+  const firstName = (formData.get('firstName') as string) || '';
+  const lastName = (formData.get('lastName') as string) || '';
+  const rawName = (formData.get('name') as string) || `${firstName} ${lastName}`.trim();
+
   const raw = {
-    name: formData.get('name') as string,
-    email: formData.get('email') as string,
-    phone: formData.get('phone') as string,
-    idType: formData.get('idType') as string,
-    idNumber: formData.get('idNumber') as string,
-    idPhotoUrl: formData.get('idPhotoUrl') as string,
-    password: formData.get('password') as string,
-    confirmPassword: formData.get('confirmPassword') as string,
+    name: rawName,
+    email: (formData.get('email') as string) || '',
+    phone: (formData.get('phone') as string) || '',
+    idType: (formData.get('idType') as string) || '',
+    idNumber: (formData.get('idNumber') as string) || '',
+    confirmIdNumber:
+      (formData.get('confirmIdNumber') as string) || (formData.get('idNumber') as string) || '',
+    idNameOnDocument:
+      (formData.get('idNameOnDocument') as string) || rawName,
+    idPhotoUrl:
+      (formData.get('idPhotoUrl') as string) || (formData.get('idDocumentUrl') as string) || '',
+    password: (formData.get('password') as string) || '',
+    confirmPassword: (formData.get('confirmPassword') as string) || '',
   };
 
   const parsed = buyerRegisterSchema.safeParse(raw);
@@ -90,7 +108,28 @@ export async function registerBuyerAction(
     return { errors: parsed.error.flatten().fieldErrors };
   }
 
-  // Strict server-side check for ID
+  // Strict server-side KYC identity verification
+  const kycResult = verifyIdentityMatch({
+    registeredName: parsed.data.name,
+    idNameOnDocument: parsed.data.idNameOnDocument,
+    idType: parsed.data.idType,
+    idNumber: parsed.data.idNumber,
+    confirmIdNumber: parsed.data.confirmIdNumber,
+    requireRsbsa: false,
+    hasUploadedDocument: Boolean(parsed.data.idPhotoUrl),
+  });
+
+  if (!kycResult.isValid) {
+    return {
+      message: 'Identity verification failed. Please ensure your ID Name and ID Number match your profile.',
+      errors: {
+        ...(kycResult.errors.idNameOnDocument ? { idNameOnDocument: [kycResult.errors.idNameOnDocument] } : {}),
+        ...(kycResult.errors.idNumber ? { idNumber: [kycResult.errors.idNumber] } : {}),
+        ...(kycResult.errors.confirmIdNumber ? { confirmIdNumber: [kycResult.errors.confirmIdNumber] } : {}),
+      },
+    };
+  }
+
   if (!parsed.data.idPhotoUrl || parsed.data.idPhotoUrl.trim() === '') {
     return {
       errors: {
@@ -112,11 +151,12 @@ export async function registerBuyerAction(
   });
   if (existingUser) {
     // Advanced Ghost User Detection
-    const adminClient = await import('@/lib/supabase/server').then(m => m.createAdminClient());
-    const { data: authUser, error: authError } = await (await adminClient).auth.admin.getUserById(existingUser.id);
-    
+    const adminClient = await import('@/lib/supabase/server').then((m) => m.createAdminClient());
+    const { data: authUser, error: authError } = await (
+      await adminClient
+    ).auth.admin.getUserById(existingUser.id);
+
     if (authError || !authUser?.user) {
-      // User is a ghost (deleted in Supabase but stuck in Prisma). Self-heal by deleting from Prisma.
       await prisma.user.delete({ where: { id: existingUser.id } });
     } else {
       return { errors: { email: ['An account with this email already exists.'] } };
@@ -142,17 +182,23 @@ export async function registerBuyerAction(
       return { errors: { email: ['An account with this email already exists.'] } };
     }
     if (errorMsg.includes('rate limit') || errorMsg.includes('email rate limit exceeded')) {
-      return { message: 'We are experiencing high registration volume. Please wait a moment and try again.' };
+      return {
+        message: 'We are experiencing high registration volume. Please wait a moment and try again.',
+      };
     }
     if (errorMsg === '{}' || signUpError.message === '{}') {
-      return { message: 'Failed to send confirmation email. Please ensure your SMTP settings are correct.' };
+      return {
+        message: 'Failed to send confirmation email. Please ensure your SMTP settings are correct.',
+      };
     }
     return { message: signUpError.message || 'An unknown error occurred during registration.' };
   }
 
   if (!data.user) return { message: 'Registration failed. Please try again.' };
 
-  // 2. Create User row in public DB with mandatory ID verification details
+  const idSpec = getKycIdSpec(parsed.data.idType);
+
+  // 2. Create User row in public DB with mandatory KYC verification details
   try {
     await prisma.user.create({
       data: {
@@ -160,24 +206,28 @@ export async function registerBuyerAction(
         email: parsed.data.email,
         name: parsed.data.name,
         phone: parsed.data.phone || null,
-        idType: parsed.data.idType,
+        idType: idSpec.code,
         idNumber: parsed.data.idNumber,
         idPhotoUrl: parsed.data.idPhotoUrl,
+        idDocumentUrl: parsed.data.idPhotoUrl,
+        idNameOnDocument: parsed.data.idNameOnDocument,
+        idVerifiedMatch: true,
+        idMatchScore: kycResult.idMatchScore,
         role: 'BUYER',
       },
     });
   } catch (dbError: any) {
-    // Rollback: delete auth user if DB insert fails
-    const adminClient = await import('@/lib/supabase/server').then(m => m.createAdminClient());
+    const adminClient = await import('@/lib/supabase/server').then((m) => m.createAdminClient());
     await (await adminClient).auth.admin.deleteUser(data.user.id);
-    return { message: `Failed to create account in database: ${dbError?.message || 'Unknown error'}` };
+    return {
+      message: `Failed to create account in database: ${dbError?.message || 'Unknown error'}`,
+    };
   }
 
-  // Trigger notification in background
   sendAdminNotification({
     type: 'NEW_USER',
-    title: 'New Buyer Registration',
-    message: `${parsed.data.name} just registered as a Buyer with ID verification (${parsed.data.idType}).`,
+    title: 'New Buyer Registration (100% KYC Match)',
+    message: `${parsed.data.name} registered as a Buyer with verified ${idSpec.shortLabel} (${parsed.data.idNumber}).`,
     relatedId: data.user.id,
     relatedType: 'user',
   });
@@ -193,20 +243,30 @@ export async function registerFarmerAction(
   formData: FormData
 ): Promise<AuthActionState> {
   const cropsRaw = formData.get('crops') as string;
+  const firstName = (formData.get('firstName') as string) || '';
+  const lastName = (formData.get('lastName') as string) || '';
+  const rawName = (formData.get('name') as string) || `${firstName} ${lastName}`.trim();
+
   const raw = {
-    name: formData.get('name') as string,
-    email: formData.get('email') as string,
-    phone: formData.get('phone') as string,
-    password: formData.get('password') as string,
-    farmName: formData.get('farmName') as string,
-    barangay: formData.get('barangay') as string,
-    landArea: formData.get('landArea') as string,
+    name: rawName,
+    email: (formData.get('email') as string) || '',
+    phone: (formData.get('phone') as string) || '',
+    password: (formData.get('password') as string) || '',
+    farmName: (formData.get('farmName') as string) || '',
+    barangay: (formData.get('barangay') as string) || '',
+    landArea: (formData.get('landArea') as string) || '',
     crops: cropsRaw ? cropsRaw.split(',') : [],
-    idType: formData.get('idType') as string,
-    idNumber: formData.get('idNumber') as string,
-    idPhotoUrl: formData.get('idPhotoUrl') as string,
+    rsbsaNumber: (formData.get('rsbsaNumber') as string) || '',
+    idType: (formData.get('idType') as string) || '',
+    idNumber: (formData.get('idNumber') as string) || '',
+    confirmIdNumber:
+      (formData.get('confirmIdNumber') as string) || (formData.get('idNumber') as string) || '',
+    idNameOnDocument:
+      (formData.get('idNameOnDocument') as string) || rawName,
+    idPhotoUrl:
+      (formData.get('idPhotoUrl') as string) || (formData.get('idDocumentUrl') as string) || '',
     farmDocUrl: (formData.get('farmDocUrl') as string) || undefined,
-    confirmPassword: formData.get('confirmPassword') as string,
+    confirmPassword: (formData.get('confirmPassword') as string) || '',
   };
 
   const parsed = farmerRegisterSchema.safeParse(raw);
@@ -214,11 +274,33 @@ export async function registerFarmerAction(
     return { errors: parsed.error.flatten().fieldErrors };
   }
 
-  // Strict server-side check for ID
+  const kycResult = verifyIdentityMatch({
+    registeredName: parsed.data.name,
+    idNameOnDocument: parsed.data.idNameOnDocument,
+    idType: parsed.data.idType,
+    idNumber: parsed.data.idNumber,
+    confirmIdNumber: parsed.data.confirmIdNumber,
+    rsbsaNumber: parsed.data.rsbsaNumber,
+    requireRsbsa: true,
+    hasUploadedDocument: Boolean(parsed.data.idPhotoUrl),
+  });
+
+  if (!kycResult.isValid) {
+    return {
+      message: 'KYC Identity Matching failed. Please ensure your Name on ID, ID Number, and RSBSA Number match.',
+      errors: {
+        ...(kycResult.errors.idNameOnDocument ? { idNameOnDocument: [kycResult.errors.idNameOnDocument] } : {}),
+        ...(kycResult.errors.idNumber ? { idNumber: [kycResult.errors.idNumber] } : {}),
+        ...(kycResult.errors.confirmIdNumber ? { confirmIdNumber: [kycResult.errors.confirmIdNumber] } : {}),
+        ...(kycResult.errors.rsbsaNumber ? { rsbsaNumber: [kycResult.errors.rsbsaNumber] } : {}),
+      },
+    };
+  }
+
   if (!parsed.data.idPhotoUrl || parsed.data.idPhotoUrl.trim() === '') {
     return {
       errors: {
-        idPhotoUrl: ['A valid government or institutional ID photo/document is strictly required.'],
+        idPhotoUrl: ['A valid government or RSBSA ID photo/document is strictly required.'],
       },
     };
   }
@@ -235,12 +317,12 @@ export async function registerFarmerAction(
     where: { email: parsed.data.email.toLowerCase() },
   });
   if (existingUser) {
-    // Advanced Ghost User Detection
-    const adminClient = await import('@/lib/supabase/server').then(m => m.createAdminClient());
-    const { data: authUser, error: authError } = await (await adminClient).auth.admin.getUserById(existingUser.id);
-    
+    const adminClient = await import('@/lib/supabase/server').then((m) => m.createAdminClient());
+    const { data: authUser, error: authError } = await (
+      await adminClient
+    ).auth.admin.getUserById(existingUser.id);
+
     if (authError || !authUser?.user) {
-      // User is a ghost (deleted in Supabase but stuck in Prisma). Self-heal by deleting from Prisma.
       await prisma.user.delete({ where: { id: existingUser.id } });
     } else {
       return { errors: { email: ['An account with this email already exists.'] } };
@@ -266,17 +348,23 @@ export async function registerFarmerAction(
       return { errors: { email: ['An account with this email already exists.'] } };
     }
     if (errorMsg.includes('rate limit') || errorMsg.includes('email rate limit exceeded')) {
-      return { message: 'We are experiencing high registration volume. Please wait a moment and try again.' };
+      return {
+        message: 'We are experiencing high registration volume. Please wait a moment and try again.',
+      };
     }
     if (errorMsg === '{}' || signUpError.message === '{}') {
-      return { message: 'Failed to send confirmation email. Please ensure your SMTP settings are correct.' };
+      return {
+        message: 'Failed to send confirmation email. Please ensure your SMTP settings are correct.',
+      };
     }
     return { message: signUpError.message || 'An unknown error occurred during registration.' };
   }
 
   if (!data.user) return { message: 'Registration failed. Please try again.' };
 
-  // 2. Create User + Farm rows in a transaction with ID verification data
+  const idSpec = getKycIdSpec(parsed.data.idType);
+
+  // 2. Create User + Farm rows in a transaction with KYC verification data
   try {
     await prisma.$transaction(async (tx: any) => {
       await tx.user.create({
@@ -285,9 +373,14 @@ export async function registerFarmerAction(
           email: parsed.data.email,
           name: parsed.data.name,
           phone: parsed.data.phone,
-          idType: parsed.data.idType,
+          rsbsaNumber: parsed.data.rsbsaNumber,
+          idType: idSpec.code,
           idNumber: parsed.data.idNumber,
           idPhotoUrl: parsed.data.idPhotoUrl,
+          idDocumentUrl: parsed.data.idPhotoUrl,
+          idNameOnDocument: parsed.data.idNameOnDocument,
+          idVerifiedMatch: true,
+          idMatchScore: kycResult.idMatchScore,
           role: 'FARMER',
         },
       });
@@ -298,32 +391,39 @@ export async function registerFarmerAction(
           farmName: parsed.data.farmName,
           barangay: parsed.data.barangay,
           landArea: parsed.data.landArea,
-          idType: parsed.data.idType,
+          rsbsaNumber: parsed.data.rsbsaNumber,
+          idType: idSpec.code,
           idNumber: parsed.data.idNumber,
           idPhotoUrl: parsed.data.idPhotoUrl,
+          idDocumentUrl: parsed.data.idPhotoUrl,
+          idNameOnDocument: parsed.data.idNameOnDocument,
+          idVerifiedMatch: true,
+          idMatchScore: kycResult.idMatchScore,
           farmDocUrl: parsed.data.farmDocUrl || null,
           status: 'PENDING',
         },
       });
     });
   } catch (dbError: any) {
-    const adminClient = await import('@/lib/supabase/server').then(m => m.createAdminClient());
+    const adminClient = await import('@/lib/supabase/server').then((m) => m.createAdminClient());
     await (await adminClient).auth.admin.deleteUser(data.user.id);
-    return { message: `Failed to create account in database: ${dbError?.message || 'Unknown error'}` };
+    return {
+      message: `Failed to create account in database: ${dbError?.message || 'Unknown error'}`,
+    };
   }
 
   // Trigger notifications
   sendAdminNotification({
     type: 'NEW_USER',
-    title: 'New Farmer Registration',
-    message: `${parsed.data.name} just registered on the platform with ID (${parsed.data.idType}).`,
+    title: 'New Farmer Registration (100% KYC Match)',
+    message: `${parsed.data.name} registered with RSBSA #${parsed.data.rsbsaNumber} and ${idSpec.shortLabel}.`,
     relatedId: data.user.id,
     relatedType: 'user',
   });
   sendAdminNotification({
     type: 'PENDING_FARMER',
-    title: 'Farmer Pending Verification',
-    message: `${parsed.data.farmName} requires your verification to activate. Review their uploaded ID.`,
+    title: 'Farmer Pending LGU Verification',
+    message: `${parsed.data.farmName} (${parsed.data.name}) passed 100% KYC Match. Review their uploaded ID to activate.`,
     relatedId: data.user.id,
     relatedType: 'farmer',
   });
@@ -392,7 +492,6 @@ export async function updatePasswordAction(
     return { message: error.message || 'Failed to update password. Please try again.' };
   }
 
-  // Force revalidation and redirect to login
   await supabase.auth.signOut();
   redirect('/auth/login?reset=success');
 }

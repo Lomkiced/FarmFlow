@@ -14,60 +14,48 @@ export default async function FarmerDashboard() {
   const avatarUrl = farmProfile?.user?.avatarUrl;
 
   const actions = [
-    { icon: 'add_circle', bg: 'bg-primary', color: 'text-on-primary', label: 'Add\nCrop', shadow: 'shadow-md', href: '/farmer/crops' },
-    { icon: 'storefront', bg: 'bg-secondary', color: 'text-on-secondary', label: 'Post\nProduct', shadow: 'shadow-md', href: '/farmer/products/new' },
-    { icon: 'receipt_long', bg: 'bg-surface-container-highest', color: 'text-on-surface', label: 'View\nOrders', shadow: 'shadow-sm', href: '/farmer/orders' },
-    { icon: 'history_edu', bg: 'bg-surface-container-highest', color: 'text-on-surface', label: 'Record\nActivity', shadow: 'shadow-sm', href: '/farmer/activities' },
+    { label: 'Register Crop', href: '/farmer/crops' },
+    { label: 'Post Harvest', href: '/farmer/products/new' },
+    { label: 'Orders & Escrow', href: '/farmer/orders' },
+    { label: 'Activity Logs', href: '/farmer/activities' },
   ];
 
   return (
     <>
       <FarmerHeader variant="dashboard" userName={userName} avatarUrl={avatarUrl} />
-      <main className="px-[16px] pt-[16px] pb-24 flex flex-col gap-[32px]">
+      <main className="max-w-5xl mx-auto px-4 md:px-8 pt-6 pb-24 flex flex-col gap-6">
         
         {/* Stats Grid */}
-        <div className="grid grid-cols-2 gap-[8px]">
-          <StatCard icon="psychiatry" iconBg="bg-secondary-container" iconColor="text-secondary" label="Active Crops" value={stats.activeCropsCount.toString()} filled />
-          <StatCard icon="pending_actions" iconBg="bg-surface-variant" iconColor="text-on-surface-variant" label="Pending Orders" value={stats.pendingOrdersCount.toString()} filled />
-          
-          {/* This Month Earnings */}
-          <div className="bg-surface-container-lowest p-[16px] rounded-[16px] shadow-[0_4px_20px_rgba(27,67,50,0.04)] col-span-2 relative overflow-hidden">
-            <div className="absolute right-0 top-0 w-32 h-32 bg-primary/5 rounded-full -mr-10 -mt-10 blur-xl" />
-            <div className="flex items-center justify-between relative z-10">
-              <div>
-                <p className="text-[12px] font-semibold tracking-[0.03em] text-on-surface-variant mb-1">This Month Earnings</p>
-                <p className="text-[32px] font-bold leading-[1.2] tracking-[-0.01em] text-primary">
-                  ₱{stats.thisMonthEarnings.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </p>
-              </div>
-              <div className="w-12 h-12 rounded-full bg-[#fcd34d] flex items-center justify-center">
-                <span className="material-symbols-outlined text-[#b45309] text-[24px]" style={{ fontVariationSettings: "'FILL' 1" }}>payments</span>
-              </div>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <StatCard label="Active Crops" value={stats.activeCropsCount.toString()} />
+          <StatCard label="Pending Orders" value={stats.pendingOrdersCount.toString()} />
+          <div className="bg-white p-4 rounded-lg border border-gray-200 flex flex-col justify-between">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-1">
+              This Month Earnings
+            </span>
+            <div className="text-2xl font-bold text-green-800 tabular-nums">
+              ₱{stats.thisMonthEarnings.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </div>
           </div>
-
-          {/* Harvest Due Soon */}
-          <div className="bg-surface-container-lowest p-[16px] rounded-[16px] shadow-[0_4px_20px_rgba(27,67,50,0.04)] col-span-2">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-tertiary-container text-[20px]" style={{ fontVariationSettings: "'FILL' 1" }}>calendar_clock</span>
-                <p className="text-[14px] font-medium text-on-background">Harvest Due Soon</p>
-              </div>
-              <span className="bg-error-container text-on-error-container text-[12px] font-semibold tracking-[0.03em] px-2 py-0.5 rounded-full">
-                {stats.upcomingHarvests.length}
-              </span>
+          <div className="bg-white p-4 rounded-lg border border-gray-200 flex flex-col justify-between">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-1">
+              Harvest Due Soon
+            </span>
+            <div className="text-2xl font-bold text-gray-900 tabular-nums">
+              {stats.upcomingHarvests.length}
             </div>
           </div>
         </div>
 
         {/* Quick Actions */}
-        <div className="flex justify-between items-start gap-2">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {actions.map((action, idx) => (
-            <Link key={idx} href={action.href} className="flex-1 flex flex-col items-center gap-2 group">
-              <div className={`w-14 h-14 rounded-full ${action.bg} flex items-center justify-center ${action.color} ${action.shadow} group-hover:opacity-90 transition-opacity`}>
-                <span className="material-symbols-outlined text-[24px]" style={{ fontVariationSettings: (idx < 2) ? "'FILL' 1" : "'FILL' 0" }}>{action.icon}</span>
-              </div>
-              <span className="text-[12px] font-semibold tracking-[0.03em] text-on-surface-variant text-center leading-tight whitespace-pre-line">
+            <Link
+              key={idx}
+              href={action.href}
+              className="p-3 bg-white border border-gray-200 rounded-lg hover:border-green-800 hover:bg-green-50/40 text-center transition-colors group cursor-pointer"
+            >
+              <span className="text-xs font-semibold text-gray-900 group-hover:text-green-900">
                 {action.label}
               </span>
             </Link>
@@ -75,14 +63,16 @@ export default async function FarmerDashboard() {
         </div>
 
         {/* Upcoming Harvests */}
-        <div>
-          <div className="flex justify-between items-center mb-[16px]">
-            <h2 className="text-[20px] font-semibold">Upcoming Harvests</h2>
-            <Link href="/farmer/crops" className="text-secondary text-[12px]">View All</Link>
+        <div className="bg-white border border-gray-200 rounded-lg p-5">
+          <div className="flex justify-between items-center pb-3 border-b border-gray-100 mb-4">
+            <h2 className="text-sm font-bold text-gray-900 uppercase tracking-wider">Upcoming Harvests</h2>
+            <Link href="/farmer/crops" className="text-xs font-semibold text-green-800 hover:text-green-900">
+              View All Crops →
+            </Link>
           </div>
           <div className="flex flex-col gap-3">
             {stats.upcomingHarvests.length === 0 ? (
-              <p className="text-[14px] text-on-surface-variant text-center py-4">No upcoming harvests in the next 14 days.</p>
+              <p className="text-xs text-gray-500 text-center py-6">No upcoming harvests in the next 14 days.</p>
             ) : (
               stats.upcomingHarvests.map((harvest) => {
                 const planted = new Date(harvest.datePlanted).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
@@ -92,21 +82,16 @@ export default async function FarmerDashboard() {
                 const progress = Math.min(100, Math.max(0, Math.round((passedDays / totalDays) * 100)));
                 
                 return (
-                  <div key={harvest.id} className="bg-surface-container-lowest p-[16px] rounded-[16px] shadow-[0_4px_20px_rgba(27,67,50,0.04)] border border-surface-variant/50">
-                    <div className="flex justify-between items-start mb-3">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-lg bg-[#fef3c7] flex items-center justify-center">
-                          <span className="material-symbols-outlined text-[#b45309]">spa</span>
-                        </div>
-                        <div>
-                          <p className="text-[14px] font-medium">{harvest.cropName}</p>
-                          <p className="text-[12px] text-on-surface-variant mt-0.5">Planting: {planted} • Harvest: {expected}</p>
-                        </div>
+                  <div key={harvest.id} className="p-3.5 rounded-lg border border-gray-200 bg-gray-50 flex flex-col gap-2">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <p className="text-xs font-bold text-gray-900">{harvest.cropName}</p>
+                        <p className="text-[11px] text-gray-500 tabular-nums">Planted: {planted} • Target Harvest: {expected}</p>
                       </div>
-                      <span className="bg-surface-container text-on-surface text-[12px] font-semibold px-2 py-1 rounded-md">{progress}%</span>
+                      <span className="text-xs font-bold text-green-800 tabular-nums">{progress}%</span>
                     </div>
-                    <div className="w-full bg-surface-variant rounded-full h-2 overflow-hidden">
-                      <div className="bg-primary rounded-full h-full transition-all duration-500" style={{ width: `${progress}%` }} />
+                    <div className="w-full bg-gray-200 rounded-full h-1.5 overflow-hidden">
+                      <div className="bg-green-800 rounded-full h-full transition-all duration-300" style={{ width: `${progress}%` }} />
                     </div>
                   </div>
                 );
@@ -116,38 +101,36 @@ export default async function FarmerDashboard() {
         </div>
 
         {/* Recent Orders */}
-        <div>
-          <div className="flex justify-between items-center mb-[16px]">
-            <h2 className="text-[20px] font-semibold">Recent Orders</h2>
-            <Link href="/farmer/orders" className="text-secondary text-[12px]">View All</Link>
+        <div className="bg-white border border-gray-200 rounded-lg p-5">
+          <div className="flex justify-between items-center pb-3 border-b border-gray-100 mb-2">
+            <h2 className="text-sm font-bold text-gray-900 uppercase tracking-wider">Recent Orders</h2>
+            <Link href="/farmer/orders" className="text-xs font-semibold text-green-800 hover:text-green-900">
+              View All Orders →
+            </Link>
           </div>
-          <div className="bg-surface-container-lowest rounded-[16px] shadow-[0_4px_20px_rgba(27,67,50,0.04)] overflow-hidden">
+          <div className="divide-y divide-gray-100">
             {stats.recentOrders.length === 0 ? (
-              <p className="text-[14px] text-on-surface-variant text-center py-4">No recent orders.</p>
+              <p className="text-xs text-gray-500 text-center py-6">No recent orders.</p>
             ) : (
               stats.recentOrders.map((order) => {
-                const initials = order.buyer.name.substring(0, 2).toUpperCase();
                 const productNames = order.items.map(i => i.product.name).join(', ');
                 const isPending = order.orderStatus === 'PENDING';
-                const statusBg = isPending ? 'bg-surface-variant' : 'bg-secondary-container';
-                const statusColor = isPending ? 'text-on-surface-variant' : 'text-on-secondary-container';
 
                 return (
-                  <div key={order.id} className="flex items-center justify-between p-[16px] border-b border-surface-variant/50 last:border-0">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-surface-container-high flex items-center justify-center text-on-surface-variant text-[14px] font-medium">
-                        {initials}
-                      </div>
-                      <div>
-                        <p className="text-[14px] font-medium">{order.buyer.name}</p>
-                        <p className="text-[12px] text-on-surface-variant mt-0.5 truncate max-w-[150px]">{productNames}</p>
-                      </div>
+                  <div key={order.id} className="py-3 flex items-center justify-between">
+                    <div>
+                      <p className="text-xs font-bold text-gray-900">{order.buyer.name}</p>
+                      <p className="text-[11px] text-gray-500 truncate max-w-[240px] sm:max-w-md">{productNames}</p>
                     </div>
                     <div className="text-right">
-                      <p className="text-[14px] font-medium mb-1">
+                      <p className="text-xs font-bold text-green-800 tabular-nums mb-0.5">
                         ₱{order.totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </p>
-                      <span className={`${statusBg} ${statusColor} text-[12px] font-semibold tracking-[0.03em] px-2 py-0.5 rounded-full inline-block`}>
+                      <span className={`inline-block text-[10px] font-semibold uppercase tracking-wider px-2 py-0.2 rounded border ${
+                        isPending
+                          ? 'bg-gray-100 text-gray-700 border-gray-300'
+                          : 'bg-green-50 text-green-800 border-green-200'
+                      }`}>
                         {order.orderStatus}
                       </span>
                     </div>
@@ -163,4 +146,3 @@ export default async function FarmerDashboard() {
     </>
   );
 }
-

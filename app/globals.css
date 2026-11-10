@@ -1,30 +1,108 @@
 @import "tailwindcss";
 
 @theme inline {
-  --color-primary: #012d1d;
-  --color-primary-container: #1b4332;
-  --color-background: #fcf9f2;
-  --color-surface: #fcf9f2;
-  --color-surface-bright: #fcf9f2;
-  --color-surface-container-lowest: #ffffff;
-  --color-surface-container-low: #f6f3ec;
-  --color-surface-container: #f0eee6;
-  --color-surface-container-high: #eae8e1;
-  --color-surface-container-highest: #e5e2db;
-  --color-surface-variant: #e5e2db;
-  --color-surface-dim: #dcdad3;
-  --color-on-surface: #1b1c18;
-  --color-on-surface-variant: #414844;
+  /*
+   * FarmFlow Design System — Green, White & Neutral Gray ONLY.
+   * Every semantic token below resolves to forest green (#1B5E20),
+   * white / off-white surfaces, neutral gray ink & hairlines, or an
+   * understated red-700 for destructive/error text. No other hues.
+   */
+  --color-primary: #1b5e20;
+  --color-primary-container: #14532d;
   --color-on-primary: #ffffff;
-  --color-on-primary-container: #86af99;
-  --color-secondary: #43664d;
-  --color-secondary-container: #c2e9c9;
-  --color-on-secondary-container: #486a51;
-  --color-outline: #717973;
-  --color-outline-variant: #c1c8c2;
-  --color-surface-tint: #3f6653;
-  --color-inverse-primary: #a5d0b9;
-  --color-error: #ba1a1a;
+  --color-on-primary-container: #f0fdf4;
+  --color-primary-fixed: #f0fdf4;
+  --color-primary-fixed-dim: #dcfce7;
+  --color-on-primary-fixed-variant: #14532d;
+  --color-inverse-primary: #bbf7d0;
+  --color-surface-tint: #1b5e20;
+
+  --color-background: #f9fafb;
+  --color-on-background: #111827;
+  --color-surface: #ffffff;
+  --color-surface-bright: #ffffff;
+  --color-surface-container-lowest: #ffffff;
+  --color-surface-container-low: #f9fafb;
+  --color-surface-container: #f3f4f6;
+  --color-surface-container-high: #e5e7eb;
+  --color-surface-container-highest: #e5e7eb;
+  --color-surface-variant: #e5e7eb;
+  --color-surface-dim: #d1d5db;
+  --color-on-surface: #111827;
+  --color-on-surface-variant: #4b5563;
+  --color-outline: #9ca3af;
+  --color-outline-variant: #e5e7eb;
+
+  /* Secondary / tertiary / accent are intentionally neutral gray */
+  --color-secondary: #4b5563;
+  --color-on-secondary: #ffffff;
+  --color-secondary-container: #f3f4f6;
+  --color-on-secondary-container: #374151;
+  --color-secondary-fixed: #f3f4f6;
+  --color-tertiary-container: #f3f4f6;
+  --color-on-tertiary-container: #374151;
+  --color-tertiary-fixed: #f3f4f6;
+  --color-on-tertiary-fixed-variant: #374151;
+  --color-accent-50: #f9fafb;
+  --color-accent-200: #e5e7eb;
+  --color-accent-700: #374151;
+
+  /* Destructive — understated red-700 text / red-300 hairline only */
+  --color-error: #b91c1c;
+  --color-on-error: #ffffff;
+  --color-error-container: #fef2f2;
+  --color-on-error-container: #b91c1c;
+
+  /* Legacy admin-* / auth-* surface tokens mapped to the same neutral system */
+  --color-admin-background: #f9fafb;
+  --color-admin-surface: #ffffff;
+  --color-admin-surface-bright: #ffffff;
+  --color-admin-surface-container-lowest: #ffffff;
+  --color-admin-surface-container-low: #f9fafb;
+  --color-admin-surface-container: #f3f4f6;
+  --color-admin-surface-container-high: #e5e7eb;
+  --color-admin-surface-container-highest: #e5e7eb;
+  --color-admin-surface-variant: #f3f4f6;
+  --color-admin-on-surface: #111827;
+  --color-admin-on-background: #111827;
+  --color-admin-on-surface-variant: #4b5563;
+  --color-admin-outline: #9ca3af;
+  --color-admin-outline-variant: #e5e7eb;
+  --color-auth-background: #f9fafb;
+  --color-auth-surface: #ffffff;
+  --color-auth-surface-container: #f3f4f6;
+  --color-auth-surface-container-low: #f9fafb;
+  --color-auth-surface-container-high: #e5e7eb;
+  --color-auth-on-surface: #111827;
+  --color-auth-on-surface-variant: #4b5563;
+  --color-auth-secondary: #4b5563;
+  --color-auth-secondary-fixed: #e5e7eb;
+  --color-auth-secondary-fixed-dim: #d1d5db;
+
+  --text-admin-h1: 28px;
+  --text-admin-h1--line-height: 36px;
+  --text-admin-h1--letter-spacing: -0.02em;
+  --text-admin-h1--font-weight: 600;
+  --text-admin-h2: 22px;
+  --text-admin-h2--line-height: 30px;
+  --text-admin-h2--font-weight: 600;
+  --text-admin-h3: 16px;
+  --text-admin-h3--line-height: 24px;
+  --text-admin-h3--font-weight: 600;
+  --text-admin-body-base: 15px;
+  --text-admin-body-base--line-height: 24px;
+  --text-admin-body-sm: 14px;
+  --text-admin-body-sm--line-height: 20px;
+  --text-admin-table-data: 13px;
+  --text-admin-table-data--line-height: 18px;
+  --text-admin-label-caps: 11px;
+  --text-admin-label-caps--line-height: 16px;
+  --text-admin-label-caps--letter-spacing: 0.06em;
+  --text-admin-label-caps--font-weight: 500;
+  --text-auth-body-base: 16px;
+  --text-auth-body-base--line-height: 24px;
+  --text-auth-body-sm: 14px;
+  --text-auth-body-sm--line-height: 20px;
 
   --font-sans: var(--font-inter), "Inter", sans-serif;
   --font-display: var(--font-manrope), "Manrope", sans-serif;
@@ -78,13 +156,13 @@
   --radius-xl: 0.75rem;
   --radius-full: 9999px;
 
-  --shadow-level-1: 0px 4px 20px rgba(27, 67, 50, 0.04);
-  --shadow-level-2: 0px 12px 32px rgba(27, 67, 50, 0.08);
+  --shadow-level-1: 0px 1px 2px rgba(17, 24, 39, 0.04);
+  --shadow-level-2: 0px 4px 12px rgba(17, 24, 39, 0.06);
 }
 
 body {
-  background-color: var(--color-background, #fcf9f2);
-  color: var(--color-on-surface, #1b1c18);
+  background-color: var(--color-background, #f9fafb);
+  color: var(--color-on-surface, #111827);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;

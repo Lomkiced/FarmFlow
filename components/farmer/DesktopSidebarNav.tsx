@@ -5,7 +5,7 @@ import { useTransition } from 'react';
 import { logoutAction } from '@/app/actions/auth';
 
 interface DesktopSidebarNavProps {
-  activePage: string
+  activePage: string;
 }
 
 export default function DesktopSidebarNav({ activePage }: DesktopSidebarNavProps) {
@@ -26,38 +26,64 @@ export default function DesktopSidebarNav({ activePage }: DesktopSidebarNavProps
 
   const moreLinks = [
     { icon: 'history', label: 'Activity Log', href: '/farmer/activities' },
-    { icon: 'settings', label: 'Farm Settings', href: '#' },
+    { icon: 'settings', label: 'Farm Settings', href: '/farmer/farm-profile' },
   ];
 
   return (
-    <nav className="hidden md:flex flex-col h-screen w-[280px] rounded-r-3xl divide-y divide-stone-100 shadow-2xl bg-white sticky top-0 z-[60]">
-      <div className="p-6 flex items-center gap-4">
-        <img src="https://i.pravatar.cc/150?img=12" alt="Avatar" className="w-12 h-12 rounded-full object-cover" />
+    <nav className="hidden md:flex flex-col h-screen w-[260px] border-r border-gray-200 bg-white sticky top-0 z-40">
+      <div className="p-5 border-b border-gray-200 flex items-center gap-3">
+        <div className="w-9 h-9 rounded-lg bg-green-800 text-white flex items-center justify-center font-bold text-sm shrink-0">
+          <span className="material-symbols-outlined text-[20px]">agriculture</span>
+        </div>
         <div>
-          <div className="font-['Manrope'] text-sm font-bold text-[#1B4332]">FarmFlow Pro</div>
-          <div className="text-xs text-stone-500">Agoo, La Union</div>
-          <div className="text-[10px] font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full mt-1 inline-block">Premium Member</div>
+          <div className="text-sm font-bold text-gray-900">FarmFlow Farmer</div>
+          <div className="text-[11px] text-gray-500">Agoo, La Union</div>
         </div>
       </div>
 
-      <div className="flex-1 py-4 flex flex-col gap-1 px-3">
+      <div className="flex-1 py-4 flex flex-col gap-0.5 px-3">
+        <div className="px-3 pb-1 text-[10px] font-bold uppercase tracking-wider text-gray-400 select-none">
+          Farmer Operations
+        </div>
         {primaryLinks.map((link) => {
           const isActive = link.href.includes(activePage) || (activePage === 'home' && link.href.includes('dashboard'));
           return (
-            <Link key={link.label} href={link.href} className={isActive ? 'flex items-center gap-3 px-4 py-3 rounded-xl bg-emerald-50 text-[#1B4332] font-bold border-l-4 border-[#1B4332]' : 'flex items-center gap-3 px-4 py-3 rounded-xl text-stone-600 hover:bg-stone-50 transition-colors'}>
-              <span className="material-symbols-outlined" style={{ fontVariationSettings: isActive ? "'FILL' 1" : "'FILL' 0" }}>{link.icon}</span>
+            <Link
+              key={link.label}
+              href={link.href}
+              className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs transition-colors ${
+                isActive
+                  ? 'bg-green-50 text-green-900 border-l-2 border-green-800 font-semibold'
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50 font-medium'
+              }`}
+            >
+              <span className={`material-symbols-outlined text-[18px] ${isActive ? 'text-green-800' : 'text-gray-400'}`}>
+                {link.icon}
+              </span>
               {link.label}
             </Link>
           );
         })}
 
-        <div className="mt-8 mb-2 px-4 text-xs font-bold text-stone-400 uppercase tracking-wider">More</div>
+        <div className="mt-6 mb-1 px-3 text-[10px] font-bold uppercase tracking-wider text-gray-400 select-none">
+          Logs & Settings
+        </div>
 
         {moreLinks.map((link) => {
           const isActive = link.href.includes(activePage);
           return (
-            <Link key={link.label} href={link.href} className={isActive ? 'flex items-center gap-3 px-4 py-3 rounded-xl bg-emerald-50 text-[#1B4332] font-bold border-l-4 border-[#1B4332]' : 'flex items-center gap-3 px-4 py-3 rounded-xl text-stone-600 hover:bg-stone-50 transition-colors'}>
-              <span className="material-symbols-outlined" style={{ fontVariationSettings: isActive ? "'FILL' 1" : "'FILL' 0" }}>{link.icon}</span>
+            <Link
+              key={link.label}
+              href={link.href}
+              className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs transition-colors ${
+                isActive
+                  ? 'bg-green-50 text-green-900 border-l-2 border-green-800 font-semibold'
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50 font-medium'
+              }`}
+            >
+              <span className={`material-symbols-outlined text-[18px] ${isActive ? 'text-green-800' : 'text-gray-400'}`}>
+                {link.icon}
+              </span>
               {link.label}
             </Link>
           );
@@ -65,21 +91,16 @@ export default function DesktopSidebarNav({ activePage }: DesktopSidebarNavProps
       </div>
 
       {/* DESKTOP LOGOUT BUTTON */}
-      <div className="p-4 mt-auto border-t border-stone-100">
+      <div className="p-3 border-t border-gray-200">
         <button
           onClick={handleLogout}
           disabled={isPending}
-          className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-red-600/80 hover:text-red-700 hover:bg-red-50 transition-colors disabled:opacity-50 font-bold"
+          className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold text-gray-600 hover:text-red-700 hover:bg-red-50/60 transition-colors disabled:opacity-50 cursor-pointer"
         >
-          {isPending ? (
-            <span className="material-symbols-outlined animate-spin">progress_activity</span>
-          ) : (
-            <span className="material-symbols-outlined">logout</span>
-          )}
+          <span className="material-symbols-outlined text-[18px] text-gray-400">logout</span>
           {isPending ? 'Signing out...' : 'Sign Out'}
         </button>
       </div>
-
     </nav>
   );
 }

@@ -18,6 +18,7 @@ export default async function ProductDetailPage(props: { params: Promise<{ id: s
         <ProductDetailClient 
           product={data.product} 
           relatedProducts={data.related} 
+          reviews={data.reviews}
         />
       </main>
     </>

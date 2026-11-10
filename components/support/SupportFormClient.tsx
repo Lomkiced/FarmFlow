@@ -61,18 +61,15 @@ export default function SupportFormClient() {
 
   if (isSubmitted) {
     return (
-      <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-8 text-center flex flex-col items-center gap-3">
-        <div className="w-14 h-14 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center">
-          <span className="material-symbols-outlined text-[32px]">check_circle</span>
-        </div>
-        <h3 className="font-display font-bold text-2xl text-emerald-950">Message Received!</h3>
-        <p className="text-emerald-800 text-sm max-w-md">
-          Thank you for reaching out to FarmFlow Support. Our team has received your inquiry and will follow up with you via email within 1-2 business days.
+      <div className="bg-green-50 border border-green-200 rounded-lg p-8 text-center flex flex-col items-center gap-2">
+        <h3 className="font-bold text-lg text-green-900">Message Received</h3>
+        <p className="text-green-800 text-xs max-w-md">
+          Thank you for reaching out to FarmFlow Support. Our team will review your inquiry and follow up via email within 1-2 business days.
         </p>
         <button
           type="button"
           onClick={() => setIsSubmitted(false)}
-          className="mt-2 text-xs font-semibold text-emerald-700 hover:underline"
+          className="mt-3 text-xs font-semibold text-green-800 hover:underline cursor-pointer"
         >
           Send another inquiry
         </button>
@@ -81,59 +78,59 @@ export default function SupportFormClient() {
   }
 
   return (
-    <div className="bg-surface-container-lowest p-6 md:p-8 rounded-2xl border border-stone-200 shadow-sm flex flex-col gap-6">
-      <div className="border-b border-stone-100 pb-4">
-        <h2 className="font-display font-bold text-2xl text-stone-900">Send Us a Direct Message</h2>
-        <p className="text-stone-500 text-sm mt-1">
-          Have an urgent question or need help with a transaction? Fill out the form below and our staff will respond promptly.
+    <div className="bg-white p-6 md:p-8 rounded-lg border border-gray-200 flex flex-col gap-5">
+      <div className="border-b border-gray-100 pb-3">
+        <h2 className="font-bold text-xl text-gray-900">Send Us a Direct Message</h2>
+        <p className="text-gray-500 text-xs mt-0.5">
+          Fill out the form below and our agricultural operations staff will respond promptly.
         </p>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="block text-xs font-semibold text-stone-700 mb-1">Your Full Name *</label>
+            <label className="block text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-1">Your Full Name *</label>
             <input
               type="text"
               required
-              placeholder="e.g. Maria Santos"
+              placeholder="Maria Santos"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full text-sm border border-stone-300 rounded-xl px-3.5 py-2.5 outline-none focus:border-primary focus:ring-1 focus:ring-primary bg-white text-stone-900"
+              className="w-full text-xs border border-gray-300 rounded-lg px-3 py-2 outline-none focus:border-green-800 focus:ring-1 focus:ring-green-800 bg-white text-gray-900"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-stone-700 mb-1">Email Address *</label>
+            <label className="block text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-1">Email Address *</label>
             <input
               type="email"
               required
               placeholder="maria@example.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full text-sm border border-stone-300 rounded-xl px-3.5 py-2.5 outline-none focus:border-primary focus:ring-1 focus:ring-primary bg-white text-stone-900"
+              className="w-full text-xs border border-gray-300 rounded-lg px-3 py-2 outline-none focus:border-green-800 focus:ring-1 focus:ring-green-800 bg-white text-gray-900"
             />
           </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="block text-xs font-semibold text-stone-700 mb-1">Contact Phone (Optional)</label>
+            <label className="block text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-1">Contact Phone (Optional)</label>
             <input
               type="tel"
               placeholder="0912 345 6789"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
-              className="w-full text-sm border border-stone-300 rounded-xl px-3.5 py-2.5 outline-none focus:border-primary focus:ring-1 focus:ring-primary bg-white text-stone-900"
+              className="w-full text-xs border border-gray-300 rounded-lg px-3 py-2 outline-none focus:border-green-800 focus:ring-1 focus:ring-green-800 bg-white text-gray-900"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-stone-700 mb-1">Inquiry Subject *</label>
+            <label className="block text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-1">Inquiry Subject *</label>
             <select
               value={subject}
               onChange={(e) => setSubject(e.target.value)}
-              className="w-full text-sm border border-stone-300 rounded-xl px-3.5 py-2.5 outline-none focus:border-primary focus:ring-1 focus:ring-primary bg-white text-stone-900"
+              className="w-full text-xs border border-gray-300 rounded-lg px-3 py-2 outline-none focus:border-green-800 focus:ring-1 focus:ring-green-800 bg-white text-gray-900"
             >
               {SUBJECT_OPTIONS.map((opt) => (
                 <option key={opt} value={opt}>
@@ -145,29 +142,24 @@ export default function SupportFormClient() {
         </div>
 
         <div>
-          <label className="block text-xs font-semibold text-stone-700 mb-1">Detailed Message *</label>
+          <label className="block text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-1">Detailed Message *</label>
           <textarea
             required
             rows={4}
             placeholder="Please detail your question or concern (include Order ID if applicable)..."
             value={message}
             onChange={(e) => setMessage(e.target.value)}
-            className="w-full text-sm border border-stone-300 rounded-xl p-3.5 outline-none focus:border-primary focus:ring-1 focus:ring-primary bg-white text-stone-900 resize-none"
+            className="w-full text-xs border border-gray-300 rounded-lg p-3 outline-none focus:border-green-800 focus:ring-1 focus:ring-green-800 bg-white text-gray-900 resize-none"
           />
         </div>
 
-        <div className="flex justify-end pt-2">
+        <div className="flex justify-end pt-1">
           <button
             type="submit"
             disabled={isSubmitting}
-            className="w-full md:w-auto px-8 py-3 bg-primary hover:bg-primary/90 text-on-primary font-bold text-sm rounded-xl transition-all shadow-sm flex items-center justify-center gap-2 disabled:opacity-50"
+            className="w-full sm:w-auto px-6 py-2.5 bg-green-800 hover:bg-green-900 text-white font-semibold text-xs rounded-lg transition-colors disabled:opacity-50 cursor-pointer"
           >
-            {isSubmitting ? (
-              <span className="material-symbols-outlined text-[18px] animate-spin">progress_activity</span>
-            ) : (
-              <span className="material-symbols-outlined text-[18px]">send</span>
-            )}
-            {isSubmitting ? 'Submitting Inquiry...' : 'Submit Support Inquiry'}
+            {isSubmitting ? 'Submitting...' : 'Submit Support Inquiry'}
           </button>
         </div>
       </form>

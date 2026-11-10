@@ -1,18 +1,34 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import Image from 'next/image';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { formatDistanceToNow } from 'date-fns';
 import { useUIStore } from '@/store/uiStore';
 import { globalSearchAdminAction } from '@/app/actions/admin';
-import { getTopUnreadNotificationsAction, markNotificationReadAction, markAllNotificationsReadAction } from '@/app/actions/notifications';
+import {
+  getTopUnreadNotificationsAction,
+  markNotificationReadAction,
+  markAllNotificationsReadAction,
+} from '@/app/actions/notifications';
+
+const ROUTE_META: Record<string, { title: string; badge: string }> = {
+  '/admin': { title: 'Executive Command Center', badge: 'Live Telemetry' },
+  '/admin/inbox': { title: 'Notification & Support Inbox', badge: 'Communications' },
+  '/admin/farmers': { title: 'Farmers & KYC Verification', badge: 'RSBSA Registry' },
+  '/admin/buyers': { title: 'Buyer Directory & Trust', badge: 'B2B / B2C Accounts' },
+  '/admin/listings': { title: 'Harvest Listings Moderation', badge: 'Catalog Audit' },
+  '/admin/orders': { title: 'Order Logistics & Escrow', badge: 'Fulfillment' },
+  '/admin/analytics': { title: 'Platform Intelligence & BI', badge: 'Metrics' },
+  '/admin/settings': { title: 'Platform Governance Settings', badge: 'Configuration' },
+};
 
 export default function AdminTopbar() {
   const { toggleAdminSidebar } = useUIStore();
   const router = useRouter();
+  const pathname = usePathname();
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
@@ -29,6 +45,12 @@ export default function AdminTopbar() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [isNotifsOpen, setIsNotifsOpen] = useState(false);
   const notifRef = useRef<HTMLDivElement>(null);
+
+  const currentMeta =
+    ROUTE_META[pathname] ||
+    (pathname.startsWith('/admin/farmers/')
+      ? { title: 'Farmer Dossier & Audit', badge: 'KYC Inspector' }
+      : { title: 'Admin Portal', badge: 'Governance' });
 
   // Fetch notifications
   const loadNotifications = () => {
@@ -48,7 +70,7 @@ export default function AdminTopbar() {
   useEffect(() => {
     const handler = setTimeout(() => {
       setDebouncedQuery(searchQuery);
-    }, 300);
+    }, 280);
     return () => clearTimeout(handler);
   }, [searchQuery]);
 
@@ -59,7 +81,6 @@ export default function AdminTopbar() {
       setIsDropdownOpen(true);
       globalSearchAdminAction(debouncedQuery).then((res) => {
         if (res.error) {
-          console.error("Server Action Error:", res.error);
           setResults({ farmers: [], products: [], orders: [], users: [], error: res.error } as any);
         } else {
           setResults(res);
@@ -72,7 +93,7 @@ export default function AdminTopbar() {
     }
   }, [debouncedQuery]);
 
-  // Click outside and escape key
+  // Click outside and keyboard shortcuts (Ctrl+K / Escape)
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
@@ -82,17 +103,21 @@ export default function AdminTopbar() {
         setIsNotifsOpen(false);
       }
     };
-    const handleEscape = (e: KeyboardEvent) => {
+    const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         setIsDropdownOpen(false);
         setIsNotifsOpen(false);
       }
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+      }
     };
     document.addEventListener('mousedown', handleClickOutside);
-    document.addEventListener('keydown', handleEscape);
+    document.addEventListener('keydown', handleKeyDown);
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
-      document.removeEventListener('keydown', handleEscape);
+      document.removeEventListener('keydown', handleKeyDown);
     };
   }, []);
 
@@ -104,120 +129,140 @@ export default function AdminTopbar() {
   };
 
   return (
-    <div className="h-16 w-full sticky top-0 z-[9999] bg-white/95 backdrop-blur-sm border-b border-slate-200 flex items-center justify-between px-4 md:px-8">
-      
-      {/* LEFT: Menu & Search */}
-      <div className="flex items-center gap-4">
+    <header className="h-16 w-full sticky top-0 z-40 bg-white border-b border-gray-200 flex items-center justify-between px-4 md:px-8 gap-4">
+      {/* LEFT: Mobile Menu, Route Context & Global Search */}
+      <div className="flex items-center gap-4 flex-1 min-w-0">
         {/* Mobile Hamburger */}
-        <button 
+        <button
           onClick={toggleAdminSidebar}
-          className="md:hidden p-2 -ml-2 rounded-lg text-admin-on-surface-variant hover:bg-slate-100 transition-colors"
+          className="md:hidden p-2 -ml-2 rounded-lg text-gray-600 hover:bg-gray-100 transition-colors"
+          aria-label="Toggle Menu"
         >
-          <span className="material-symbols-outlined">menu</span>
+          <span className="material-symbols-outlined text-[20px]">menu</span>
         </button>
 
-        {/* Search input */}
-        <div className="relative w-48 md:w-64" ref={dropdownRef}>
-          <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-admin-outline-variant">
+        {/* Active Module Breadcrumb Badge (Desktop) */}
+        <div className="hidden xl:flex items-center gap-2.5 pr-4 border-r border-gray-200 shrink-0">
+          <span className="text-sm font-bold text-gray-900 tracking-tight">
+            {currentMeta.title}
+          </span>
+          <span className="px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wider bg-green-50 text-green-800 border border-green-200">
+            {currentMeta.badge}
+          </span>
+        </div>
+
+        {/* Global Command Search */}
+        <div className="relative flex-1 max-w-md" ref={dropdownRef}>
+          <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-[18px]">
             search
           </span>
-          <input 
-            type="text" 
-            placeholder="Search..." 
+          <input
+            ref={searchInputRef}
+            type="text"
+            placeholder="Search farmers, RSBSA, listings, orders..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            onFocus={() => { if (debouncedQuery.length >= 2) setIsDropdownOpen(true); }}
-            className="w-full pl-10 pr-4 py-2 border border-admin-outline-variant rounded-lg bg-admin-surface-container-lowest text-admin-on-surface focus:ring-2 focus:ring-primary/20 focus:border-primary font-admin-body-sm text-admin-body-sm outline-none"
+            onFocus={() => {
+              if (debouncedQuery.length >= 2) setIsDropdownOpen(true);
+            }}
+            className="w-full pl-9 pr-14 py-2 border border-gray-300 rounded-lg bg-gray-50 focus:bg-white text-gray-900 focus:border-green-800 focus:ring-1 focus:ring-green-800 text-xs font-medium outline-none transition-all"
           />
+          <kbd className="hidden sm:inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-mono text-gray-400 bg-white border border-gray-200 rounded absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none">
+            Ctrl K
+          </kbd>
 
           {/* Results Dropdown */}
           {isDropdownOpen && (
-            <div className="absolute top-[calc(100%+8px)] left-0 w-full min-w-[280px] md:min-w-[360px] bg-white border border-slate-200 rounded-xl shadow-xl z-[100] overflow-hidden flex flex-col max-h-[450px]">
+            <div className="absolute top-[calc(100%+6px)] left-0 w-full min-w-[300px] md:min-w-[400px] bg-white border border-gray-200 rounded-lg shadow-lg z-50 overflow-hidden flex flex-col max-h-[460px]">
               {isSearching ? (
-                <div className="p-6 flex flex-col items-center justify-center gap-3 text-slate-500">
-                  <span className="material-symbols-outlined animate-spin text-2xl text-primary">progress_activity</span>
-                  <span className="font-admin-body-sm text-sm">Searching...</span>
+                <div className="p-6 flex flex-col items-center justify-center gap-2 text-gray-500">
+                  <span className="text-xs font-medium">Searching directory...</span>
                 </div>
               ) : results ? (
-                <div className="overflow-y-auto py-2 custom-scrollbar">
+                <div className="overflow-y-auto py-1 divide-y divide-gray-100">
                   {(results as any).error ? (
-                    <div className="p-8 flex flex-col items-center justify-center gap-2 text-error">
-                      <span className="material-symbols-outlined text-4xl">error</span>
-                      <p className="text-sm font-medium">Search Failed</p>
-                      <p className="text-xs text-center">{(results as any).error}</p>
+                    <div className="p-6 text-center text-red-700">
+                      <p className="text-xs font-semibold">Search Failed</p>
+                      <p className="text-[11px] mt-1">{(results as any).error}</p>
                     </div>
-                  ) : (results.farmers?.length || 0) === 0 && (results.products?.length || 0) === 0 && (results.orders?.length || 0) === 0 && (results.users?.length || 0) === 0 ? (
-                    <div className="p-8 flex flex-col items-center justify-center gap-2 text-slate-500">
-                      <span className="material-symbols-outlined text-4xl text-slate-300">search_off</span>
-                      <p className="text-sm font-medium">No results found</p>
-                      <p className="text-xs text-slate-400">We couldn't find anything for "{debouncedQuery}"</p>
+                  ) : (results.farmers?.length || 0) === 0 &&
+                    (results.products?.length || 0) === 0 &&
+                    (results.orders?.length || 0) === 0 &&
+                    (results.users?.length || 0) === 0 ? (
+                    <div className="p-8 text-center text-gray-500">
+                      <p className="text-xs font-semibold text-gray-800">No matching records</p>
+                      <p className="text-[11px] text-gray-500 mt-0.5">
+                        Nothing matched &ldquo;{debouncedQuery}&rdquo;
+                      </p>
                     </div>
                   ) : (
                     <>
                       {results.farmers.length > 0 && (
-                        <div className="pb-2">
-                          <div className="px-4 py-2 text-xs font-bold text-slate-400 uppercase tracking-wider bg-slate-50/50 sticky top-0 z-10 backdrop-blur-sm">
-                            Farmers
+                        <div>
+                          <div className="px-3.5 py-1 text-[10px] font-bold text-gray-400 uppercase tracking-wider bg-gray-50">
+                            Farmers ({results.farmers.length})
                           </div>
                           {results.farmers.map((f: any) => (
-                            <button 
+                            <button
                               key={f.id}
-                              onClick={() => handleResultClick(`/admin/farmers?location=${encodeURIComponent(f.farmName)}`)}
-                              className="w-full text-left px-4 py-3 hover:bg-slate-50 flex items-center gap-3 transition-colors border-l-2 border-transparent hover:border-primary"
+                              onClick={() =>
+                                handleResultClick(`/admin/farmers?location=${encodeURIComponent(f.farmName)}`)
+                              }
+                              className="w-full text-left px-3.5 py-2 hover:bg-gray-50 flex items-center justify-between transition-colors"
                             >
-                              <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-xs shrink-0">
-                                {f.farmName.charAt(0).toUpperCase()}
+                              <div className="flex flex-col min-w-0">
+                                <span className="text-xs font-semibold text-gray-900 truncate">{f.farmName}</span>
+                                <span className="text-[11px] text-gray-500 truncate">{f.user.name}</span>
                               </div>
-                              <div className="flex flex-col">
-                                <span className="text-sm font-semibold text-slate-800">{f.farmName}</span>
-                                <span className="text-xs text-slate-500">{f.user.name}</span>
-                              </div>
+                              <span className="text-[10px] text-gray-400 uppercase tracking-wider">Farmer</span>
                             </button>
                           ))}
                         </div>
                       )}
-                      
+
                       {results.products.length > 0 && (
-                        <div className="pb-2">
-                          <div className="px-4 py-2 text-xs font-bold text-slate-400 uppercase tracking-wider bg-slate-50/50 sticky top-0 z-10 backdrop-blur-sm border-t border-slate-100">
-                            Listings
+                        <div>
+                          <div className="px-3.5 py-1 text-[10px] font-bold text-gray-400 uppercase tracking-wider bg-gray-50">
+                            Listings ({results.products.length})
                           </div>
                           {results.products.map((p: any) => (
-                            <button 
+                            <button
                               key={p.id}
                               onClick={() => handleResultClick(`/admin/listings`)}
-                              className="w-full text-left px-4 py-3 hover:bg-slate-50 flex items-center gap-3 transition-colors border-l-2 border-transparent hover:border-primary"
+                              className="w-full text-left px-3.5 py-2 hover:bg-gray-50 flex items-center justify-between transition-colors"
                             >
-                              <div className="w-8 h-8 rounded-lg bg-green-100 flex items-center justify-center text-green-600 shrink-0">
-                                <span className="material-symbols-outlined text-[18px]">inventory_2</span>
+                              <div className="flex flex-col min-w-0">
+                                <span className="text-xs font-semibold text-gray-900 truncate">{p.name}</span>
+                                <span className="text-[11px] text-gray-500 truncate">{p.farm.farmName}</span>
                               </div>
-                              <div className="flex flex-col">
-                                <span className="text-sm font-semibold text-slate-800">{p.name}</span>
-                                <span className="text-xs text-slate-500">{p.farm.farmName}</span>
-                              </div>
+                              <span className="text-xs font-bold text-green-800 tabular-nums">₱{p.pricePerKg}</span>
                             </button>
                           ))}
                         </div>
                       )}
 
                       {results.orders.length > 0 && (
-                        <div className="pb-1">
-                          <div className="px-4 py-2 text-xs font-bold text-slate-400 uppercase tracking-wider bg-slate-50/50 sticky top-0 z-10 backdrop-blur-sm border-t border-slate-100">
-                            Orders
+                        <div>
+                          <div className="px-3.5 py-1 text-[10px] font-bold text-gray-400 uppercase tracking-wider bg-gray-50">
+                            Orders ({results.orders.length})
                           </div>
                           {results.orders.map((o: any) => (
-                            <button 
+                            <button
                               key={o.id}
-                              onClick={() => handleResultClick(`/admin/orders?buyer=${encodeURIComponent(o.buyer.name)}`)}
-                              className="w-full text-left px-4 py-3 hover:bg-slate-50 flex flex-col transition-colors border-l-2 border-transparent hover:border-primary"
+                              onClick={() =>
+                                handleResultClick(`/admin/orders?buyer=${encodeURIComponent(o.buyer.name)}`)
+                              }
+                              className="w-full text-left px-3.5 py-2 hover:bg-gray-50 flex flex-col transition-colors"
                             >
-                              <div className="flex items-center justify-between w-full mb-1">
-                                <span className="text-sm font-bold text-primary">#{o.id.slice(0, 8).toUpperCase()}</span>
-                                <span className="text-xs font-medium text-slate-600">₱{o.totalAmount}</span>
-                              </div>
                               <div className="flex items-center justify-between w-full">
-                                <span className="text-xs text-slate-500">{o.buyer.name}</span>
-                                <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 font-medium">
+                                <span className="text-xs font-mono font-bold text-green-800">
+                                  #{o.id.slice(0, 8).toUpperCase()}
+                                </span>
+                                <span className="text-xs font-bold text-gray-900 tabular-nums">₱{o.totalAmount}</span>
+                              </div>
+                              <div className="flex items-center justify-between w-full mt-0.5">
+                                <span className="text-[11px] text-gray-500">{o.buyer.name}</span>
+                                <span className="text-[10px] px-1.5 py-0.2 rounded border border-gray-200 bg-gray-50 text-gray-700 font-medium uppercase">
                                   {o.orderStatus}
                                 </span>
                               </div>
@@ -227,26 +272,23 @@ export default function AdminTopbar() {
                       )}
 
                       {results.users.length > 0 && (
-                        <div className="pb-1">
-                          <div className="px-4 py-2 text-xs font-bold text-slate-400 uppercase tracking-wider bg-slate-50/50 sticky top-0 z-10 backdrop-blur-sm border-t border-slate-100">
-                            Users
+                        <div>
+                          <div className="px-3.5 py-1 text-[10px] font-bold text-gray-400 uppercase tracking-wider bg-gray-50">
+                            Users ({results.users.length})
                           </div>
                           {results.users.map((u: any) => (
-                            <button 
+                            <button
                               key={u.id}
-                              onClick={() => handleResultClick(`/admin`)}
-                              className="w-full text-left px-4 py-3 hover:bg-slate-50 flex items-center gap-3 transition-colors border-l-2 border-transparent hover:border-primary"
+                              onClick={() => handleResultClick(u.role === 'BUYER' ? '/admin/buyers' : '/admin/farmers')}
+                              className="w-full text-left px-3.5 py-2 hover:bg-gray-50 flex items-center justify-between transition-colors"
                             >
-                              <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 shrink-0">
-                                <span className="material-symbols-outlined text-[18px]">person</span>
+                              <div className="flex flex-col min-w-0">
+                                <span className="text-xs font-semibold text-gray-900 truncate">{u.name}</span>
+                                <span className="text-[11px] text-gray-500 truncate">{u.email}</span>
                               </div>
-                              <div className="flex flex-col">
-                                <span className="text-sm font-semibold text-slate-800">{u.name}</span>
-                                <div className="flex items-center gap-2">
-                                  <span className="text-xs text-slate-500">{u.email}</span>
-                                  <span className="text-[9px] px-1.5 py-0.5 rounded bg-slate-200 text-slate-600 font-bold uppercase">{u.role}</span>
-                                </div>
-                              </div>
+                              <span className="text-[10px] px-1.5 py-0.5 rounded border border-gray-200 bg-gray-50 text-gray-700 font-medium uppercase">
+                                {u.role}
+                              </span>
                             </button>
                           ))}
                         </div>
@@ -260,75 +302,83 @@ export default function AdminTopbar() {
         </div>
       </div>
 
-      {/* RIGHT */}
-      <div className="flex items-center gap-4 md:gap-6">
-        
+      {/* RIGHT: Status, Notifications & Profile */}
+      <div className="flex items-center gap-3 md:gap-4 shrink-0">
+        {/* Live Escrow & KYC Status Pill */}
+        <Link
+          href="/admin/orders"
+          className="hidden lg:inline-flex items-center gap-2 px-3 py-1.5 rounded border border-green-200 bg-green-50/70 text-[11px] font-semibold text-green-900 transition-colors"
+        >
+          <span className="w-2 h-2 rounded-full bg-green-800" />
+          <span>Escrow & Cold-Chain Active</span>
+        </Link>
+
         {/* NOTIFICATIONS */}
         <div className="relative" ref={notifRef}>
-          <button 
+          <button
             onClick={() => setIsNotifsOpen(!isNotifsOpen)}
-            className="p-2 rounded-full hover:bg-slate-50 transition-colors relative text-admin-on-surface-variant"
+            className="w-9 h-9 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 transition-colors relative text-gray-700 flex items-center justify-center cursor-pointer"
+            aria-label="Notifications"
           >
-            <span className="material-symbols-outlined">notifications</span>
+            <span className="material-symbols-outlined text-[19px]">notifications</span>
             {unreadCount > 0 && (
-              <span className="absolute top-1 right-1 w-4 h-4 bg-error text-white text-[9px] font-bold flex items-center justify-center rounded-full border border-white">
+              <span className="absolute -top-1 -right-1 min-w-[16px] h-[16px] px-1 bg-red-700 text-white text-[9px] font-bold flex items-center justify-center rounded-full">
                 {unreadCount > 9 ? '9+' : unreadCount}
               </span>
             )}
           </button>
 
           {isNotifsOpen && (
-            <div className="absolute top-[calc(100%+8px)] right-0 w-[320px] bg-white border border-slate-200 rounded-xl shadow-xl z-[100] overflow-hidden flex flex-col">
-              <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 bg-slate-50">
-                <span className="font-semibold text-sm text-slate-800">Notifications</span>
+            <div className="absolute top-[calc(100%+6px)] right-0 w-[340px] bg-white border border-gray-200 rounded-lg shadow-lg z-50 overflow-hidden flex flex-col">
+              <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 bg-gray-50">
+                <div className="flex items-center gap-2">
+                  <span className="font-bold text-xs text-gray-900 uppercase tracking-wider">
+                    Alerts
+                  </span>
+                  {unreadCount > 0 && (
+                    <span className="px-1.5 py-0.5 text-[10px] font-semibold bg-green-50 text-green-800 border border-green-200 rounded">
+                      {unreadCount} new
+                    </span>
+                  )}
+                </div>
                 {unreadCount > 0 && (
-                  <button 
+                  <button
                     onClick={async () => {
                       await markAllNotificationsReadAction();
                       loadNotifications();
                     }}
-                    className="text-xs font-medium text-primary hover:text-primary/80 transition-colors"
+                    className="text-[11px] font-semibold text-green-800 hover:text-green-900 transition-colors cursor-pointer"
                   >
-                    Mark all as read
+                    Mark all read
                   </button>
                 )}
               </div>
-              
-              <div className="flex flex-col max-h-[360px] overflow-y-auto custom-scrollbar">
+
+              <div className="flex flex-col max-h-[340px] overflow-y-auto divide-y divide-gray-100">
                 {notifs.length === 0 ? (
-                  <div className="p-8 flex flex-col items-center justify-center text-slate-500 gap-2">
-                    <span className="material-symbols-outlined text-4xl text-slate-300">notifications_paused</span>
-                    <span className="text-sm font-medium">All caught up!</span>
+                  <div className="p-8 text-center text-gray-500">
+                    <p className="text-xs font-semibold text-gray-700">All caught up</p>
+                    <p className="text-[11px] text-gray-400 mt-0.5">No unread notifications.</p>
                   </div>
                 ) : (
-                  notifs.map(n => (
-                    <button 
+                  notifs.map((n) => (
+                    <button
                       key={n.id}
                       onClick={async () => {
                         await markNotificationReadAction(n.id);
                         setIsNotifsOpen(false);
                         loadNotifications();
-                        // Optional routing logic
                         if (n.relatedType === 'farmer') router.push(`/admin/farmers/${n.relatedId}`);
                         else if (n.relatedType === 'product') router.push(`/admin/listings`);
                         else if (n.relatedType === 'order') router.push(`/admin/orders?buyer=${n.relatedId}`);
                         else router.push('/admin/inbox');
                       }}
-                      className="w-full text-left p-4 flex gap-3 hover:bg-slate-50 transition-colors border-b border-slate-50 last:border-0"
+                      className="w-full text-left p-3.5 hover:bg-gray-50 transition-colors"
                     >
-                      <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center shrink-0">
-                        <span className="material-symbols-outlined text-[16px]">
-                          {n.type === 'NEW_USER' ? 'person_add' : 
-                           n.type === 'PENDING_FARMER' ? 'agriculture' : 
-                           n.type === 'NEW_LISTING' ? 'inventory_2' : 
-                           n.type === 'NEW_ORDER' ? 'shopping_cart' : 
-                           n.type === 'ORDER_STATUS_CHANGE' ? 'local_shipping' : 'payments'}
-                        </span>
-                      </div>
                       <div className="flex flex-col min-w-0">
-                        <span className="text-sm font-semibold text-slate-800 truncate">{n.title}</span>
-                        <span className="text-xs text-slate-600 line-clamp-2 mt-0.5">{n.message}</span>
-                        <span className="text-[10px] text-slate-400 mt-1">
+                        <span className="text-xs font-semibold text-gray-900 truncate">{n.title}</span>
+                        <span className="text-[11px] text-gray-600 line-clamp-2 mt-0.5">{n.message}</span>
+                        <span className="text-[10px] text-gray-400 mt-1 tabular-nums">
                           {formatDistanceToNow(new Date(n.createdAt), { addSuffix: true })}
                         </span>
                       </div>
@@ -337,30 +387,32 @@ export default function AdminTopbar() {
                 )}
               </div>
 
-              <div className="p-2 border-t border-slate-100 bg-slate-50/50">
-                <Link 
+              <div className="p-2 border-t border-gray-200 bg-gray-50 text-center">
+                <Link
                   href="/admin/inbox"
                   onClick={() => setIsNotifsOpen(false)}
-                  className="w-full py-2 flex items-center justify-center text-sm font-medium text-slate-600 hover:text-primary transition-colors rounded-lg hover:bg-white"
+                  className="w-full py-1 block text-xs font-semibold text-green-800 hover:text-green-900 transition-colors"
                 >
-                  View all — Go to Inbox
+                  Open Support & Alerts Inbox →
                 </Link>
               </div>
             </div>
           )}
         </div>
 
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full flex items-center justify-center bg-secondary-container text-on-secondary-container">
-            <span className="material-symbols-outlined text-[20px]">admin_panel_settings</span>
+        {/* SUPERADMIN PROFILE PILL */}
+        <Link
+          href="/admin/settings"
+          className="flex items-center gap-2.5 px-3 py-1.5 rounded-lg border border-gray-200 hover:border-gray-300 bg-gray-50 hover:bg-gray-100 transition-colors"
+        >
+          <div className="leading-tight text-left">
+            <div className="text-xs font-bold text-gray-900">Provincial Admin</div>
+            <div className="text-[10px] font-semibold text-green-800 uppercase tracking-wider">
+              Superadmin
+            </div>
           </div>
-          <div className="hidden md:block">
-            <div className="font-admin-body-sm font-medium text-admin-on-surface">Admin User</div>
-            <div className="font-admin-label-caps text-admin-label-caps text-secondary uppercase">Superadmin</div>
-          </div>
-        </div>
+        </Link>
       </div>
-
-    </div>
+    </header>
   );
 }

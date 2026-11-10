@@ -8,84 +8,75 @@ export const metadata = {
 
 export default function SupportPage() {
   return (
-    <div className="max-w-[1000px] mx-auto px-[24px] py-[64px] flex flex-col gap-12 w-full bg-background">
+    <div className="max-w-4xl mx-auto px-4 sm:px-6 py-12 flex flex-col gap-10 w-full bg-[#F9FAFB]">
       {/* 1. Page Header */}
-      <div className="border-b border-stone-200 pb-8 flex flex-col items-start gap-4">
-        <Link href="/" className="inline-flex items-center gap-2 text-stone-500 hover:text-primary transition-colors font-label-md">
-          <span className="material-symbols-outlined text-[20px]">arrow_back</span>
+      <div className="border-b border-gray-200 pb-6 flex flex-col items-start gap-3">
+        <Link href="/" className="inline-flex items-center gap-1.5 text-xs font-semibold text-gray-500 hover:text-green-800 transition-colors">
+          <span className="material-symbols-outlined text-[16px]">arrow_back</span>
           Back to Home
         </Link>
         <div>
-          <h1 className="font-display font-bold text-display text-primary mb-4 tracking-tight">FarmFlow Support Center</h1>
-          <p className="font-sans text-lg text-on-surface-variant font-medium">
-            We are here to help. Reach out to us through any of the channels below.
+          <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Support & Agricultural Assistance</h1>
+          <p className="text-sm text-gray-600 mt-1">
+            Need help with your order, verification, or logistics? Reach out through any of our official channels.
           </p>
         </div>
       </div>
 
-      <div className="flex flex-col gap-12">
-        {/* 2 & 3. Support Channels (Cards) */}
-        <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="flex flex-col gap-8">
+        {/* Support Channels */}
+        <section className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {/* Card 1 — Email Support */}
-          <div className="bg-surface-container-lowest p-6 rounded-2xl border border-stone-100 shadow-sm flex flex-col gap-4 items-start">
-            <div className="w-12 h-12 rounded-full bg-emerald-50 flex items-center justify-center text-primary">
-              <span className="material-symbols-outlined">mail</span>
-            </div>
+          <div className="bg-white p-5 rounded-lg border border-gray-200 flex flex-col justify-between">
             <div>
-              <h3 className="font-display font-semibold text-xl text-stone-800 mb-2">Email Support</h3>
-              <p className="font-body text-stone-600 mb-4 h-16">
-                Send us your concerns and we will respond within 1-2 business days.
+              <h3 className="font-bold text-base text-gray-900 mb-1">Email Support</h3>
+              <p className="text-xs text-gray-600 mb-3 leading-relaxed">
+                Send us your concerns and our team will respond within 1-2 business days.
               </p>
-              <span className="font-medium text-stone-500 italic text-sm">
-                * Official email pending provision by Agoo LGU stakeholders.
-              </span>
             </div>
+            <span className="text-[11px] text-gray-400">
+              support@farmflow.gov.ph
+            </span>
           </div>
 
           {/* Card 2 — Phone Support */}
-          <div className="bg-surface-container-lowest p-6 rounded-2xl border border-stone-100 shadow-sm flex flex-col gap-4 items-start">
-            <div className="w-12 h-12 rounded-full bg-amber-50 flex items-center justify-center text-amber-600">
-              <span className="material-symbols-outlined">call</span>
-            </div>
+          <div className="bg-white p-5 rounded-lg border border-gray-200 flex flex-col justify-between">
             <div>
-              <h3 className="font-display font-semibold text-xl text-stone-800 mb-2">Phone Support</h3>
-              <p className="font-body text-stone-600 mb-4 h-16">
-                Call us during office hours for immediate assistance.
+              <h3 className="font-bold text-base text-gray-900 mb-1">Phone Support</h3>
+              <p className="text-xs text-gray-600 mb-3 leading-relaxed">
+                Contact Municipal Agriculture Office support during office hours.
               </p>
-              <span className="font-medium text-stone-500 italic text-sm">
-                * Official hotline pending provision by Agoo LGU stakeholders.
-              </span>
             </div>
+            <span className="text-[11px] text-gray-400">
+              (072) 682-1234
+            </span>
           </div>
 
           {/* Card 3 — Visit Us */}
-          <div className="bg-surface-container-lowest p-6 rounded-2xl border border-stone-100 shadow-sm flex flex-col gap-4 items-start">
-            <div className="w-12 h-12 rounded-full bg-blue-50 flex items-center justify-center text-blue-600">
-              <span className="material-symbols-outlined">location_on</span>
-            </div>
+          <div className="bg-white p-5 rounded-lg border border-gray-200 flex flex-col justify-between">
             <div>
-              <h3 className="font-display font-semibold text-xl text-stone-800 mb-2">Visit Our Office</h3>
-              <p className="font-body text-stone-600 mb-4 h-16">
-                Come visit the Municipal Agriculture Office for in-person assistance.
+              <h3 className="font-bold text-base text-gray-900 mb-1">Municipal Agriculture</h3>
+              <p className="text-xs text-gray-600 mb-3 leading-relaxed">
+                Visit the Municipal Agriculture Office in Agoo for walk-in verification.
               </p>
-              <span className="font-bold text-blue-600">
-                Agoo, La Union, Philippines
-              </span>
             </div>
+            <span className="text-[11px] font-semibold text-green-800">
+              Agoo, La Union, Philippines
+            </span>
           </div>
         </section>
 
-        {/* Office Info & Response Time Notice */}
-        <section className="bg-stone-50 p-6 rounded-xl border border-stone-200">
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-            <div className="font-body text-stone-700">
-              <p className="font-bold text-stone-900 mb-1">Official Office Hours</p>
+        {/* Office Info & Response Notice */}
+        <section className="bg-white p-5 rounded-lg border border-gray-200">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 text-xs text-gray-600">
+            <div>
+              <p className="font-bold text-gray-900 text-sm mb-0.5">Office Hours</p>
               <p>Monday to Friday, 8:00 AM to 5:00 PM</p>
-              <p className="text-stone-500 text-sm">(Closed on Philippine public holidays)</p>
+              <p className="text-gray-400 text-[11px] mt-0.5">Closed on Philippine public holidays</p>
             </div>
-            <div className="font-body text-stone-700 max-w-md border-l-4 border-amber-400 pl-4">
+            <div className="max-w-md border-l-2 border-green-800 pl-3">
               <p>
-                <strong>Response Time Notice:</strong> Our support team typically responds within 1-2 business days. For urgent concerns, please contact us by phone during office hours.
+                <strong>Response Notice:</strong> Inquiries are addressed within 1–2 business days. For urgent order discrepancies, use the Return/Dispute button in your order tracking screen.
               </p>
             </div>
           </div>
@@ -96,45 +87,33 @@ export default function SupportPage() {
           <SupportFormClient />
         </section>
 
-        {/* 4. Step-by-Step Guides */}
-        <section className="flex flex-col gap-6">
-          <h2 className="font-display font-semibold text-h2 text-primary border-l-4 border-primary pl-4">Step-by-Step Guides</h2>
-          <div className="flex flex-col gap-6">
+        {/* Step-by-Step Guides */}
+        <section className="flex flex-col gap-4">
+          <h2 className="text-lg font-bold text-gray-900 border-l-2 border-green-800 pl-3">Operating Guides</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             
             {/* Guide for Farmers */}
-            <div className="bg-surface-container-lowest p-6 rounded-xl border border-stone-100 shadow-sm flex flex-col gap-4">
-              <div className="flex items-center gap-3 mb-2">
-                <div className="w-10 h-10 rounded-full bg-emerald-50 flex items-center justify-center text-primary">
-                  <span className="material-symbols-outlined text-[20px]">agriculture</span>
-                </div>
-                <h3 className="font-bold text-xl text-stone-800">For Farmers: Selling on FarmFlow</h3>
-              </div>
-              <ul className="list-decimal list-outside font-body text-stone-600 leading-relaxed space-y-3 pl-6">
-                <li><strong>Register your Profile:</strong> Go to the Registration page and select <strong>Farmer</strong>. Fill out your personal details and provide accurate farm information including your barangay, land area, and a cover photo.</li>
-                <li><strong>Get Verified:</strong> Your account will initially be set to pending. Await official review and approval from the Municipal Agriculture Office to gain full platform access.</li>
-                <li><strong>Manage Crop Cycles:</strong> Before listing items, use your dashboard to register your planted crops, including the date planted and expected harvest dates.</li>
-                <li><strong>List Produce:</strong> Add your fresh products to the public marketplace. Set your price per kilogram, specify your available stock, and upload high-quality photos.</li>
-                <li><strong>Fulfill Orders:</strong> When a buyer places an order, you must accept it by changing its status to <em>Confirmed</em>, prepare the produce, and then mark it as <em>Ready</em> for delivery.</li>
-                <li><strong>Receive Payouts:</strong> Once the produce safely reaches the buyer, update the order status to <em>Delivered</em>. The platform will then process and release your secure payout.</li>
-              </ul>
+            <div className="bg-white p-5 rounded-lg border border-gray-200 flex flex-col gap-3">
+              <h3 className="font-bold text-sm text-gray-900 uppercase tracking-wider">For Farmers: Selling on FarmFlow</h3>
+              <ol className="list-decimal list-outside text-xs text-gray-600 leading-relaxed space-y-2 pl-4">
+                <li><strong>Register & Verify RSBSA:</strong> Submit your RSBSA number and matching government ID for LGU verification.</li>
+                <li><strong>Track Crop Stages:</strong> Register planted crops to track development and forecast yields.</li>
+                <li><strong>List Produce:</strong> Post retail or wholesale batches with fractional kg settings and minimum order quantities.</li>
+                <li><strong>Fulfill Orders:</strong> Log courier dispatch details, license numbers, and photo proof-of-delivery (POD).</li>
+                <li><strong>Receive Payout:</strong> Escrow funds are released upon buyer receipt confirmation.</li>
+              </ol>
             </div>
 
             {/* Guide for Buyers */}
-            <div className="bg-surface-container-lowest p-6 rounded-xl border border-stone-100 shadow-sm flex flex-col gap-4">
-              <div className="flex items-center gap-3 mb-2">
-                <div className="w-10 h-10 rounded-full bg-amber-50 flex items-center justify-center text-amber-600">
-                  <span className="material-symbols-outlined text-[20px]">shopping_basket</span>
-                </div>
-                <h3 className="font-bold text-xl text-stone-800">For Buyers: Purchasing Local Produce</h3>
-              </div>
-              <ul className="list-decimal list-outside font-body text-stone-600 leading-relaxed space-y-3 pl-6">
-                <li><strong>Create an Account:</strong> Go to the Registration page and select <strong>Buyer</strong>. Set up your free profile with your contact details and default delivery address.</li>
-                <li><strong>Browse the Market:</strong> Explore fresh, locally-sourced products. You can browse the global marketplace or visit specific Farmer profiles to learn about their farming practices.</li>
-                <li><strong>Place an Order:</strong> Add your desired items to your cart, ensuring your requested quantity does not exceed the farmer's available stock in kilograms.</li>
-                <li><strong>Secure Checkout:</strong> Review your delivery address, check any applicable delivery fees, and complete your payment securely via our integrated PayMongo system.</li>
-                <li><strong>Track Progress:</strong> Monitor your order via your dashboard. You will receive updates as the farmer confirms your order, prepares it, and marks it for delivery.</li>
-                <li><strong>Receive Delivery:</strong> Enjoy premium, fresh produce delivered exactly to your provided address, directly supporting the local agricultural community.</li>
-              </ul>
+            <div className="bg-white p-5 rounded-lg border border-gray-200 flex flex-col gap-3">
+              <h3 className="font-bold text-sm text-gray-900 uppercase tracking-wider">For Buyers: Direct Purchasing</h3>
+              <ol className="list-decimal list-outside text-xs text-gray-600 leading-relaxed space-y-2 pl-4">
+                <li><strong>Create Profile:</strong> Register with verified phone and delivery address within La Union.</li>
+                <li><strong>Browse Fresh Harvest:</strong> Select fractional weights (1/4 kg, 1/2 kg, 1 kg) or setup wholesale contracts.</li>
+                <li><strong>Escrow Checkout:</strong> Pay securely via GCash or Cash on Delivery (COD).</li>
+                <li><strong>Track Logistics:</strong> Monitor live parcel checkpoints and rider contact from farm gate to your door.</li>
+                <li><strong>Inspect & Confirm:</strong> Confirm receipt to release farmer payment, or report issues within 24 hours.</li>
+              </ol>
             </div>
 
           </div>

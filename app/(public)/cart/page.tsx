@@ -30,9 +30,8 @@ function QuantityStepper({
 
   const handleDecrement = () => {
     if (atMin) {
-      // Removing — confirm inline
       removeItem(item.productId);
-      toast(`Removed ${item.name} from cart`, { icon: '🗑️' });
+      toast(`Removed ${item.name} from cart`);
     } else {
       const nextQty = Number(Math.max(minQty, item.quantityKg - 0.25).toFixed(2));
       updateQuantity(item.productId, nextQty);
@@ -88,20 +87,14 @@ function QuantityStepper({
     <div className="flex flex-col gap-2">
       {/* Stepper & Formatted Label */}
       <div className="flex flex-wrap items-center gap-2">
-        <div className="flex items-center border border-outline-variant rounded-lg overflow-hidden h-9 bg-surface-container-lowest shadow-sm">
+        <div className="flex items-center border border-gray-300 rounded-lg overflow-hidden h-9 bg-white">
           <button
             type="button"
             onClick={handleDecrement}
-            className={`w-9 h-full flex items-center justify-center transition-colors ${
-              atMin
-                ? 'text-error hover:bg-error/10'
-                : 'text-on-surface hover:bg-surface-variant'
-            }`}
+            className="w-8 h-full flex items-center justify-center text-gray-600 hover:bg-gray-50 transition-colors text-sm"
             aria-label={atMin ? 'Remove item' : 'Decrease quantity by 0.25 kg'}
           >
-            <span className="material-symbols-outlined text-[16px]">
-              {atMin ? 'delete' : 'remove'}
-            </span>
+            –
           </button>
 
           <input
@@ -113,7 +106,7 @@ function QuantityStepper({
             onChange={handleInputChange}
             onBlur={handleInputBlur}
             onKeyDown={handleKeyDown}
-            className="w-16 text-center h-full border-x border-outline-variant/40 font-label-md bg-transparent text-on-surface outline-none focus:bg-primary/5 transition-colors font-bold text-sm"
+            className="w-16 text-center h-full border-x border-gray-200 bg-transparent text-gray-900 outline-none focus:bg-gray-50 font-medium tabular-nums text-xs"
             aria-label="Quantity in kg"
           />
 
@@ -121,25 +114,25 @@ function QuantityStepper({
             type="button"
             onClick={handleIncrement}
             disabled={atMax}
-            className="w-9 h-full flex items-center justify-center text-on-surface hover:bg-surface-variant transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+            className="w-8 h-full flex items-center justify-center text-gray-600 hover:bg-gray-50 transition-colors text-sm disabled:opacity-30 disabled:cursor-not-allowed"
             aria-label="Increase quantity by 0.25 kg"
           >
-            <span className="material-symbols-outlined text-[16px]">add</span>
+            +
           </button>
         </div>
 
         {/* Formatted fraction display */}
-        <span className="font-semibold text-on-surface text-xs bg-surface-container-high px-2 py-1 rounded-md">
+        <span className="font-medium text-gray-900 text-xs bg-gray-100 px-2 py-1 rounded tabular-nums">
           {formatQuantity(item.quantityKg, 'kg')}
         </span>
 
         {minQty > 1 && (
-          <span className="text-primary font-label-sm text-xs bg-primary/10 px-2 py-0.5 rounded-full border border-primary/20">
-            Min {minQty} kg
+          <span className="text-[11px] font-medium text-gray-600 bg-gray-100 px-2 py-0.5 rounded border border-gray-200 tabular-nums">
+            Min. {minQty} kg
           </span>
         )}
         {atMax && (
-          <span className="text-amber-600 font-label-sm text-xs bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
+          <span className="text-[11px] font-medium text-gray-600 bg-gray-100 px-2 py-0.5 rounded border border-gray-200 tabular-nums">
             Max {maxQty} kg
           </span>
         )}
@@ -156,12 +149,12 @@ function QuantityStepper({
               type="button"
               disabled={isDisabled}
               onClick={() => updateQuantity(item.productId, pill.val)}
-              className={`px-2 py-0.5 rounded text-[11px] font-semibold border transition-all ${
+              className={`px-2 py-0.5 rounded text-[11px] font-medium border transition-colors ${
                 isSelected
-                  ? 'bg-primary text-on-primary border-primary shadow-xs'
+                  ? 'border-green-800 bg-green-800 text-white'
                   : isDisabled
-                  ? 'opacity-35 cursor-not-allowed bg-surface-container border-outline-variant/30 text-on-surface-variant'
-                  : 'bg-surface-container-lowest border-outline-variant/60 text-on-surface hover:border-primary/50 hover:bg-primary/5'
+                  ? 'opacity-35 cursor-not-allowed border-gray-200 bg-gray-50 text-gray-400'
+                  : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
               }`}
             >
               {pill.label}
@@ -193,40 +186,34 @@ function CartItemRow({
     setRemoving(true);
     setTimeout(() => {
       removeItem(item.productId);
-      toast(`Removed ${item.name}`, { icon: '🗑️' });
-    }, 300);
+      toast(`Removed ${item.name}`);
+    }, 200);
   };
 
   return (
     <div
-      className={`flex gap-3 sm:gap-4 p-4 rounded-xl border transition-all duration-300 ${
-        removing ? 'opacity-0 scale-95 h-0 p-0 overflow-hidden' : 'opacity-100'
+      className={`flex gap-3 sm:gap-4 p-4 rounded-lg border transition-colors ${
+        removing ? 'opacity-0 h-0 p-0 overflow-hidden' : 'opacity-100'
       } ${
         isSelected
-          ? 'border-primary/30 bg-primary/5'
-          : 'border-surface-variant bg-surface-container-lowest hover:border-outline-variant'
+          ? 'border-green-800 bg-green-50/30'
+          : 'border-gray-200 bg-white hover:border-gray-300'
       }`}
     >
       {/* Checkbox */}
       <button
         type="button"
         onClick={onToggle}
-        className="flex-shrink-0 mt-1 w-5 h-5 rounded border-2 flex items-center justify-center transition-colors"
-        style={{
-          borderColor: isSelected ? 'var(--color-primary)' : 'var(--color-outline)',
-          backgroundColor: isSelected ? 'var(--color-primary)' : 'transparent',
-        }}
+        className={`flex-shrink-0 mt-1 w-5 h-5 rounded border flex items-center justify-center transition-colors ${
+          isSelected ? 'border-green-800 bg-green-800 text-white' : 'border-gray-300 bg-white'
+        }`}
         aria-label={isSelected ? 'Deselect item' : 'Select item'}
       >
-        {isSelected && (
-          <span className="material-symbols-outlined text-white text-[14px]" style={{ fontVariationSettings: "'FILL' 1" }}>
-            check
-          </span>
-        )}
+        {isSelected && <span className="text-xs">✓</span>}
       </button>
 
       {/* Product Image */}
-      <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-lg overflow-hidden relative flex-shrink-0 bg-surface-variant">
+      <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-lg overflow-hidden relative flex-shrink-0 bg-gray-50 border border-gray-200">
         <Image
           src={item.photo}
           alt={item.name}
@@ -242,12 +229,11 @@ function CartItemRow({
           <div className="min-w-0">
             <Link
               href={`/products/${item.productId}`}
-              className="font-semibold text-on-surface hover:text-primary transition-colors line-clamp-2 text-[15px] leading-snug block"
+              className="font-semibold text-gray-900 hover:text-green-800 transition-colors line-clamp-2 text-sm leading-snug block"
             >
               {item.name}
             </Link>
-            <div className="font-body-md text-on-surface-variant text-sm mt-0.5 flex items-center gap-1">
-              <span className="material-symbols-outlined text-[13px]">storefront</span>
+            <div className="text-xs text-gray-500 mt-0.5">
               {item.farmerName}
             </div>
             
@@ -263,17 +249,16 @@ function CartItemRow({
 
               return (
                 <div className="flex flex-wrap items-center gap-2 mt-1">
-                  <span className={`text-xs ${isWholesaleApplied ? 'line-through text-on-surface-variant' : 'text-on-surface-variant font-medium'}`}>
+                  <span className={`text-xs tabular-nums ${isWholesaleApplied ? 'line-through text-gray-400' : 'text-gray-600 font-medium'}`}>
                     ₱{item.pricePerKg.toFixed(2)} / kg
                   </span>
                   {isWholesaleApplied && (
-                    <span className="inline-flex items-center gap-0.5 text-[11px] font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-300">
-                      <span className="material-symbols-outlined text-[12px]">verified</span>
+                    <span className="text-[11px] font-medium text-green-800 bg-green-50 px-2 py-0.5 rounded border border-green-200 tabular-nums">
                       Wholesale: ₱{unitPrice.toFixed(2)}/kg
                     </span>
                   )}
                   {minQty > 1 && (
-                    <span className="text-[10px] font-semibold text-primary bg-primary/10 px-1.5 py-0.5 rounded border border-primary/20">
+                    <span className="text-[10px] font-medium text-gray-600 bg-gray-100 px-1.5 py-0.5 rounded border border-gray-200 tabular-nums">
                       MOQ: {minQty} kg
                     </span>
                   )}
@@ -284,18 +269,18 @@ function CartItemRow({
           <button
             type="button"
             onClick={handleRemove}
-            className="text-on-surface-variant hover:text-error transition-colors p-1 flex-shrink-0 rounded-lg hover:bg-error/10"
+            className="text-gray-400 hover:text-red-700 transition-colors p-1 flex-shrink-0 text-xs font-medium"
             aria-label="Remove item"
           >
-            <span className="material-symbols-outlined text-[18px]">delete_outline</span>
+            Remove
           </button>
         </div>
 
         {/* Bottom row: Qty stepper + subtotal */}
-        <div className="flex flex-wrap justify-between items-end gap-2 mt-3">
+        <div className="flex flex-wrap justify-between items-end gap-2 mt-3 pt-2 border-t border-gray-100">
           <QuantityStepper item={item} updateQuantity={updateQuantity} removeItem={removeItem} />
           <div className="text-right">
-            <div className="font-bold text-primary text-[17px]">
+            <div className="font-semibold text-green-800 text-base tabular-nums">
               ₱{(getItemUnitPrice(item) * item.quantityKg).toFixed(2)}
             </div>
           </div>
@@ -318,7 +303,6 @@ function FarmerGroupHeader({
   toggleSelect: (id: string) => void;
 }) {
   const allSelected = items.every((i) => selectedIds.includes(i.productId));
-  const someSelected = items.some((i) => selectedIds.includes(i.productId));
 
   const handleToggleAll = () => {
     if (allSelected) {
@@ -333,33 +317,19 @@ function FarmerGroupHeader({
   };
 
   return (
-    <div className="flex items-center gap-3 px-2 py-2">
+    <div className="flex items-center gap-3 px-3 py-2 bg-gray-50 border-b border-gray-200">
       <button
         type="button"
         onClick={handleToggleAll}
-        className="flex-shrink-0 w-5 h-5 rounded border-2 flex items-center justify-center transition-colors"
-        style={{
-          borderColor:
-            allSelected || someSelected
-              ? 'var(--color-primary)'
-              : 'var(--color-outline)',
-          backgroundColor: allSelected ? 'var(--color-primary)' : 'transparent',
-        }}
+        className={`flex-shrink-0 w-4 h-4 rounded border flex items-center justify-center transition-colors ${
+          allSelected ? 'border-green-800 bg-green-800 text-white' : 'border-gray-300 bg-white'
+        }`}
         aria-label={allSelected ? `Deselect all from ${farmerName}` : `Select all from ${farmerName}`}
       >
-        {allSelected ? (
-          <span className="material-symbols-outlined text-white text-[14px]" style={{ fontVariationSettings: "'FILL' 1" }}>
-            check
-          </span>
-        ) : someSelected ? (
-          <span className="block w-2.5 h-0.5 rounded-full bg-primary" />
-        ) : null}
+        {allSelected && <span className="text-[10px]">✓</span>}
       </button>
 
-      <div className="flex items-center gap-2">
-        <span className="material-symbols-outlined text-[18px] text-primary">storefront</span>
-        <span className="font-semibold text-on-surface text-sm">{farmerName}</span>
-      </div>
+      <span className="font-medium text-gray-900 text-xs">{farmerName}</span>
     </div>
   );
 }
@@ -367,7 +337,6 @@ function FarmerGroupHeader({
 // ─── Order Summary ────────────────────────────────────────────────────────────
 function OrderSummary({
   selectedItems,
-  allItemCount,
   onCheckout,
 }: {
   selectedItems: CartItem[];
@@ -386,35 +355,35 @@ function OrderSummary({
   );
 
   return (
-    <div className="bg-surface-container-lowest rounded-xl border border-surface-variant shadow-sm p-5 flex flex-col gap-4">
-      <h2 className="font-semibold text-on-surface text-[17px] pb-3 border-b border-surface-variant">
+    <div className="bg-white rounded-lg border border-gray-200 p-5 flex flex-col gap-4">
+      <h2 className="font-semibold text-gray-900 text-base pb-3 border-b border-gray-200">
         Order Summary
       </h2>
 
       {selectedItems.length === 0 ? (
-        <p className="text-on-surface-variant text-sm text-center py-2">
-          No items selected
+        <p className="text-gray-500 text-xs text-center py-4">
+          No items selected for checkout
         </p>
       ) : (
         <>
           {/* Selected item breakdown */}
-          <div className="flex flex-col gap-2 max-h-44 overflow-y-auto pr-1 no-scrollbar">
+          <div className="flex flex-col gap-2 max-h-48 overflow-y-auto pr-1">
             {selectedItems.map((item) => {
               const isOverStock = item.stockKg <= 0 || item.quantityKg > item.stockKg;
               const unitPrice = getItemUnitPrice(item);
               return (
-                <div key={item.productId} className="flex justify-between items-center gap-2 text-sm">
+                <div key={item.productId} className="flex justify-between items-center gap-2 text-xs">
                   <div className="flex flex-col flex-1 min-w-0">
-                    <span className="text-on-surface-variant line-clamp-1">
+                    <span className="text-gray-600 truncate">
                       {item.name} × {formatQuantity(item.quantityKg, 'kg')}
                     </span>
                     {isOverStock && (
-                      <span className="text-rose-600 text-[11px] font-medium">
+                      <span className="text-red-700 text-[11px] font-medium">
                         {item.stockKg <= 0 ? 'Out of stock' : `Only ${item.stockKg} kg available`}
                       </span>
                     )}
                   </div>
-                  <span className="font-medium text-on-surface flex-shrink-0">
+                  <span className="font-medium text-gray-900 tabular-nums flex-shrink-0">
                     ₱{(unitPrice * item.quantityKg).toFixed(2)}
                   </span>
                 </div>
@@ -422,26 +391,25 @@ function OrderSummary({
             })}
           </div>
 
-          <div className="border-t border-surface-variant pt-3 flex flex-col gap-2">
-            <div className="flex justify-between text-sm text-on-surface-variant">
+          <div className="border-t border-gray-200 pt-3 flex flex-col gap-2 text-xs text-gray-600">
+            <div className="flex justify-between">
               <span>Subtotal ({selectedItems.length} item{selectedItems.length !== 1 ? 's' : ''})</span>
-              <span>₱{subtotal.toFixed(2)}</span>
+              <span className="tabular-nums">₱{subtotal.toFixed(2)}</span>
             </div>
-            <div className="flex justify-between text-sm text-on-surface-variant">
+            <div className="flex justify-between">
               <span>Delivery Fee</span>
-              <span>₱{deliveryFee.toFixed(2)}</span>
+              <span className="tabular-nums">₱{deliveryFee.toFixed(2)}</span>
             </div>
           </div>
 
-          <div className="border-t border-surface-variant pt-3 flex justify-between items-end">
-            <span className="font-semibold text-on-surface">Total</span>
-            <span className="font-bold text-primary text-[22px]">₱{total.toFixed(2)}</span>
+          <div className="border-t border-gray-200 pt-3 flex justify-between items-end">
+            <span className="font-semibold text-gray-900 text-sm">Total</span>
+            <span className="font-semibold text-green-800 text-xl tabular-nums">₱{total.toFixed(2)}</span>
           </div>
 
           {hasOutOfStockItem && (
-            <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-800 flex items-start gap-2">
-              <span className="material-symbols-outlined text-[16px] text-rose-600 shrink-0 mt-0.5">warning</span>
-              <span>Some items exceed available farmer inventory. Please adjust quantities before checking out.</span>
+            <div className="p-3 bg-red-50/60 border border-red-300 rounded-lg text-xs text-red-700">
+              Some items exceed available farmer inventory. Please adjust quantities before checking out.
             </div>
           )}
         </>
@@ -451,15 +419,13 @@ function OrderSummary({
         type="button"
         onClick={onCheckout}
         disabled={selectedItems.length === 0 || hasOutOfStockItem}
-        className="w-full bg-primary text-on-primary font-semibold py-3.5 rounded-xl shadow-sm hover:opacity-90 transition-all active:scale-[0.98] flex justify-center items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed text-[15px]"
+        className="w-full bg-green-800 hover:bg-green-900 text-white font-medium py-3 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed text-sm"
       >
-        <span className="material-symbols-outlined text-[20px]">shopping_bag</span>
-        Checkout ({selectedItems.length})
+        Proceed to Checkout ({selectedItems.length})
       </button>
 
-      <p className="text-center text-xs text-on-surface-variant flex items-center justify-center gap-1">
-        <span className="material-symbols-outlined text-[13px]">lock</span>
-        Secure Checkout
+      <p className="text-center text-xs text-gray-400">
+        Escrow Protected & Secure Checkout
       </p>
     </div>
   );
@@ -485,7 +451,6 @@ export default function CartPage() {
     setMounted(true);
   }, []);
 
-  // Group items by farmer name
   const grouped = useCallback(() => {
     const map = new Map<string, CartItem[]>();
     items.forEach((item) => {
@@ -510,28 +475,24 @@ export default function CartPage() {
 
   if (!mounted) {
     return (
-      <main className="flex-grow w-full max-w-[1280px] mx-auto px-6 py-12 flex justify-center items-center">
-        <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+      <main className="flex-grow w-full max-w-5xl mx-auto px-4 py-12 flex justify-center items-center">
+        <div className="w-8 h-8 border-2 border-green-800 border-t-transparent rounded-full animate-spin" />
       </main>
     );
   }
 
   if (items.length === 0) {
     return (
-      <main className="flex-grow w-full max-w-[1280px] mx-auto px-6 py-12">
-        <div className="flex flex-col items-center justify-center py-20 bg-surface-container-lowest rounded-2xl border border-surface-variant text-center">
-          <div className="w-32 h-32 rounded-full bg-primary/5 flex items-center justify-center mb-6">
-            <span className="material-symbols-outlined text-[72px] text-primary/30">shopping_cart</span>
-          </div>
-          <h2 className="font-bold text-on-surface text-2xl mb-2">Your cart is empty</h2>
-          <p className="text-on-surface-variant mb-8 max-w-xs text-sm">
-            Looks like you haven't added any fresh produce yet. Start shopping!
+      <main className="flex-grow w-full max-w-5xl mx-auto px-4 py-16">
+        <div className="flex flex-col items-center justify-center py-16 bg-white rounded-lg border border-gray-200 text-center p-6">
+          <h2 className="font-semibold text-gray-900 text-xl mb-1">Your cart is empty</h2>
+          <p className="text-gray-500 mb-6 text-sm">
+            Browse fresh harvests directly from verified La Union farmers.
           </p>
           <Link
             href="/products"
-            className="bg-primary text-on-primary px-8 py-3 rounded-xl font-semibold hover:opacity-90 transition-opacity shadow-sm flex items-center gap-2"
+            className="bg-green-800 hover:bg-green-900 text-white px-6 py-2.5 rounded-lg font-medium transition-colors text-sm"
           >
-            <span className="material-symbols-outlined text-[20px]">storefront</span>
             Browse Marketplace
           </Link>
         </div>
@@ -542,138 +503,94 @@ export default function CartPage() {
   const groups = grouped();
 
   return (
-    <>
-      <main className="flex-grow w-full max-w-[1280px] mx-auto px-4 sm:px-6 py-8">
-        {/* Page Header */}
-        <div className="flex items-center justify-between mb-6">
-          <h1 className="font-display font-bold text-on-background text-[28px] sm:text-[36px] tracking-tight">
-            My Cart
-          </h1>
-          <Link
-            href="/products"
-            className="text-primary font-semibold text-sm flex items-center gap-1 hover:underline"
-          >
-            <span className="material-symbols-outlined text-[16px]">add</span>
-            Add more items
-          </Link>
-        </div>
-
-        <div className="flex flex-col lg:flex-row gap-6 items-start">
-          {/* LEFT: Item list */}
-          <div className="flex-grow w-full flex flex-col gap-4 min-w-0">
-
-            {/* Select All Bar */}
-            <div className="flex items-center justify-between bg-surface-container-lowest border border-surface-variant rounded-xl px-4 py-3 shadow-sm">
-              <label className="flex items-center gap-3 cursor-pointer select-none">
-                <button
-                  type="button"
-                  onClick={() => allSelected ? deselectAll() : selectAll()}
-                  className="flex-shrink-0 w-5 h-5 rounded border-2 flex items-center justify-center transition-colors"
-                  style={{
-                    borderColor: allSelected ? 'var(--color-primary)' : 'var(--color-outline)',
-                    backgroundColor: allSelected ? 'var(--color-primary)' : 'transparent',
-                  }}
-                  aria-label={allSelected ? 'Deselect all' : 'Select all'}
-                >
-                  {allSelected && (
-                    <span
-                      className="material-symbols-outlined text-white text-[14px]"
-                      style={{ fontVariationSettings: "'FILL' 1" }}
-                    >
-                      check
-                    </span>
-                  )}
-                </button>
-                <span className="font-medium text-on-surface text-sm">
-                  Select All ({items.length} item{items.length !== 1 ? 's' : ''})
-                </span>
-              </label>
-
-              {currentSelectedItems.length > 0 && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    currentSelectedItems.forEach((i) => removeItem(i.productId));
-                    toast(`Removed ${currentSelectedItems.length} item${currentSelectedItems.length > 1 ? 's' : ''}`, { icon: '🗑️' });
-                  }}
-                  className="text-error text-sm font-medium hover:bg-error/10 px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1"
-                >
-                  <span className="material-symbols-outlined text-[16px]">delete_outline</span>
-                  Delete ({currentSelectedItems.length})
-                </button>
-              )}
-            </div>
-
-            {/* Grouped Items */}
-            {groups.map(([farmerName, farmerItems]) => (
-              <div
-                key={farmerName}
-                className="bg-surface-container-lowest border border-surface-variant rounded-xl overflow-hidden shadow-sm"
-              >
-                {/* Farmer header */}
-                <FarmerGroupHeader
-                  farmerName={farmerName}
-                  items={farmerItems}
-                  selectedIds={selectedIds}
-                  toggleSelect={toggleSelect}
-                />
-
-                <div className="border-t border-surface-variant/50" />
-
-                {/* Items */}
-                <div className="flex flex-col gap-0">
-                  {farmerItems.map((item, idx) => (
-                    <div key={item.productId}>
-                      {idx > 0 && (
-                        <div className="border-t border-surface-variant/40 mx-4" />
-                      )}
-                      <div className="p-3 sm:p-4">
-                        <CartItemRow
-                          item={item}
-                          isSelected={selectedIds.includes(item.productId)}
-                          onToggle={() => toggleSelect(item.productId)}
-                          updateQuantity={updateQuantity}
-                          removeItem={removeItem}
-                        />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* RIGHT: Sticky Order Summary (desktop) */}
-          <div className="w-full lg:w-[360px] flex-shrink-0 lg:sticky lg:top-24">
-            <OrderSummary
-              selectedItems={currentSelectedItems}
-              allItemCount={items.length}
-              onCheckout={handleCheckout}
-            />
-          </div>
-        </div>
-      </main>
-
-      {/* Mobile Sticky Bottom Bar */}
-      <div className="lg:hidden sticky bottom-0 z-50 bg-surface-container-lowest border-t border-surface-variant px-4 py-3 flex items-center justify-between gap-4 shadow-[0_-4px_20px_rgba(0,0,0,0.08)]">
-        <div>
-          <div className="text-xs text-on-surface-variant">
-            {currentSelectedItems.length} item{currentSelectedItems.length !== 1 ? 's' : ''} selected
-          </div>
-          <div className="font-bold text-primary text-[18px]">
-            ₱{(currentSelectedItems.reduce((s, i) => s + getItemUnitPrice(i) * i.quantityKg, 0) + (currentSelectedItems.length > 0 ? 50 : 0)).toFixed(2)}
-          </div>
-        </div>
-        <button
-          type="button"
-          onClick={handleCheckout}
-          disabled={currentSelectedItems.length === 0}
-          className="bg-primary text-on-primary font-semibold px-6 py-3 rounded-xl shadow-sm hover:opacity-90 transition-all active:scale-95 flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed text-[14px] flex-shrink-0"
+    <main className="flex-grow w-full max-w-5xl mx-auto px-4 sm:px-6 py-8">
+      {/* Page Header */}
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-2xl font-semibold text-gray-900 tracking-tight">
+          Shopping Cart
+        </h1>
+        <Link
+          href="/products"
+          className="text-green-800 font-medium text-xs hover:underline"
         >
-          <span className="material-symbols-outlined text-[18px]">shopping_bag</span>
-          Checkout ({currentSelectedItems.length})
-        </button>
+          + Add more harvests
+        </Link>
       </div>
-    </>
+
+      <div className="flex flex-col lg:flex-row gap-6 items-start">
+        {/* LEFT: Item list */}
+        <div className="flex-grow w-full flex flex-col gap-4 min-w-0">
+          {/* Select All Bar */}
+          <div className="flex items-center justify-between bg-white border border-gray-200 rounded-lg px-4 py-2.5">
+            <label className="flex items-center gap-2.5 cursor-pointer select-none">
+              <button
+                type="button"
+                onClick={() => allSelected ? deselectAll() : selectAll()}
+                className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${
+                  allSelected ? 'border-green-800 bg-green-800 text-white' : 'border-gray-300 bg-white'
+                }`}
+                aria-label={allSelected ? 'Deselect all' : 'Select all'}
+              >
+                {allSelected && <span className="text-[10px]">✓</span>}
+              </button>
+              <span className="font-medium text-gray-700 text-xs">
+                Select All ({items.length} item{items.length !== 1 ? 's' : ''})
+              </span>
+            </label>
+
+            {currentSelectedItems.length > 0 && (
+              <button
+                type="button"
+                onClick={() => {
+                  currentSelectedItems.forEach((i) => removeItem(i.productId));
+                  toast(`Removed ${currentSelectedItems.length} item${currentSelectedItems.length > 1 ? 's' : ''}`);
+                }}
+                className="text-xs font-medium text-gray-500 hover:text-red-700 transition-colors"
+              >
+                Delete Selected ({currentSelectedItems.length})
+              </button>
+            )}
+          </div>
+
+          {/* Grouped Items */}
+          {groups.map(([farmerName, farmerItems]) => (
+            <div
+              key={farmerName}
+              className="bg-white border border-gray-200 rounded-lg overflow-hidden"
+            >
+              <FarmerGroupHeader
+                farmerName={farmerName}
+                items={farmerItems}
+                selectedIds={selectedIds}
+                toggleSelect={toggleSelect}
+              />
+
+              <div className="p-3 sm:p-4 space-y-3 divide-y divide-gray-100">
+                {farmerItems.map((item) => (
+                  <div key={item.productId} className="pt-3 first:pt-0">
+                    <CartItemRow
+                      item={item}
+                      isSelected={selectedIds.includes(item.productId)}
+                      onToggle={() => toggleSelect(item.productId)}
+                      updateQuantity={updateQuantity}
+                      removeItem={removeItem}
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* RIGHT: Sticky Order Summary */}
+        <div className="w-full lg:w-80 flex-shrink-0 lg:sticky lg:top-24">
+          <OrderSummary
+            selectedItems={currentSelectedItems}
+            allItemCount={items.length}
+            onCheckout={handleCheckout}
+          />
+        </div>
+      </div>
+    </main>
   );
 }

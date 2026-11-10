@@ -90,13 +90,13 @@ export default function ProductsTopBar({ totalCount }: { totalCount: number }) {
           </span>
         )}
         {activeBarangay && (
-          <span className="inline-flex items-center gap-1 px-3 py-1 bg-amber-500/10 text-amber-700 border border-amber-500/20 rounded-full font-label-sm text-xs">
-            📍 {activeBarangay}
-            <button onClick={() => clearFilter('barangay')} className="material-symbols-outlined text-[14px] hover:text-red-500 leading-none">close</button>
+          <span className="inline-flex items-center gap-1 px-3 py-1 bg-green-50 text-green-800 border border-green-200 rounded-full font-label-sm text-xs">
+            Barangay: {activeBarangay}
+            <button onClick={() => clearFilter('barangay')} className="material-symbols-outlined text-[14px] hover:text-red-700 leading-none">close</button>
           </span>
         )}
         {(minPrice || maxPrice) && (
-          <span className="inline-flex items-center gap-1 px-3 py-1 bg-blue-500/10 text-blue-700 border border-blue-500/20 rounded-full font-label-sm text-xs">
+          <span className="inline-flex items-center gap-1 px-3 py-1 bg-gray-100 text-gray-800 border border-gray-200 rounded-full font-label-sm text-xs tabular-nums">
             ₱{minPrice || 0} - ₱{maxPrice || '∞'}
             <button 
               onClick={() => {
@@ -106,7 +106,7 @@ export default function ProductsTopBar({ totalCount }: { totalCount: number }) {
                 params.set('page', '1');
                 router.push(pathname + '?' + params.toString());
               }} 
-              className="material-symbols-outlined text-[14px] hover:text-red-500 leading-none"
+              className="material-symbols-outlined text-[14px] hover:text-red-700 leading-none"
             >
               close
             </button>
