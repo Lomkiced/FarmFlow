@@ -2,7 +2,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import CategoryFilter from '@/components/marketplace/CategoryFilter';
 import { getFeaturedProductsAction } from '@/app/actions/search';
-import { AUTH_FARM_HERO_IMAGE, OUR_STORY_FARM_IMAGE } from '@/lib/constants/farm-media';
+import { AUTH_FARM_HERO_IMAGE } from '@/lib/constants/farm-media';
 
 export const dynamic = 'force-dynamic';
 
@@ -85,63 +85,111 @@ export default async function HomePage() {
         </section>
 
         {/* Main Content Wrapper */}
-        <div className="max-w-6xl mx-auto px-4 md:px-6 py-12 flex flex-col gap-16">
+        <div className="max-w-6xl mx-auto px-4 md:px-6 py-12">
           {/* Featured Harvest & Category Filter */}
           <CategoryFilter products={featuredProducts} />
+        </div>
 
-          {/* Our Story & Direct Farm Traceability */}
-          <section className="border border-gray-200 rounded-xl bg-[#F9FAFB] overflow-hidden grid grid-cols-1 lg:grid-cols-12">
-            <div className="lg:col-span-6 p-8 md:p-10 flex flex-col justify-between gap-6">
-              <div>
-                <span className="inline-block px-2.5 py-0.5 rounded border border-green-200 bg-green-50 text-green-800 text-[11px] font-semibold uppercase tracking-wider mb-3">
-                  Our Story
-                </span>
-                <h2 className="text-2xl md:text-3xl font-bold text-gray-900 tracking-tight mb-3">
-                  Direct from Local Fields in Agoo, La Union
-                </h2>
-                <p className="text-sm text-gray-600 leading-relaxed mb-4">
-                  FarmFlow links municipal vegetable and fruit growers directly to households, restaurants, and institutional buyers—eliminating unnecessary middlemen and preserving peak harvest freshness.
-                </p>
-                <div className="grid grid-cols-4 gap-2.5 pt-2">
-                  {[
-                    { src: '/images/crops/cabbage.jpg', label: 'Cabbage' },
-                    { src: '/images/crops/carrots.jpg', label: 'Carrots' },
-                    { src: '/images/crops/ampalaya.jpg', label: 'Ampalaya' },
-                    { src: '/images/crops/banana.jpg', label: 'Banana' },
-                  ].map((crop) => (
-                    <div key={crop.label} className="relative aspect-square rounded-lg overflow-hidden border border-gray-200 bg-white">
-                      <Image src={crop.src} alt={crop.label} fill className="object-cover" sizes="120px" />
-                    </div>
-                  ))}
+        {/* Our Story Section */}
+        <section className="py-20 sm:py-24 bg-gray-50 border-y border-gray-200">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-12 items-center">
+            {/* Left Column (6 cols — Editorial Narrative) */}
+            <div className="lg:col-span-6">
+              <span className="text-xs font-semibold uppercase tracking-widest text-green-800 block">
+                OUR STORY
+              </span>
+              <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-gray-900 mt-3 leading-tight">
+                Built to connect La Union farms directly to every table.
+              </h2>
+              <p className="text-base text-gray-600 leading-relaxed mt-4">
+                For too long, multi-layered middlemen depressed farm-gate prices while buyers paid high retail markups for produce days past harvest. FarmFlow replaces fragmented broker chains with direct digital commerce.
+              </p>
+              <p className="text-base text-gray-600 leading-relaxed mt-3">
+                Verified RSBSA farmers set fair prices directly from their fields, while households, restaurants, and wholesale buyers receive traceable, same-day harvests backed by live delivery checkpoints.
+              </p>
+
+              {/* 3-Column Inline Metrics Strip */}
+              <div className="grid grid-cols-3 gap-4 pt-6 mt-6 border-t border-gray-200">
+                <div>
+                  <div className="text-2xl font-bold text-gray-900 tabular-nums">100%</div>
+                  <div className="text-xs text-gray-500 mt-1">Verified La Union Farms</div>
+                </div>
+                <div>
+                  <div className="text-2xl font-bold text-gray-900 tabular-nums">0</div>
+                  <div className="text-xs text-gray-500 mt-1">Middleman Markups</div>
+                </div>
+                <div>
+                  <div className="text-2xl font-bold text-gray-900 tabular-nums">1/4 kg</div>
+                  <div className="text-xs text-gray-500 mt-1">Flexible Retail to Wholesale</div>
                 </div>
               </div>
-              <div className="flex flex-wrap items-center gap-3 pt-2">
+
+              {/* Action Buttons */}
+              <div className="flex flex-wrap items-center gap-3 mt-8">
                 <Link
                   href="/about"
-                  className="h-10 px-4 inline-flex items-center justify-center rounded-lg bg-green-800 hover:bg-green-900 text-white text-xs font-semibold transition-colors"
+                  className="h-11 px-5 inline-flex items-center justify-center rounded-lg bg-green-800 text-white text-sm font-medium hover:bg-green-900 transition-colors"
                 >
-                  Read Our Story
+                  Read Our Full Story
                 </Link>
                 <Link
                   href="/farmers"
-                  className="h-10 px-4 inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white hover:bg-gray-50 text-gray-700 text-xs font-semibold transition-colors"
+                  className="h-11 px-5 inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white text-gray-700 text-sm font-medium hover:bg-gray-50 transition-colors"
                 >
-                  Explore Verified Farms
+                  Meet Our Farmers
                 </Link>
               </div>
             </div>
 
-            <div className="lg:col-span-6 relative min-h-[280px] lg:min-h-[380px] border-t lg:border-t-0 lg:border-l border-gray-200">
-              <Image
-                src={OUR_STORY_FARM_IMAGE}
-                alt="Sunlit terraced farmland and lush green crops"
-                fill
-                className="object-cover"
-                sizes="(max-width: 1024px) 100vw, 50vw"
-              />
+            {/* Right Column (6 cols — Structured Bento Showcase Card) */}
+            <div className="lg:col-span-6">
+              <div className="bg-white border border-gray-200 rounded-2xl p-4 sm:p-5 shadow-xs">
+                {/* Top Visual Grid */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="relative aspect-[4/3] rounded-xl overflow-hidden bg-gray-100 border border-gray-200">
+                    <Image
+                      src="/images/crops/cabbage.jpg"
+                      alt="Fresh highland cabbage harvested in La Union"
+                      fill
+                      className="object-cover w-full h-full"
+                      sizes="(max-width: 1024px) 50vw, 25vw"
+                    />
+                    <span className="absolute bottom-2.5 left-2.5 bg-white/95 text-gray-900 text-[11px] font-medium px-2.5 py-1 rounded border border-gray-200">
+                      Leafy Harvest
+                    </span>
+                  </div>
+                  <div className="relative aspect-[4/3] rounded-xl overflow-hidden bg-gray-100 border border-gray-200">
+                    <Image
+                      src="/images/crops/carrots.jpg"
+                      alt="Fresh crisp carrots from Agoo farmers"
+                      fill
+                      className="object-cover w-full h-full"
+                      sizes="(max-width: 1024px) 50vw, 25vw"
+                    />
+                    <span className="absolute bottom-2.5 left-2.5 bg-white/95 text-gray-900 text-[11px] font-medium px-2.5 py-1 rounded border border-gray-200">
+                      Root Crops
+                    </span>
+                  </div>
+                </div>
+
+                {/* Bottom Traceability Card */}
+                <div className="mt-3 rounded-xl border border-gray-200 bg-gray-50 p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold text-gray-900">
+                      Direct Farm-to-Buyer Protocol
+                    </p>
+                    <p className="text-xs text-gray-600 mt-0.5">
+                      RSBSA-verified farms • Escrow-protected orders • Live delivery checkpoints
+                    </p>
+                  </div>
+                  <span className="inline-flex items-center px-2.5 py-1 rounded text-[11px] font-semibold uppercase tracking-wider bg-green-50 text-green-800 border border-green-200 shrink-0 w-fit">
+                    LA UNION, PH
+                  </span>
+                </div>
+              </div>
             </div>
-          </section>
-        </div>
+          </div>
+        </section>
       </main>
     </>
   );
