@@ -1,9 +1,9 @@
 'use client';
 
-import Image from 'next/image';
 import { useState, useEffect, useRef } from 'react';
 import NotificationDrawer from './NotificationDrawer';
 import { getFarmerNotificationsAction } from '@/app/actions/farm';
+import { ProfileAvatar } from '@/components/ui/ProfileMediaPlaceholders';
 
 interface FarmerHeaderProps {
   variant?: 'default' | 'dashboard' | 'back'
@@ -18,7 +18,6 @@ export default function FarmerHeader({
   userName = 'Farmer', 
   avatarUrl 
 }: FarmerHeaderProps) {
-  const avatarToUse = avatarUrl || "https://i.pravatar.cc/150?img=12";
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
 
@@ -60,16 +59,16 @@ export default function FarmerHeader({
 
   if (variant === 'dashboard') {
     return (
-      <header className="flex justify-between items-center w-full px-[16px] h-16 sticky top-0 z-40 bg-[#FAFAF7] border-b border-stone-200">
+      <header className="flex justify-between items-center w-full px-4 h-16 sticky top-0 z-40 bg-white border-b border-gray-200">
         <div className="flex items-center gap-3">
-          <Image src={avatarToUse} width={40} height={40} className="rounded-full object-cover border-2 border-surface" alt="Farmer" />
+          <ProfileAvatar src={avatarUrl} alt={userName} className="w-10 h-10 border border-gray-200" sizes="40px" />
           <div>
-            <p className="text-[12px] font-semibold tracking-[0.03em] text-on-surface-variant">Good morning,</p>
-            <h1 className="text-[20px] font-semibold leading-[1.4] text-on-background">{userName}</h1>
+            <p className="text-[11px] font-semibold tracking-wide text-gray-500 uppercase">Good morning,</p>
+            <h1 className="text-base font-bold text-gray-900">{userName}</h1>
           </div>
         </div>
-        <button onClick={() => setIsDrawerOpen(true)} className="w-10 h-10 flex items-center justify-center rounded-full bg-surface-container transition-colors hover:bg-surface-container-high relative">
-          {renderBellIcon("text-primary")}
+        <button onClick={() => setIsDrawerOpen(true)} className="w-10 h-10 flex items-center justify-center rounded-lg border border-gray-200 bg-gray-50 transition-colors hover:bg-gray-100 relative">
+          {renderBellIcon("text-green-800")}
         </button>
         <NotificationDrawer isOpen={isDrawerOpen} onClose={() => setIsDrawerOpen(false)} />
       </header>
@@ -78,14 +77,14 @@ export default function FarmerHeader({
 
   if (variant === 'back') {
     return (
-      <header className="flex justify-between items-center w-full px-4 h-16 sticky top-0 z-40 bg-[#FAFAF7] border-b border-stone-200">
+      <header className="flex justify-between items-center w-full px-4 h-16 sticky top-0 z-40 bg-white border-b border-gray-200">
         <div className="flex items-center gap-3">
-          <button className="text-[#1B4332] p-1" onClick={() => window.history.back()}>
+          <button className="text-gray-700 p-1" onClick={() => window.history.back()}>
             <span className="material-symbols-outlined">arrow_back</span>
           </button>
-          <h1 className="text-[#1B4332] font-black text-xl tracking-tighter">FarmFlow</h1>
+          <h1 className="text-green-800 font-bold text-xl tracking-tight">FarmFlow</h1>
         </div>
-        <button className="text-[#1B4332] p-1">
+        <button className="text-gray-700 p-1">
           <span className="material-symbols-outlined">more_vert</span>
         </button>
       </header>
@@ -93,12 +92,12 @@ export default function FarmerHeader({
   }
 
   return (
-    <header className="flex justify-between items-center w-full px-4 h-16 sticky top-0 z-40 bg-[#FAFAF7] border-b border-stone-200 md:hidden">
+    <header className="flex justify-between items-center w-full px-4 h-16 sticky top-0 z-40 bg-white border-b border-gray-200 md:hidden">
       <div className="flex items-center gap-3">
-        <Image src={avatarToUse} width={32} height={32} className="rounded-full object-cover" alt="Farmer" />
-        <h1 className="text-[#1B4332] font-black text-xl tracking-tighter">FarmFlow</h1>
+        <ProfileAvatar src={avatarUrl} alt={userName} className="w-8 h-8 border border-gray-200" sizes="32px" />
+        <h1 className="text-green-800 font-bold text-xl tracking-tight">FarmFlow</h1>
       </div>
-      <button onClick={() => setIsDrawerOpen(true)} className="text-[#1B4332] hover:opacity-80 transition-opacity relative p-1">
+      <button onClick={() => setIsDrawerOpen(true)} className="text-gray-700 hover:text-green-800 transition-colors relative p-1">
         {renderBellIcon("")}
       </button>
       <NotificationDrawer isOpen={isDrawerOpen} onClose={() => setIsDrawerOpen(false)} />

@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { ProfileAvatar } from '@/components/ui/ProfileMediaPlaceholders';
 import { format } from 'date-fns';
 import toast from 'react-hot-toast';
 import {
@@ -484,14 +485,12 @@ export default function OrderTrackingDetailClient({ order }: { order: any }) {
                 Origin Farm Partner
               </p>
               <div className="flex items-center gap-3 mb-4">
-                <div className="relative w-12 h-12 rounded-lg overflow-hidden bg-gray-100 shrink-0 border border-gray-200">
-                  <Image
-                    src={farm.user?.avatarUrl || 'https://i.pravatar.cc/150?img=12'}
-                    alt={farm.farmName}
-                    fill
-                    className="object-cover"
-                  />
-                </div>
+                <ProfileAvatar
+                  src={farm.user?.avatarUrl}
+                  alt={farm.farmName}
+                  className="w-12 h-12 border border-gray-200"
+                  sizes="48px"
+                />
                 <div>
                   <h4 className="font-semibold text-gray-900 text-sm">{farm.farmName}</h4>
                   <p className="text-xs text-gray-500">{farm.user?.name || 'Verified Farmer'}</p>

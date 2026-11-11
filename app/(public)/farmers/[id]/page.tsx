@@ -4,6 +4,8 @@ import { notFound } from 'next/navigation';
 import { getPublicFarmerByIdAction } from '@/app/actions/farm';
 import ProductListingCard from '@/components/marketplace/ProductListingCard';
 import PaginationBar from '@/components/ui/PaginationBar';
+import { sanitizeProfileImageUrl } from '@/lib/constants/farm-media';
+import { ProfileAvatar, CoverPhotoPlaceholder } from '@/components/ui/ProfileMediaPlaceholders';
 
 export const dynamic = 'force-dynamic';
 
@@ -31,152 +33,158 @@ export default async function FarmerProfilePage({
   const paginatedProducts = farm.products.slice((safePage - 1) * pageSize, safePage * pageSize);
 
   const joinDate = new Date(farm.createdAt).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  const cleanCover = sanitizeProfileImageUrl(farm.coverPhoto);
+  const practices = Array.isArray((farm as any).practices) ? ((farm as any).practices as string[]) : [];
 
   return (
-    <main className="flex-grow w-full bg-background pb-24">
-      {/* ─── Cover & Profile Header ────────────────────────────────────────────── */}
-      <section className="relative bg-surface-container-lowest border-b border-surface-variant shadow-sm">
+    <main className="flex-grow w-full bg-[#F9FAFB] pb-24">
+      {/* Facebook-style Cover & Profile Header */}
+      <section className="bg-white border-b border-gray-200">
         {/* Cover Photo */}
-        <div className="w-full h-64 md:h-80 bg-surface-container relative">
-          <Image 
-            src={farm.coverPhoto || 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?q=80&w=1600'} 
-            alt={`${farm.farmName} Cover`} 
-            fill 
-            className="object-cover" 
-            priority
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
+        <div className="w-full h-56 sm:h-72 bg-gray-100 border-b border-gray-200 relative overflow-hidden">
+          {cleanCover ? (
+            <Image
+              src={cleanCover}
+              alt={`${farm.farmName} Cover`}
+              fill
+              className="object-cover"
+              priority
+            />
+          ) : (
+            <CoverPhotoPlaceholder label="No cover photo" />
+          )}
         </div>
 
-        <div className="max-w-7xl mx-auto px-6 relative">
-          <div className="flex flex-col md:flex-row gap-6 md:gap-10 pb-10">
-            {/* Avatar (Overlapping cover) */}
-            <div className="-mt-16 md:-mt-24 z-10 flex-shrink-0">
-              <div className="w-32 h-32 md:w-48 md:h-48 rounded-full border-4 md:border-8 border-surface-container-lowest bg-surface-container relative overflow-hidden shadow-level-1">
-                <Image 
-                  src={farm.user?.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(farm.farmName)}&background=012d1d&color=fff&size=512`} 
-                  alt={farm.farmName} 
-                  fill 
-                  className="object-cover" 
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 pb-8">
+          <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4">
+            {/* Avatar + Farm Identity */}
+            <div className="flex flex-col sm:flex-row sm:items-end gap-4 sm:gap-6">
+              <div className="relative -mt-16 sm:-mt-20 w-32 h-32 sm:w-36 sm:h-36 rounded-full ring-4 ring-white bg-gray-200 shrink-0">
+                <ProfileAvatar
+                  src={farm.user?.avatarUrl}
+                  alt={farm.farmName}
+                  className="w-full h-full border border-gray-200"
+                  sizes="144px"
                 />
+              </div>
+
+              <div className="pt-1 sm:pb-1">
+                <div className="flex flex-wrap items-center gap-2.5">
+                  <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 tracking-tight">
+                    {farm.farmName}
+                  </h1>
+                  <span className="text-[11px] font-semibold uppercase tracking-wider px-2.5 py-0.5 rounded border border-green-200 bg-green-50 text-green-800">
+                    Verified Farm
+                  </span>
+                </div>
+                <p className="text-sm font-medium text-gray-600 mt-1">
+                  {farm.user?.name || 'Farm Owner'} • Farm Owner
+                </p>
+                <p className="text-xs sm:text-sm text-gray-500 mt-0.5 tabular-nums">
+                  Brgy. {farm.barangay}, {farm.municipality}, {farm.province} • {farm.landArea} Hectares • Joined {joinDate}
+                </p>
               </div>
             </div>
 
-            {/* Farm Details */}
-            <div className="flex-grow pt-4 md:pt-6 flex flex-col md:flex-row justify-between items-start gap-6">
-              <div>
-                <h1 className="font-display font-bold text-3xl md:text-4xl text-on-surface mb-2 tracking-tight">
-                  {farm.farmName}
-                </h1>
-                
-                <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-on-surface-variant font-body-md mb-4">
-                  <div className="flex items-center gap-1">
-                    <span className="material-symbols-outlined text-[18px]">location_on</span>
-                    {farm.barangay}, {farm.municipality}, {farm.province}
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <span className="material-symbols-outlined text-[18px]">calendar_month</span>
-                    Joined {joinDate}
-                  </div>
-                  {farm.landArea && (
-                    <div className="flex items-center gap-1">
-                      <span className="material-symbols-outlined text-[18px]">landscape</span>
-                      {farm.landArea} hectares
-                    </div>
-                  )}
-                </div>
-
-                <div className="flex items-center gap-2 mb-6">
-                  <div className="bg-primary/10 text-primary px-3 py-1 rounded-lg flex items-center gap-1 font-label-md">
-                    <span className="material-symbols-outlined text-[18px]" style={{ fontVariationSettings: "'FILL' 1" }}>star</span>
-                    <span className="font-bold">{farm.rating > 0 ? farm.rating.toFixed(1) : 'New Farm'}</span>
-                  </div>
-                  <div className="bg-surface-container px-3 py-1 rounded-lg text-on-surface-variant font-label-md border border-outline-variant/30">
-                    {farm._count.products} Active Products
-                  </div>
-                </div>
-              </div>
-
-              {/* Actions */}
-              <div className="flex-shrink-0 w-full md:w-auto flex flex-row md:flex-col gap-3">
-                <button className="flex-1 md:flex-none flex items-center justify-center gap-2 bg-primary text-on-primary px-6 py-3 rounded-xl font-label-md hover:bg-primary/90 transition-colors shadow-sm">
-                  <span className="material-symbols-outlined text-[20px]">chat</span>
-                  Message Farm
-                </button>
-                <button className="flex-1 md:flex-none flex items-center justify-center gap-2 bg-surface-container-lowest text-primary border border-primary px-6 py-3 rounded-xl font-label-md hover:bg-primary/5 transition-colors shadow-sm">
-                  <span className="material-symbols-outlined text-[20px]">share</span>
-                  Share
-                </button>
-              </div>
+            {/* Right-aligned Stats & Actions */}
+            <div className="flex flex-wrap items-center gap-2.5 lg:pb-1 shrink-0">
+              <span className="h-10 px-4 inline-flex items-center justify-center rounded-lg border border-gray-200 bg-gray-50 text-gray-800 text-xs font-semibold tabular-nums">
+                ★ {farm.rating > 0 ? farm.rating.toFixed(1) : 'New'}
+              </span>
+              <span className="h-10 px-4 inline-flex items-center justify-center rounded-lg border border-gray-200 bg-gray-50 text-gray-800 text-xs font-semibold tabular-nums">
+                {farm._count.products} Active Listings
+              </span>
+              <Link
+                href="/farmers"
+                className="h-10 px-4 inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white hover:bg-gray-50 text-gray-700 text-sm font-medium transition-colors"
+              >
+                All Farmers
+              </Link>
             </div>
           </div>
 
-          {/* Bio Section */}
-          {farm.bio && (
-            <div className="py-8 border-t border-surface-variant max-w-3xl">
-              <h2 className="font-display font-semibold text-xl text-on-surface mb-3">About the Farm</h2>
-              <p className="font-body-lg text-on-surface-variant leading-relaxed">
-                {farm.bio}
-              </p>
+          {/* Bio & Practices Row */}
+          {(farm.bio || practices.length > 0) && (
+            <div className="mt-6 pt-6 border-t border-gray-200 grid grid-cols-1 lg:grid-cols-12 gap-6">
+              {farm.bio && (
+                <div className="lg:col-span-8">
+                  <h2 className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-1.5">
+                    About the Farm
+                  </h2>
+                  <p className="text-sm text-gray-700 leading-relaxed">{farm.bio}</p>
+                </div>
+              )}
+              {practices.length > 0 && (
+                <div className="lg:col-span-4">
+                  <h2 className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-2">
+                    Farming Practices
+                  </h2>
+                  <div className="flex flex-wrap gap-1.5">
+                    {practices.map((practice) => (
+                      <span
+                        key={practice}
+                        className="bg-gray-100 text-gray-700 text-xs font-medium px-2.5 py-1 rounded border border-gray-200"
+                      >
+                        {practice}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
       </section>
 
-      {/* ─── Products Section ──────────────────────────────────────────────────── */}
-      <section className="max-w-7xl mx-auto px-6 pt-16">
-        <div className="flex items-center justify-between mb-8">
-          <h2 className="font-display font-bold text-2xl md:text-3xl text-on-background tracking-tight">
-            Shop from {farm.farmName}
+      {/* Products Section */}
+      <section className="max-w-6xl mx-auto px-4 sm:px-6 pt-10">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="font-bold text-xl sm:text-2xl text-gray-900 tracking-tight">
+            Fresh Harvest from {farm.farmName}
           </h2>
-          {/* Simple category filter tabs placeholder */}
-          <div className="hidden md:flex gap-2">
-            <button className="px-4 py-2 rounded-full bg-primary text-on-primary font-label-md">All Products</button>
-            <button className="px-4 py-2 rounded-full bg-surface-container text-on-surface hover:bg-surface-variant transition-colors font-label-md">Vegetables</button>
-            <button className="px-4 py-2 rounded-full bg-surface-container text-on-surface hover:bg-surface-variant transition-colors font-label-md">Fruits</button>
-          </div>
         </div>
 
         {farm.products.length === 0 ? (
-          <div className="text-center py-16 bg-surface-container-lowest rounded-3xl border border-surface-variant shadow-sm">
-            <span className="material-symbols-outlined text-6xl text-primary/30 mb-4">inventory_2</span>
-            <h3 className="font-h3 text-on-surface mb-2">No active products</h3>
-            <p className="font-body-md text-on-surface-variant">This farm doesn't have any products listed for sale right now.</p>
+          <div className="text-center py-14 bg-white rounded-xl border border-gray-200">
+            <h3 className="text-sm font-bold text-gray-900 mb-1">No Active Products</h3>
+            <p className="text-xs text-gray-500">
+              This farm doesn&apos;t have any active harvest listings right now.
+            </p>
           </div>
         ) : (
           <>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {paginatedProducts.map(product => (
-              <Link href={`/products/${product.id}`} key={product.id} className="block group">
-                <ProductListingCard
-                  id={product.id}
-                  image={product.photos[0] || '/images/crops/generic.jpg'}
-                  alt={product.name}
-                  badge={product.category === 'VEGETABLES' ? 'Organic' : (product.stockKg > 10 ? 'In Stock' : 'Low Stock')}
-                  badgeVariant={product.category === 'VEGETABLES' ? 'organic' : (product.stockKg > 10 ? 'instock' : 'lowstock')}
-                  productName={product.name}
-                  price={`₱${product.pricePerKg.toFixed(2)}`}
-                  unit="/ kg"
-                  farmerName={farm.farmName}
-                  rating={farm.rating || 0}
-                  stockKg={product.stockKg}
-                  minOrderQty={product.minOrderQty}
-                  wholesalePrice={product.wholesalePrice ? Number(product.wholesalePrice) : null}
-                  wholesaleMinQty={product.wholesaleMinQty}
-                />
-              </Link>
-            ))}
-          </div>
-          <div className="mt-8">
-            <PaginationBar
-              currentPage={safePage}
-              totalPages={totalPages}
-              totalItems={totalProducts}
-              pageSize={pageSize}
-              pageSizeOptions={[4, 8, 12, 24]}
-              itemLabel="farm products"
-            />
-          </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+              {paginatedProducts.map((product) => (
+                <Link href={`/products/${product.id}`} key={product.id} className="block group">
+                  <ProductListingCard
+                    id={product.id}
+                    image={product.photos[0] || '/images/crops/generic.jpg'}
+                    alt={product.name}
+                    badge={product.category === 'VEGETABLES' ? 'Organic' : product.stockKg > 10 ? 'In Stock' : 'Low Stock'}
+                    badgeVariant={product.category === 'VEGETABLES' ? 'organic' : product.stockKg > 10 ? 'instock' : 'lowstock'}
+                    productName={product.name}
+                    price={`₱${product.pricePerKg.toFixed(2)}`}
+                    unit="/ kg"
+                    farmerName={farm.farmName}
+                    rating={farm.rating || 0}
+                    stockKg={product.stockKg}
+                    minOrderQty={product.minOrderQty}
+                    wholesalePrice={product.wholesalePrice ? Number(product.wholesalePrice) : null}
+                    wholesaleMinQty={product.wholesaleMinQty}
+                  />
+                </Link>
+              ))}
+            </div>
+            <div className="mt-8">
+              <PaginationBar
+                currentPage={safePage}
+                totalPages={totalPages}
+                totalItems={totalProducts}
+                pageSize={pageSize}
+                pageSizeOptions={[4, 8, 12, 24]}
+                itemLabel="farm products"
+              />
+            </div>
           </>
         )}
       </section>

@@ -5,9 +5,46 @@ import { prisma } from '@/lib/prisma';
 import { requireFarmer } from '@/lib/dal';
 import { farmSchema } from '@/lib/validations/farm';
 import { toZonedTime, fromZonedTime } from 'date-fns-tz';
+import type { ActionState } from './crops';
 
 const TZ = 'Asia/Manila';
-import type { ActionState } from './crops';
+
+function isValidMediaUrl(url: string): boolean {
+  return url.startsWith('http://') || url.startsWith('https://') || url.startsWith('/');
+}
+
+function parsePracticesInput(raw: FormDataEntryValue | null, allEntries: FormDataEntryValue[]): string[] {
+  if (allEntries.length > 1) {
+    return Array.from(
+      new Set(
+        allEntries
+          .map((v) => String(v).trim())
+          .filter(Boolean)
+      )
+    );
+  }
+  if (!raw) return [];
+  const str = String(raw).trim();
+  if (!str) return [];
+  if (str.startsWith('[')) {
+    try {
+      const parsed = JSON.parse(str);
+      if (Array.isArray(parsed)) {
+        return Array.from(new Set(parsed.map((x) => String(x).trim()).filter(Boolean)));
+      }
+    } catch {
+      // fall through to comma split
+    }
+  }
+  return Array.from(
+    new Set(
+      str
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean)
+    )
+  );
+}
 
 // ─── Get Farm Profile ─────────────────────────────────────────────────────────
 
@@ -18,7 +55,13 @@ export async function getFarmProfileAction() {
     where: { id: farmId },
     include: {
       user: {
-        select: { name: true, email: true, phone: true, avatarUrl: true },
+        select: { id: true, name: true, email: true, phone: true, avatarUrl: true },
+      },
+      products: {
+        orderBy: { createdAt: 'desc' },
+      },
+      crops: {
+        orderBy: { createdAt: 'desc' },
       },
       _count: {
         select: {
@@ -38,100 +81,169 @@ export async function updateFarmProfileAction(
   _prevState: ActionState,
   formData: FormData
 ): Promise<ActionState> {
-  const { farmId } = await requireFarmer();
+  const { id: userId, farmId } = await requireFarmer();
+
+  const practicesEntries = formData.getAll('practices');
+  const practices = parsePracticesInput(formData.get('practices'), practicesEntries);
 
   const raw = {
-    farmName: formData.get('farmName'),
+    farmName: formData.get('farmName') || formData.get('name'),
     barangay: formData.get('barangay'),
-    municipality: formData.get('municipality') || 'Agoo',
+    municipality: formData.get('municipality') || formData.get('location') || 'Agoo',
     province: formData.get('province') || 'La Union',
     landArea: formData.get('landArea'),
-    bio: formData.get('bio') || undefined,
+    bio: (formData.get('bio') ?? formData.get('description') ?? '') as string,
+    practices,
+    firstName: (formData.get('firstName') as string) || undefined,
+    lastName: (formData.get('lastName') as string) || undefined,
+    phone: (formData.get('phone') as string) ?? undefined,
   };
 
   const parsed = farmSchema.safeParse(raw);
   if (!parsed.success) {
     return {
       success: false,
-      error: 'Please fix the errors below.',
+      error: 'Please fix the validation errors and try again.',
       fieldErrors: parsed.error.flatten().fieldErrors as Record<string, string[]>,
     };
   }
 
-  // Handle cover photo URL (uploaded separately via uploadFarmCoverPhoto)
-  const coverPhotoUrl = formData.get('coverPhotoUrl') as string | null;
+  // Optional media updates (supports explicit clearing via 'REMOVE' or empty marker)
+  const rawCover = (formData.get('coverPhotoUrl') ?? formData.get('bannerUrl')) as string | null;
+  const rawAvatar = formData.get('avatarUrl') as string | null;
+  const rawCert = (formData.get('certificateUrl') ?? formData.get('farmDocUrl')) as string | null;
+
+  const farmUpdateData: Record<string, unknown> = {
+    farmName: parsed.data.farmName,
+    barangay: parsed.data.barangay,
+    municipality: parsed.data.municipality,
+    province: parsed.data.province,
+    landArea: parsed.data.landArea,
+    bio: parsed.data.bio ? parsed.data.bio : null,
+    practices: parsed.data.practices ?? [],
+  };
+
+  if (rawCover === 'REMOVE') {
+    farmUpdateData.coverPhoto = null;
+  } else if (rawCover && isValidMediaUrl(rawCover)) {
+    farmUpdateData.coverPhoto = rawCover;
+  }
+
+  if (rawCert === 'REMOVE') {
+    farmUpdateData.farmDocUrl = null;
+  } else if (rawCert && isValidMediaUrl(rawCert)) {
+    farmUpdateData.farmDocUrl = rawCert;
+  }
+
+  const userUpdateData: Record<string, unknown> = {};
+  const combinedName = `${parsed.data.firstName || ''} ${parsed.data.lastName || ''}`.trim();
+  if (combinedName.length >= 2) {
+    userUpdateData.name = combinedName;
+  }
+  if (parsed.data.phone !== undefined) {
+    userUpdateData.phone = parsed.data.phone ? parsed.data.phone.trim() : null;
+  }
+  if (rawAvatar === 'REMOVE') {
+    userUpdateData.avatarUrl = null;
+  } else if (rawAvatar && isValidMediaUrl(rawAvatar)) {
+    userUpdateData.avatarUrl = rawAvatar;
+  }
 
   try {
-    await prisma.farm.update({
-      where: { id: farmId },
-      data: {
-        farmName: parsed.data.farmName,
-        barangay: parsed.data.barangay,
-        municipality: parsed.data.municipality,
-        province: parsed.data.province,
-        landArea: parsed.data.landArea,
-        bio: parsed.data.bio,
-        ...(coverPhotoUrl ? { coverPhoto: coverPhotoUrl } : {}),
-      },
+    await prisma.$transaction(async (tx) => {
+      await tx.farm.update({
+        where: { id: farmId },
+        data: farmUpdateData,
+      });
+
+      if (Object.keys(userUpdateData).length > 0) {
+        await tx.user.update({
+          where: { id: userId },
+          data: userUpdateData,
+        });
+      }
     });
 
     revalidatePath('/farmer/farm-profile');
     revalidatePath('/farmer/dashboard');
+    revalidatePath('/farmers');
+    revalidatePath(`/farmers/${farmId}`);
 
-    return { success: true, message: 'Farm profile updated successfully!' };
+    return { success: true, message: 'Farm profile updated successfully.' };
   } catch (err) {
-    console.error('[updateFarmProfile]', err);
+    console.error('[updateFarmProfileAction]', err);
     return { success: false, error: 'Failed to update farm profile. Please try again.' };
+  }
+}
+
+export async function updateFarmProfile(prevState: ActionState, formData: FormData) {
+  return updateFarmProfileAction(prevState, formData);
+}
+
+// ─── Quick Profile Media Update (Avatar & Cover Photo) ───────────────────────
+
+export async function updateFarmerMediaAction(payload: {
+  avatarUrl?: string | null;
+  coverPhoto?: string | null;
+  bannerUrl?: string | null;
+}): Promise<ActionState> {
+  const { id: userId, farmId } = await requireFarmer();
+
+  const hasAvatar = Object.prototype.hasOwnProperty.call(payload, 'avatarUrl');
+  const hasCover =
+    Object.prototype.hasOwnProperty.call(payload, 'coverPhoto') ||
+    Object.prototype.hasOwnProperty.call(payload, 'bannerUrl');
+
+  const nextAvatar = payload.avatarUrl;
+  const nextCover = Object.prototype.hasOwnProperty.call(payload, 'coverPhoto')
+    ? payload.coverPhoto
+    : payload.bannerUrl;
+
+  if (hasAvatar && nextAvatar !== null && nextAvatar !== undefined && !isValidMediaUrl(nextAvatar)) {
+    return { success: false, error: 'Invalid profile picture URL.' };
+  }
+  if (hasCover && nextCover !== null && nextCover !== undefined && !isValidMediaUrl(nextCover)) {
+    return { success: false, error: 'Invalid cover photo URL.' };
+  }
+
+  try {
+    await prisma.$transaction(async (tx) => {
+      if (hasAvatar) {
+        await tx.user.update({
+          where: { id: userId },
+          data: { avatarUrl: nextAvatar ?? null },
+        });
+      }
+      if (hasCover) {
+        await tx.farm.update({
+          where: { id: farmId },
+          data: { coverPhoto: nextCover ?? null },
+        });
+      }
+    });
+
+    revalidatePath('/farmer/farm-profile');
+    revalidatePath('/farmer/dashboard');
+    revalidatePath('/farmers');
+    revalidatePath(`/farmers/${farmId}`);
+
+    return { success: true, message: 'Profile media updated.' };
+  } catch (err) {
+    console.error('[updateFarmerMediaAction]', err);
+    return { success: false, error: 'Failed to update profile media.' };
   }
 }
 
 // ─── Update Avatar URL ────────────────────────────────────────────────────────
 
-export async function updateAvatarUrlAction(avatarUrl: string): Promise<ActionState> {
-  const { id: userId } = await requireFarmer();
-
-  if (!avatarUrl || !avatarUrl.startsWith('http')) {
-    return { success: false, error: 'Invalid avatar URL.' };
-  }
-
-  try {
-    await prisma.user.update({
-      where: { id: userId },
-      data: { avatarUrl },
-    });
-
-    revalidatePath('/farmer/farm-profile');
-    revalidatePath('/farmer/dashboard');
-
-    return { success: true, message: 'Avatar updated successfully!' };
-  } catch (err) {
-    console.error('[updateAvatarUrl]', err);
-    return { success: false, error: 'Failed to update avatar.' };
-  }
+export async function updateAvatarUrlAction(avatarUrl: string | null): Promise<ActionState> {
+  return updateFarmerMediaAction({ avatarUrl });
 }
 
 // ─── Update Cover Photo URL ───────────────────────────────────────────────────
 
-export async function updateCoverPhotoUrlAction(coverPhotoUrl: string): Promise<ActionState> {
-  const { farmId } = await requireFarmer();
-
-  if (!coverPhotoUrl || !coverPhotoUrl.startsWith('http')) {
-    return { success: false, error: 'Invalid cover photo URL.' };
-  }
-
-  try {
-    await prisma.farm.update({
-      where: { id: farmId },
-      data: { coverPhoto: coverPhotoUrl },
-    });
-
-    revalidatePath('/farmer/farm-profile');
-
-    return { success: true, message: 'Cover photo updated successfully!' };
-  } catch (err) {
-    console.error('[updateCoverPhotoUrl]', err);
-    return { success: false, error: 'Failed to update cover photo.' };
-  }
+export async function updateCoverPhotoUrlAction(coverPhotoUrl: string | null): Promise<ActionState> {
+  return updateFarmerMediaAction({ coverPhoto: coverPhotoUrl });
 }
 
 // ─── Get Farmer Dashboard Stats ───────────────────────────────────────────────
@@ -282,7 +394,7 @@ export async function getFarmerDashboardStatsAction() {
     day: d.day,
     height: `${Math.round((d.total / maxTotal) * 100)}%`,
     highlight: d.total === maxTotal && d.total > 0,
-    total: d.total, // keep actual total for reference if needed
+    total: d.total,
   }));
 
   return {
@@ -297,7 +409,6 @@ export async function getFarmerDashboardStatsAction() {
     lifetimeTotalOrders,
   };
 }
-
 
 // ─── Public Farm Queries ──────────────────────────────────────────────────────
 
@@ -341,8 +452,8 @@ export async function getPublicFarmersAction(params?: {
         take: 3,
       },
       _count: {
-        select: { products: { where: { status: 'ACTIVE' } } }
-      }
+        select: { products: { where: { status: 'ACTIVE' } } },
+      },
     },
     orderBy,
   });
@@ -361,13 +472,13 @@ export async function getPublicFarmerByIdAction(id: string) {
         where: { status: 'ACTIVE' },
         include: {
           farm: {
-            select: { farmName: true, user: { select: { avatarUrl: true } } }
-          }
-        }
+            select: { farmName: true, user: { select: { avatarUrl: true } } },
+          },
+        },
       },
       _count: {
-        select: { products: { where: { status: 'ACTIVE' } } }
-      }
+        select: { products: { where: { status: 'ACTIVE' } } },
+      },
     },
   });
 
@@ -393,7 +504,6 @@ export async function getFarmerNotificationsAction() {
 export async function markNotificationAsReadAction(id: string) {
   const { id: userId } = await requireFarmer();
   try {
-    // Security: ensure this notification belongs to this user
     await prisma.notification.updateMany({
       where: { id, recipientId: userId },
       data: { isRead: true },
@@ -419,4 +529,3 @@ export async function markAllFarmerNotificationsReadAction() {
     return { success: false, error: 'Failed to mark all notifications as read.' };
   }
 }
-

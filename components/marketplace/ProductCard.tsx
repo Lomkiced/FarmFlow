@@ -1,10 +1,11 @@
 import Image from 'next/image';
+import { ProfileAvatar } from '@/components/ui/ProfileMediaPlaceholders';
 
 interface ProductCardProps {
   image: string;
   alt: string;
   badge: 'In Stock' | 'Low Stock' | 'Out of Stock';
-  farmerAvatar: string;
+  farmerAvatar?: string | null;
   farmerName: string;
   productName: string;
   price: string;
@@ -50,15 +51,14 @@ export default function ProductCard({
       {/* Body */}
       <div className="p-4 flex flex-col gap-[8px] flex-grow">
         {/* Farmer Row */}
-        <div className="flex items-center gap-2 text-on-surface-variant">
-          <Image
+        <div className="flex items-center gap-2 text-gray-600">
+          <ProfileAvatar
             src={farmerAvatar}
             alt={farmerName}
-            width={24}
-            height={24}
-            className="w-6 h-6 rounded-full object-cover"
+            className="w-6 h-6 border border-gray-200"
+            sizes="24px"
           />
-          <span className="font-label-sm">{farmerName}</span>
+          <span className="text-xs font-medium truncate">{farmerName}</span>
         </div>
 
         {/* Product Name */}

@@ -41,7 +41,8 @@ async function ensureSchemaSynced() {
         ADD COLUMN IF NOT EXISTS "idNameOnDocument" TEXT,
         ADD COLUMN IF NOT EXISTS "idDocumentUrl" TEXT,
         ADD COLUMN IF NOT EXISTS "idVerifiedMatch" BOOLEAN NOT NULL DEFAULT false,
-        ADD COLUMN IF NOT EXISTS "idMatchScore" INTEGER NOT NULL DEFAULT 0;
+        ADD COLUMN IF NOT EXISTS "idMatchScore" INTEGER NOT NULL DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS "practices" TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[];
 
       ALTER TABLE "Order"
         ADD COLUMN IF NOT EXISTS "trackingNumber" TEXT,
