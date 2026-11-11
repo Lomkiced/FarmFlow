@@ -87,7 +87,7 @@ export default function CategoryFilter({ products }: { products: Product[] }) {
                     image={product.photos[0] || '/images/crops/generic.jpg'}
                     alt={product.name}
                     badge={badge}
-                    farmerAvatar={product.farm.user?.avatarUrl || 'https://i.pravatar.cc/150?img=11'}
+                    farmerAvatar={product.farm.user?.avatarUrl}
                     farmerName={product.farm.farmName}
                     productName={product.name}
                     price={`₱${product.pricePerKg.toLocaleString(undefined, { minimumFractionDigits: 2 })}`}

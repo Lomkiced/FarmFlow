@@ -3,6 +3,8 @@ import Link from 'next/link';
 import { getPublicFarmersAction } from '@/app/actions/farm';
 import FarmersSearchBar from '@/components/marketplace/FarmersSearchBar';
 import PaginationBar from '@/components/ui/PaginationBar';
+import { sanitizeProfileImageUrl } from '@/lib/constants/farm-media';
+import { ProfileAvatar, CoverPhotoPlaceholder } from '@/components/ui/ProfileMediaPlaceholders';
 
 type Props = {
   searchParams: Promise<{ search?: string; sort?: string; page?: string; pageSize?: string }>;
@@ -30,37 +32,37 @@ export default async function FarmersDirectoryPage({ searchParams }: Props) {
   };
 
   return (
-    <main className="flex-grow w-full bg-background pb-24">
-      {/* ─── Header ────────────────────────────────────────────────────────────── */}
-      <div className="bg-primary pt-12 pb-24 px-6 relative overflow-hidden">
-        {/* Subtle background pattern */}
-        <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, white 1px, transparent 0)', backgroundSize: '32px 32px' }} />
-
-        <div className="max-w-7xl mx-auto relative z-10 text-center">
-          <h1 className="font-display font-bold text-4xl md:text-5xl text-white mb-4 tracking-tight drop-shadow-md">
-            Meet Our Farmers
+    <main className="flex-grow w-full bg-[#F9FAFB] pb-24">
+      {/* Header */}
+      <div className="bg-[#0B291B] pt-12 pb-20 px-6 border-b border-green-900">
+        <div className="max-w-6xl mx-auto text-center">
+          <span className="inline-block px-2.5 py-0.5 rounded bg-green-900 text-green-100 border border-green-700/60 text-[11px] font-semibold uppercase tracking-wider mb-3">
+            RSBSA &amp; KYC Verified Registry
+          </span>
+          <h1 className="font-bold text-3xl sm:text-4xl text-white mb-3 tracking-tight">
+            Verified Farmers Directory
           </h1>
-          <p className="font-body-lg text-white/90 max-w-2xl mx-auto drop-shadow-sm">
-            Discover the dedicated individuals and families growing the fresh produce that sustains our community.
+          <p className="text-sm text-gray-300 max-w-xl mx-auto leading-relaxed">
+            Discover verified local growers in Agoo, La Union cultivating fresh produce for retail and wholesale delivery.
           </p>
         </div>
       </div>
 
-      {/* ─── Search / Filter Bar ─────────────────────────────────────────────── */}
-      <div className="max-w-7xl mx-auto px-6 -mt-8 relative z-20 mb-12">
-        <div className="bg-surface-container-lowest rounded-2xl p-4 md:p-6 shadow-level-2 border border-surface-variant flex flex-col md:flex-row gap-4 items-center justify-between">
+      {/* Search / Filter Bar */}
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 -mt-8 relative z-20 mb-10">
+        <div className="bg-white rounded-xl p-4 border border-gray-200 shadow-xs flex flex-col md:flex-row gap-4 items-center justify-between">
           <FarmersSearchBar initialSearch={search} />
 
           <div className="flex items-center gap-2 flex-shrink-0">
-            <span className="text-sm text-on-surface-variant font-medium hidden sm:block">Sort:</span>
+            <span className="text-xs text-gray-500 font-medium hidden sm:block">Sort:</span>
             {(['rating', 'products', 'name'] as const).map((s) => (
               <Link
                 key={s}
                 href={`/farmers?${new URLSearchParams({ ...(search ? { search } : {}), sort: s }).toString()}`}
-                className={`px-4 py-2.5 rounded-xl text-sm font-medium border transition-colors ${
+                className={`h-9 px-3.5 inline-flex items-center justify-center rounded-lg text-xs font-medium border transition-colors ${
                   sort === s
-                    ? 'bg-primary text-on-primary border-primary shadow-sm'
-                    : 'bg-surface-container border-outline-variant text-on-surface hover:bg-surface-variant'
+                    ? 'bg-green-800 text-white border-green-800'
+                    : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
                 }`}
               >
                 {SORT_LABELS[s]}
@@ -70,130 +72,148 @@ export default async function FarmersDirectoryPage({ searchParams }: Props) {
         </div>
 
         {/* Results summary */}
-        <div className="mt-3 px-1 text-sm text-on-surface-variant">
+        <div className="mt-3 px-1 text-xs text-gray-500 tabular-nums">
           {search ? (
             <>
-              Showing <strong className="text-on-surface">{farmers.length}</strong> result{farmers.length !== 1 ? 's' : ''} for &quot;<strong className="text-primary">{search}</strong>&quot;{' '}
-              <Link href="/farmers" className="text-primary hover:underline ml-1">Clear</Link>
+              Showing <strong className="text-gray-900">{farmers.length}</strong> result{farmers.length !== 1 ? 's' : ''} for &quot;<strong className="text-green-800">{search}</strong>&quot;{' '}
+              <Link href="/farmers" className="text-green-800 hover:underline ml-1 font-medium">Clear</Link>
             </>
           ) : (
-            <><strong className="text-on-surface">{farmers.length}</strong> verified farmer{farmers.length !== 1 ? 's' : ''} on FarmFlow</>
+            <><strong className="text-gray-900">{farmers.length}</strong> verified farmer{farmers.length !== 1 ? 's' : ''} on FarmFlow</>
           )}
         </div>
       </div>
 
-      {/* ─── Farmer Grid ───────────────────────────────────────────────────────── */}
-      <div className="max-w-7xl mx-auto px-6">
+      {/* Farmer Grid */}
+      <div className="max-w-6xl mx-auto px-4 sm:px-6">
         {farmers.length === 0 ? (
-          <div className="text-center py-20 bg-surface-container rounded-3xl border border-surface-variant border-dashed">
-            <span className="material-symbols-outlined text-6xl text-primary/30 mb-4 block">agriculture</span>
-            <h2 className="font-h2 text-on-surface mb-2">
-              {search ? `No farmers found for "${search}"` : 'No Farmers Yet'}
+          <div className="text-center py-16 bg-white rounded-xl border border-gray-200">
+            <h2 className="text-base font-bold text-gray-900 mb-1">
+              {search ? `No farmers found for "${search}"` : 'No Farmers Listed Yet'}
             </h2>
-            <p className="font-body-md text-on-surface-variant">
-              {search ? 'Try a different search term or clear your search.' : 'Check back later as more farmers join the platform.'}
+            <p className="text-xs text-gray-500">
+              {search ? 'Try a different search term or clear your search.' : 'Check back later as more verified farmers join.'}
             </p>
             {search && (
-              <Link href="/farmers" className="mt-6 inline-block bg-primary text-on-primary px-6 py-3 rounded-xl font-label-md hover:bg-primary/90 transition-colors">
+              <Link
+                href="/farmers"
+                className="mt-5 inline-flex items-center justify-center h-9 px-4 bg-green-800 text-white rounded-lg text-xs font-medium hover:bg-green-900 transition-colors"
+              >
                 View All Farmers
               </Link>
             )}
           </div>
         ) : (
           <>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {paginatedFarmers.map((farm) => (
-              <Link
-                href={`/farmers/${farm.id}`}
-                key={farm.id}
-                className="group bg-surface-container-lowest rounded-3xl overflow-hidden border border-surface-variant shadow-[0px_4px_20px_rgba(27,67,50,0.04)] hover:shadow-[0px_12px_32px_rgba(27,67,50,0.12)] transition-all duration-300 hover:-translate-y-1 flex flex-col"
-              >
-                {/* Cover Photo */}
-                <div className="h-40 w-full bg-surface-container relative overflow-hidden">
-                  <Image
-                    src={farm.coverPhoto || 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?q=80&w=800'}
-                    alt={farm.farmName}
-                    fill
-                    className="object-cover group-hover:scale-105 transition-transform duration-700"
-                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-80" />
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {paginatedFarmers.map((farm) => {
+                const cleanCover = sanitizeProfileImageUrl(farm.coverPhoto);
 
-                  {/* Rating Badge */}
-                  <div className="absolute top-4 right-4 bg-white/90 backdrop-blur-sm text-primary px-3 py-1 rounded-full flex items-center gap-1 shadow-sm">
-                    <span className="material-symbols-outlined text-[16px]" style={{ fontVariationSettings: "'FILL' 1" }}>star</span>
-                    <span className="font-label-md font-bold">{farm.rating > 0 ? farm.rating.toFixed(1) : 'New'}</span>
-                  </div>
-                </div>
+                return (
+                  <Link
+                    href={`/farmers/${farm.id}`}
+                    key={farm.id}
+                    className="group bg-white rounded-xl overflow-hidden border border-gray-200 hover:border-green-800 transition-colors flex flex-col"
+                  >
+                    {/* Cover Photo or Clean Empty Placeholder */}
+                    <div className="h-40 w-full bg-gray-100 border-b border-gray-200 relative overflow-hidden">
+                      {cleanCover ? (
+                        <Image
+                          src={cleanCover}
+                          alt={farm.farmName}
+                          fill
+                          className="object-cover"
+                          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                        />
+                      ) : (
+                        <CoverPhotoPlaceholder label="No Cover Photo" />
+                      )}
 
-                {/* Profile Content */}
-                <div className="p-6 flex-grow flex flex-col relative -mt-10">
-                  {/* Avatar & Name */}
-                  <div className="flex gap-4 items-end mb-4">
-                    <div className="w-20 h-20 rounded-full border-4 border-surface-container-lowest bg-surface-container relative overflow-hidden shadow-sm flex-shrink-0 z-10">
-                      <Image
-                        src={farm.user?.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(farm.farmName)}&background=012d1d&color=fff`}
-                        alt={farm.farmName}
-                        fill
-                        className="object-cover"
-                      />
-                    </div>
-                    <div className="pb-1 z-10 w-full min-w-0">
-                      <h2 className="font-display font-bold text-xl text-on-surface truncate group-hover:text-primary transition-colors">
-                        {farm.farmName}
-                      </h2>
-                      <div className="flex items-center gap-1 text-on-surface-variant font-body-sm mt-0.5 truncate">
-                        <span className="material-symbols-outlined text-[14px] flex-shrink-0">location_on</span>
-                        <span className="truncate">{farm.barangay}, {farm.municipality}</span>
+                      {/* Rating Badge */}
+                      <div className="absolute top-3 right-3 bg-white text-gray-900 border border-gray-200 px-2.5 py-0.5 rounded text-[11px] font-semibold tabular-nums">
+                        ★ {farm.rating > 0 ? farm.rating.toFixed(1) : 'New'}
                       </div>
                     </div>
-                  </div>
 
-                  {/* Bio snippet */}
-                  <p className="font-body-sm text-on-surface-variant line-clamp-2 mb-6 flex-grow">
-                    {farm.bio || `A local farm in ${farm.barangay} dedicated to providing fresh, quality produce to the community.`}
-                  </p>
+                    {/* Profile Content */}
+                    <div className="p-5 flex-grow flex flex-col relative -mt-10">
+                      {/* Avatar & Name */}
+                      <div className="flex gap-3.5 items-end mb-4">
+                        <ProfileAvatar
+                          src={farm.user?.avatarUrl}
+                          alt={farm.farmName}
+                          className="w-20 h-20 ring-4 ring-white border border-gray-200 z-10"
+                          sizes="80px"
+                        />
+                        <div className="pb-1 z-10 w-full min-w-0">
+                          <h2 className="font-bold text-lg text-gray-900 truncate group-hover:text-green-800 transition-colors">
+                            {farm.farmName}
+                          </h2>
+                          <p className="text-xs text-gray-500 mt-0.5 truncate">
+                            {farm.barangay}, {farm.municipality}
+                          </p>
+                        </div>
+                      </div>
 
-                  {/* Products Preview Area */}
-                  <div className="pt-4 border-t border-surface-variant">
-                    <div className="flex justify-between items-center mb-3">
-                      <span className="font-label-sm uppercase tracking-wider text-outline">Fresh Harvests</span>
-                      <span className="font-label-sm text-primary group-hover:underline">View {farm._count.products} Products</span>
-                    </div>
+                      {/* Bio snippet */}
+                      <p className="text-xs text-gray-600 line-clamp-2 mb-5 flex-grow leading-relaxed">
+                        {farm.bio || `A verified farm in Brgy. ${farm.barangay}, ${farm.municipality} supplying fresh local harvest.`}
+                      </p>
 
-                    {farm.products.length > 0 ? (
-                      <div className="flex gap-3">
-                        {farm.products.map(p => (
-                          <div key={p.id} className="w-14 h-14 rounded-xl relative overflow-hidden border border-surface-variant/50 group/img bg-surface-container shadow-sm">
-                            <Image src={p.photos[0] || '/images/crops/generic.jpg'} alt={p.name} fill className="object-cover group-hover/img:scale-110 transition-transform duration-500" sizes="56px" />
+                      {/* Products Preview Area */}
+                      <div className="pt-3.5 border-t border-gray-100">
+                        <div className="flex justify-between items-center mb-2.5">
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
+                            Fresh Harvests
+                          </span>
+                          <span className="text-xs font-medium text-green-800 group-hover:underline tabular-nums">
+                            {farm._count.products} Products →
+                          </span>
+                        </div>
+
+                        {farm.products.length > 0 ? (
+                          <div className="flex gap-2">
+                            {farm.products.map((p) => (
+                              <div
+                                key={p.id}
+                                className="w-12 h-12 rounded-lg relative overflow-hidden border border-gray-200 bg-gray-50 shrink-0"
+                              >
+                                <Image
+                                  src={p.photos[0] || '/images/crops/generic.jpg'}
+                                  alt={p.name}
+                                  fill
+                                  className="object-cover"
+                                  sizes="48px"
+                                />
+                              </div>
+                            ))}
+                            {farm._count.products > 3 && (
+                              <div className="w-12 h-12 rounded-lg flex items-center justify-center bg-gray-100 text-gray-600 text-xs font-semibold border border-gray-200 tabular-nums">
+                                +{farm._count.products - 3}
+                              </div>
+                            )}
                           </div>
-                        ))}
-                        {farm._count.products > 3 && (
-                          <div className="w-14 h-14 rounded-xl flex items-center justify-center bg-surface-variant text-on-surface-variant font-label-md border border-outline-variant/30">
-                            +{farm._count.products - 3}
+                        ) : (
+                          <div className="text-xs text-gray-400 py-1.5">
+                            No active listings currently.
                           </div>
                         )}
                       </div>
-                    ) : (
-                      <div className="font-body-sm text-on-surface-variant italic py-2">
-                        No active listings currently.
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </Link>
-            ))}
-          </div>
-          <div className="mt-10">
-            <PaginationBar
-              currentPage={safePage}
-              totalPages={totalPages}
-              totalItems={totalFarmers}
-              pageSize={pageSize}
-              pageSizeOptions={[3, 6, 9, 18]}
-              itemLabel="verified farmers"
-            />
-          </div>
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+            <div className="mt-10">
+              <PaginationBar
+                currentPage={safePage}
+                totalPages={totalPages}
+                totalItems={totalFarmers}
+                pageSize={pageSize}
+                pageSizeOptions={[3, 6, 9, 18]}
+                itemLabel="verified farmers"
+              />
+            </div>
           </>
         )}
       </div>

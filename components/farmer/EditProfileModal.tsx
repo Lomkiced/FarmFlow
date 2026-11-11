@@ -1,161 +1,201 @@
 'use client';
 
-import { useState, useTransition, useRef, useCallback } from 'react';
-import { updateFarmProfileAction, updateAvatarUrlAction, updateCoverPhotoUrlAction } from '@/app/actions/farm';
+import { useState, useTransition, useRef, useCallback, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import toast from 'react-hot-toast';
+import { updateFarmProfileAction, updateFarmerMediaAction } from '@/app/actions/farm';
 import { uploadAvatar, uploadFarmCoverPhoto } from '@/app/actions/upload';
 import { AGOO_BARANGAYS, normalizeBarangayName } from '@/lib/constants/locations';
+import { FARMING_PRACTICE_OPTIONS } from '@/lib/validations/farm';
+import { sanitizeProfileImageUrl } from '@/lib/constants/farm-media';
+import { BlankAvatarSilhouette, CoverPhotoPlaceholder } from '@/components/ui/ProfileMediaPlaceholders';
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-
-type UploadState = {
-  uploading: boolean;
-  error: string | null;
-  success: boolean;
-};
-
-const DEFAULT_UPLOAD_STATE: UploadState = { uploading: false, error: null, success: false };
-
-// ─── Sub-component: Upload Button ─────────────────────────────────────────────
-
-function UploadButton({
-  id,
-  accept,
-  onChange,
-  disabled,
-  children,
-  className,
-}: {
-  id: string;
-  accept: string;
-  onChange: (file: File) => void;
-  disabled: boolean;
-  children: React.ReactNode;
-  className: string;
-}) {
-  const ref = useRef<HTMLInputElement>(null);
-  return (
-    <>
-      <input
-        ref={ref}
-        id={id}
-        type="file"
-        accept={accept}
-        className="hidden"
-        onChange={(e) => {
-          const file = e.target.files?.[0];
-          if (file) onChange(file);
-          // Reset so same file can be re-selected
-          e.target.value = '';
-        }}
-        disabled={disabled}
-      />
-      <button
-        type="button"
-        onClick={() => ref.current?.click()}
-        disabled={disabled}
-        className={className}
-      >
-        {children}
-      </button>
-    </>
-  );
+function splitFullName(fullName?: string | null): { firstName: string; lastName: string } {
+  const clean = (fullName || '').trim();
+  if (!clean) return { firstName: '', lastName: '' };
+  const parts = clean.split(/\s+/);
+  if (parts.length === 1) return { firstName: parts[0], lastName: '' };
+  const lastName = parts.pop() || '';
+  return { firstName: parts.join(' '), lastName };
 }
 
-// ─── Main Modal ───────────────────────────────────────────────────────────────
+interface EditProfileModalProps {
+  farmProfile: any;
+  isOpen?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  focusField?: 'bio' | null;
+  hideTrigger?: boolean;
+}
 
-export default function EditProfileModal({ farmProfile }: { farmProfile: any }) {
-  const [isOpen, setIsOpen] = useState(false);
+export default function EditProfileModal({
+  farmProfile,
+  isOpen: controlledOpen,
+  onOpenChange,
+  focusField = null,
+  hideTrigger = false,
+}: EditProfileModalProps) {
+  const router = useRouter();
+  const [internalOpen, setInternalOpen] = useState(false);
+  const isOpen = controlledOpen !== undefined ? controlledOpen : internalOpen;
+
+  const setOpen = (next: boolean) => {
+    if (onOpenChange) onOpenChange(next);
+    if (controlledOpen === undefined) setInternalOpen(next);
+  };
+
   const [isPending, startTransition] = useTransition();
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
 
-  // Avatar state
-  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
-  const [avatarUpload, setAvatarUpload] = useState<UploadState>(DEFAULT_UPLOAD_STATE);
+  // Media preview & upload states
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(() =>
+    sanitizeProfileImageUrl(farmProfile.user?.avatarUrl)
+  );
+  const [coverUrl, setCoverUrl] = useState<string | null>(() =>
+    sanitizeProfileImageUrl(farmProfile.coverPhoto)
+  );
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [uploadingCover, setUploadingCover] = useState(false);
 
-  // Cover photo state
-  const [coverPreview, setCoverPreview] = useState<string | null>(null);
-  const [coverUpload, setCoverUpload] = useState<UploadState>(DEFAULT_UPLOAD_STATE);
+  // Practices state
+  const [selectedPractices, setSelectedPractices] = useState<string[]>(() =>
+    Array.isArray(farmProfile.practices) ? farmProfile.practices : []
+  );
 
-  const isAnyUploading = avatarUpload.uploading || coverUpload.uploading;
+  const avatarInputRef = useRef<HTMLInputElement>(null);
+  const coverInputRef = useRef<HTMLInputElement>(null);
+  const bioRef = useRef<HTMLTextAreaElement>(null);
 
-  // ─── Avatar Upload ───────────────────────────────────────────────────────────
+  const isAnyUploading = uploadingAvatar || uploadingCover;
+  const { firstName: defaultFirstName, lastName: defaultLastName } = splitFullName(
+    farmProfile.user?.name
+  );
 
-  const handleAvatarChange = useCallback(async (file: File) => {
-    const previewUrl = URL.createObjectURL(file);
-    setAvatarPreview(previewUrl);
-    setAvatarUpload({ uploading: true, error: null, success: false });
+  useEffect(() => {
+    if (isOpen) {
+      setAvatarUrl(sanitizeProfileImageUrl(farmProfile.user?.avatarUrl));
+      setCoverUrl(sanitizeProfileImageUrl(farmProfile.coverPhoto));
+      setSelectedPractices(Array.isArray(farmProfile.practices) ? farmProfile.practices : []);
+      setErrorMsg('');
+      setSuccessMsg('');
 
-    try {
-      const formData = new FormData();
-      formData.append('file', file);
-
-      const uploadResult = await uploadAvatar(formData);
-      if (!uploadResult.success) {
-        setAvatarUpload({ uploading: false, error: uploadResult.error, success: false });
-        return;
+      if (focusField === 'bio') {
+        setTimeout(() => {
+          bioRef.current?.focus();
+        }, 100);
       }
-
-      const saveResult = await updateAvatarUrlAction(uploadResult.url);
-      if (!saveResult.success) {
-        setAvatarUpload({ uploading: false, error: saveResult.error || 'Failed to save avatar.', success: false });
-        return;
-      }
-
-      setAvatarUpload({ uploading: false, error: null, success: true });
-    } catch {
-      setAvatarUpload({ uploading: false, error: 'Unexpected error. Please try again.', success: false });
     }
-  }, []);
+  }, [isOpen, farmProfile, focusField]);
 
-  // ─── Cover Photo Upload ──────────────────────────────────────────────────────
+  const handleAvatarUpload = useCallback(
+    async (file: File) => {
+      setUploadingAvatar(true);
+      try {
+        const fd = new FormData();
+        fd.append('file', file);
+        const uploadRes = await uploadAvatar(fd);
+        if (!uploadRes.success) {
+          toast.error(uploadRes.error || 'Failed to upload profile picture.');
+          return;
+        }
+        const saveRes = await updateFarmerMediaAction({ avatarUrl: uploadRes.url });
+        if (!saveRes.success) {
+          toast.error(saveRes.error || 'Failed to save profile picture.');
+          return;
+        }
+        setAvatarUrl(uploadRes.url);
+        toast.success('Profile picture updated.');
+        router.refresh();
+      } catch {
+        toast.error('Unexpected error uploading profile picture.');
+      } finally {
+        setUploadingAvatar(false);
+      }
+    },
+    [router]
+  );
 
-  const handleCoverChange = useCallback(async (file: File) => {
-    const previewUrl = URL.createObjectURL(file);
-    setCoverPreview(previewUrl);
-    setCoverUpload({ uploading: true, error: null, success: false });
-
+  const handleRemoveAvatar = async () => {
+    setUploadingAvatar(true);
     try {
-      const formData = new FormData();
-      formData.append('file', file);
-
-      const uploadResult = await uploadFarmCoverPhoto(formData);
-      if (!uploadResult.success) {
-        setCoverUpload({ uploading: false, error: uploadResult.error, success: false });
-        return;
+      const res = await updateFarmerMediaAction({ avatarUrl: null });
+      if (res.success) {
+        setAvatarUrl(null);
+        toast.success('Profile picture removed.');
+        router.refresh();
+      } else {
+        toast.error(res.error || 'Failed to remove profile picture.');
       }
-
-      const saveResult = await updateCoverPhotoUrlAction(uploadResult.url);
-      if (!saveResult.success) {
-        setCoverUpload({ uploading: false, error: saveResult.error || 'Failed to save cover photo.', success: false });
-        return;
-      }
-
-      setCoverUpload({ uploading: false, error: null, success: true });
-    } catch {
-      setCoverUpload({ uploading: false, error: 'Unexpected error. Please try again.', success: false });
+    } finally {
+      setUploadingAvatar(false);
     }
-  }, []);
+  };
 
-  // ─── Profile Form Submit ─────────────────────────────────────────────────────
+  const handleCoverUpload = useCallback(
+    async (file: File) => {
+      setUploadingCover(true);
+      try {
+        const fd = new FormData();
+        fd.append('file', file);
+        const uploadRes = await uploadFarmCoverPhoto(fd);
+        if (!uploadRes.success) {
+          toast.error(uploadRes.error || 'Failed to upload cover photo.');
+          return;
+        }
+        const saveRes = await updateFarmerMediaAction({ coverPhoto: uploadRes.url });
+        if (!saveRes.success) {
+          toast.error(saveRes.error || 'Failed to save cover photo.');
+          return;
+        }
+        setCoverUrl(uploadRes.url);
+        toast.success('Cover photo updated.');
+        router.refresh();
+      } catch {
+        toast.error('Unexpected error uploading cover photo.');
+      } finally {
+        setUploadingCover(false);
+      }
+    },
+    [router]
+  );
+
+  const handleRemoveCover = async () => {
+    setUploadingCover(true);
+    try {
+      const res = await updateFarmerMediaAction({ coverPhoto: null });
+      if (res.success) {
+        setCoverUrl(null);
+        toast.success('Cover photo removed.');
+        router.refresh();
+      } else {
+        toast.error(res.error || 'Failed to remove cover photo.');
+      }
+    } finally {
+      setUploadingCover(false);
+    }
+  };
+
+  const togglePractice = (practice: string) => {
+    setSelectedPractices((prev) =>
+      prev.includes(practice) ? prev.filter((p) => p !== practice) : [...prev, practice]
+    );
+  };
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setErrorMsg('');
     setSuccessMsg('');
     const formData = new FormData(e.currentTarget);
+
     startTransition(async () => {
       const result = await updateFarmProfileAction(undefined as any, formData);
       if (result.success) {
-        setSuccessMsg(result.message || 'Profile updated successfully!');
+        setSuccessMsg(result.message || 'Profile updated successfully.');
+        toast.success('Profile changes saved.');
+        router.refresh();
         setTimeout(() => {
-          setIsOpen(false);
-          // Reset local previews
-          setAvatarPreview(null);
-          setCoverPreview(null);
-          setAvatarUpload(DEFAULT_UPLOAD_STATE);
-          setCoverUpload(DEFAULT_UPLOAD_STATE);
-        }, 1500);
+          setOpen(false);
+        }, 600);
       } else {
         setErrorMsg(result.error || 'Failed to update profile.');
       }
@@ -164,257 +204,333 @@ export default function EditProfileModal({ farmProfile }: { farmProfile: any }) 
 
   const handleClose = () => {
     if (isPending || isAnyUploading) return;
-    setIsOpen(false);
-    setAvatarPreview(null);
-    setCoverPreview(null);
-    setAvatarUpload(DEFAULT_UPLOAD_STATE);
-    setCoverUpload(DEFAULT_UPLOAD_STATE);
-    setErrorMsg('');
-    setSuccessMsg('');
+    setOpen(false);
   };
-
-  const currentAvatarUrl = farmProfile.user?.avatarUrl;
-  const currentCoverUrl = farmProfile.coverPhoto;
-  const defaultCoverUrl = 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=800&q=80';
-  const defaultAvatarUrl = 'https://i.pravatar.cc/150?img=12';
 
   return (
     <>
-      <button
-        onClick={() => setIsOpen(true)}
-        className="mb-2 bg-secondary-container text-on-secondary-container text-[14px] font-medium px-4 py-2 rounded-lg hover:bg-secondary-fixed transition-colors border border-outline-variant"
-      >
-        Edit Profile
-      </button>
+      {!hideTrigger && (
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className="h-10 px-4 inline-flex items-center justify-center whitespace-nowrap rounded-lg bg-green-800 text-white text-sm font-medium hover:bg-green-900 transition-colors cursor-pointer"
+        >
+          Edit Profile
+        </button>
+      )}
 
       {isOpen && (
         <div
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4"
-          onClick={(e) => { if (e.target === e.currentTarget) handleClose(); }}
+          className="fixed inset-0 bg-gray-900/50 backdrop-blur-xs z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) handleClose();
+          }}
         >
-          <div className="bg-surface rounded-t-3xl sm:rounded-2xl w-full sm:max-w-md max-h-[92vh] overflow-y-auto relative shadow-level-2">
-            
-            {/* ── Image Upload Section ── */}
-            <div className="relative">
-              {/* Cover Photo */}
-              <div
-                className="h-36 w-full bg-cover bg-center relative group overflow-hidden rounded-t-3xl sm:rounded-t-2xl"
-                style={{ backgroundImage: `url('${coverPreview || currentCoverUrl || defaultCoverUrl}')` }}
-              >
-                {/* Dark overlay on hover */}
-                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all duration-300 flex items-center justify-center">
-                  <UploadButton
-                    id="cover-photo-upload"
-                    accept="image/jpeg,image/png,image/webp"
-                    onChange={handleCoverChange}
-                    disabled={isAnyUploading}
-                    className="opacity-0 group-hover:opacity-100 transition-all duration-300 flex items-center gap-2 bg-black/70 text-white text-[13px] font-semibold px-4 py-2.5 rounded-full border border-white/30 hover:bg-black/90 disabled:cursor-not-allowed"
-                  >
-                    {coverUpload.uploading ? (
-                      <>
-                        <span className="material-symbols-outlined animate-spin text-[18px]">progress_activity</span>
-                        Uploading...
-                      </>
-                    ) : coverUpload.success ? (
-                      <>
-                        <span className="material-symbols-outlined text-[18px] text-green-400">check_circle</span>
-                        Cover Saved!
-                      </>
-                    ) : (
-                      <>
-                        <span className="material-symbols-outlined text-[18px]">add_photo_alternate</span>
-                        Change Cover Photo
-                      </>
-                    )}
-                  </UploadButton>
-                </div>
-
-                {/* Always-visible pill for mobile */}
-                <div className="absolute bottom-2 right-2 sm:hidden">
-                  <UploadButton
-                    id="cover-photo-upload-mobile"
-                    accept="image/jpeg,image/png,image/webp"
-                    onChange={handleCoverChange}
-                    disabled={isAnyUploading}
-                    className="flex items-center gap-1 bg-black/70 text-white text-[11px] font-medium px-2.5 py-1.5 rounded-full border border-white/30"
-                  >
-                    {coverUpload.uploading ? (
-                      <span className="material-symbols-outlined animate-spin text-[14px]">progress_activity</span>
-                    ) : coverUpload.success ? (
-                      <span className="material-symbols-outlined text-[14px] text-green-400">check_circle</span>
-                    ) : (
-                      <span className="material-symbols-outlined text-[14px]">add_photo_alternate</span>
-                    )}
-                    {coverUpload.uploading ? 'Uploading...' : coverUpload.success ? 'Saved' : 'Cover'}
-                  </UploadButton>
-                </div>
+          <div className="bg-white border border-gray-200 rounded-t-xl sm:rounded-xl w-full sm:max-w-xl max-h-[92vh] overflow-y-auto relative shadow-xl">
+            {/* Modal Header */}
+            <div className="sticky top-0 z-10 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+              <div>
+                <h2 className="text-base font-bold text-gray-900">Edit Farm Profile</h2>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  Update your cover photo, avatar, owner details, and farming practices.
+                </p>
               </div>
+              <button
+                type="button"
+                onClick={handleClose}
+                disabled={isPending || isAnyUploading}
+                className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors cursor-pointer"
+                aria-label="Close modal"
+              >
+                <span className="material-symbols-outlined text-[20px]">close</span>
+              </button>
+            </div>
 
-              {/* Avatar */}
-              <div className="px-5 -mt-10 flex items-end justify-between">
-                <div className="relative group">
-                  <img
-                    src={avatarPreview || currentAvatarUrl || defaultAvatarUrl}
-                    alt="Avatar"
-                    className="w-20 h-20 rounded-full border-4 border-surface object-cover shadow-level-1 bg-surface-container"
-                  />
-                  {/* Avatar upload overlay */}
-                  <UploadButton
-                    id="avatar-upload"
-                    accept="image/jpeg,image/png,image/webp"
-                    onChange={handleAvatarChange}
-                    disabled={isAnyUploading}
-                    className="absolute inset-0 flex items-center justify-center rounded-full bg-black/0 group-hover:bg-black/50 transition-all duration-300 cursor-pointer disabled:cursor-not-allowed border-4 border-surface"
-                  >
-                    <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col items-center gap-0.5">
-                      {avatarUpload.uploading ? (
-                        <span className="material-symbols-outlined animate-spin text-white text-[22px]">progress_activity</span>
-                      ) : avatarUpload.success ? (
-                        <span className="material-symbols-outlined text-green-400 text-[22px]">check_circle</span>
+            <div className="p-6 space-y-6">
+              {/* Media Management Section */}
+              <div className="space-y-4 pb-5 border-b border-gray-200">
+                {/* Profile Picture Row */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div className="flex items-center gap-4">
+                    <div className="w-16 h-16 rounded-full border border-gray-200 bg-gray-200 overflow-hidden shrink-0">
+                      {avatarUrl ? (
+                        <img
+                          src={avatarUrl}
+                          alt="Profile preview"
+                          className="w-full h-full object-cover"
+                        />
                       ) : (
-                        <span className="material-symbols-outlined text-white text-[22px]">photo_camera</span>
+                        <BlankAvatarSilhouette />
                       )}
                     </div>
-                  </UploadButton>
-
-                  {/* Camera badge always visible */}
-                  <div className="absolute -bottom-0.5 -right-0.5 w-6 h-6 bg-primary rounded-full flex items-center justify-center border-2 border-surface pointer-events-none">
-                    <span className="material-symbols-outlined text-on-primary text-[13px]">photo_camera</span>
+                    <div>
+                      <p className="text-xs font-semibold text-gray-900">Profile Picture</p>
+                      <p className="text-[11px] text-gray-500 mt-0.5">
+                        {avatarUrl ? 'Uploaded photo active' : 'Default blank silhouette active'}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input
+                      ref={avatarInputRef}
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      className="hidden"
+                      onChange={(e) => {
+                        const f = e.target.files?.[0];
+                        if (f) handleAvatarUpload(f);
+                        e.target.value = '';
+                      }}
+                    />
+                    <button
+                      type="button"
+                      disabled={isAnyUploading}
+                      onClick={() => avatarInputRef.current?.click()}
+                      className="h-9 px-3.5 inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white text-gray-700 text-xs font-medium hover:bg-gray-50 transition-colors disabled:opacity-50 cursor-pointer"
+                    >
+                      {uploadingAvatar ? 'Uploading...' : avatarUrl ? 'Change Picture' : 'Upload Photo'}
+                    </button>
+                    {avatarUrl && (
+                      <button
+                        type="button"
+                        disabled={isAnyUploading}
+                        onClick={handleRemoveAvatar}
+                        className="h-9 px-3.5 inline-flex items-center justify-center rounded-lg border border-red-300 bg-white text-red-700 text-xs font-medium hover:bg-red-50 transition-colors disabled:opacity-50 cursor-pointer"
+                      >
+                        Remove Picture
+                      </button>
+                    )}
                   </div>
                 </div>
 
-                {/* Upload status pills */}
-                <div className="mb-1 flex flex-col items-end gap-1">
-                  {avatarUpload.error && (
-                    <p className="text-[11px] text-error bg-error/10 px-2 py-0.5 rounded-full font-medium max-w-[160px] truncate">
-                      {avatarUpload.error}
-                    </p>
-                  )}
-                  {coverUpload.error && (
-                    <p className="text-[11px] text-error bg-error/10 px-2 py-0.5 rounded-full font-medium max-w-[160px] truncate">
-                      {coverUpload.error}
-                    </p>
-                  )}
+                {/* Cover Photo Row */}
+                <div className="space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-semibold text-gray-900">Cover Photo</p>
+                    <div className="flex items-center gap-2">
+                      <input
+                        ref={coverInputRef}
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp"
+                        className="hidden"
+                        onChange={(e) => {
+                          const f = e.target.files?.[0];
+                          if (f) handleCoverUpload(f);
+                          e.target.value = '';
+                        }}
+                      />
+                      <button
+                        type="button"
+                        disabled={isAnyUploading}
+                        onClick={() => coverInputRef.current?.click()}
+                        className="h-9 px-3.5 inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white text-gray-700 text-xs font-medium hover:bg-gray-50 transition-colors disabled:opacity-50 cursor-pointer"
+                      >
+                        {uploadingCover ? 'Uploading...' : coverUrl ? 'Change Cover' : 'Upload Cover'}
+                      </button>
+                      {coverUrl && (
+                        <button
+                          type="button"
+                          disabled={isAnyUploading}
+                          onClick={handleRemoveCover}
+                          className="h-9 px-3.5 inline-flex items-center justify-center rounded-lg border border-red-300 bg-white text-red-700 text-xs font-medium hover:bg-red-50 transition-colors disabled:opacity-50 cursor-pointer"
+                        >
+                          Remove Cover Photo
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  <div className="h-28 w-full rounded-lg overflow-hidden border border-gray-200 bg-gray-100">
+                    {coverUrl ? (
+                      <img
+                        src={coverUrl}
+                        alt="Cover preview"
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <CoverPhotoPlaceholder label="No cover photo" />
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
-
-            {/* ── Form Section ── */}
-            <div className="px-6 pb-6 pt-4">
-              <h2 className="text-[22px] font-bold text-on-surface mb-1">Edit Farm Profile</h2>
-              <p className="text-[13px] text-on-surface-variant mb-5">
-                Tap the avatar or cover photo to change them.
-              </p>
 
               {errorMsg && (
-                <div className="text-error bg-error/10 border border-error/20 p-3 rounded-xl mb-4 text-sm flex items-center gap-2">
-                  <span className="material-symbols-outlined text-[18px]">error</span>
+                <div className="text-red-700 bg-red-50/60 border border-red-300 p-3 rounded-lg text-xs font-medium">
                   {errorMsg}
                 </div>
               )}
               {successMsg && (
-                <div className="text-primary bg-primary/10 border border-primary/20 p-3 rounded-xl mb-4 text-sm flex items-center gap-2">
-                  <span className="material-symbols-outlined text-[18px]">check_circle</span>
+                <div className="text-green-800 bg-green-50 border border-green-200 p-3 rounded-lg text-xs font-medium">
                   {successMsg}
                 </div>
               )}
 
+              {/* Form Fields */}
               <form onSubmit={handleSubmit} className="space-y-4">
+                <input type="hidden" name="practices" value={JSON.stringify(selectedPractices)} />
+
                 <div>
-                  <label className="block text-sm font-semibold text-on-surface mb-1.5">Farm Name</label>
+                  <label className="block text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-1.5">
+                    Farm Name
+                  </label>
                   <input
                     name="farmName"
                     defaultValue={farmProfile.farmName}
                     required
-                    className="w-full bg-surface-container text-on-surface p-3 rounded-xl border border-outline-variant focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                    className="w-full bg-white text-gray-900 text-xs px-3.5 py-2.5 rounded-lg border border-gray-300 focus:border-green-800 focus:ring-1 focus:ring-green-800 outline-none transition-colors"
                   />
                 </div>
 
-                <div>
-                  <label className="block text-sm font-semibold text-on-surface mb-1.5">Barangay</label>
-                  <div className="relative">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-1.5">
+                      Farmer First Name
+                    </label>
+                    <input
+                      name="firstName"
+                      defaultValue={defaultFirstName}
+                      required
+                      className="w-full bg-white text-gray-900 text-xs px-3.5 py-2.5 rounded-lg border border-gray-300 focus:border-green-800 focus:ring-1 focus:ring-green-800 outline-none transition-colors"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-1.5">
+                      Farmer Last Name
+                    </label>
+                    <input
+                      name="lastName"
+                      defaultValue={defaultLastName}
+                      className="w-full bg-white text-gray-900 text-xs px-3.5 py-2.5 rounded-lg border border-gray-300 focus:border-green-800 focus:ring-1 focus:ring-green-800 outline-none transition-colors"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-1.5">
+                      Contact Phone
+                    </label>
+                    <input
+                      name="phone"
+                      type="tel"
+                      defaultValue={farmProfile.user?.phone || ''}
+                      placeholder="0917 123 4567"
+                      className="w-full bg-white text-gray-900 text-xs px-3.5 py-2.5 rounded-lg border border-gray-300 focus:border-green-800 focus:ring-1 focus:ring-green-800 outline-none transition-colors tabular-nums"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-1.5">
+                      Land Area (Hectares)
+                    </label>
+                    <input
+                      name="landArea"
+                      type="number"
+                      step="0.01"
+                      min="0.01"
+                      defaultValue={farmProfile.landArea}
+                      required
+                      className="w-full bg-white text-gray-900 text-xs px-3.5 py-2.5 rounded-lg border border-gray-300 focus:border-green-800 focus:ring-1 focus:ring-green-800 outline-none transition-colors tabular-nums"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-1.5">
+                      Barangay
+                    </label>
                     <select
                       name="barangay"
                       defaultValue={normalizeBarangayName(farmProfile.barangay)}
                       required
-                      className="w-full appearance-none bg-surface-container text-on-surface p-3 pr-10 rounded-xl border border-outline-variant focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all cursor-pointer"
+                      className="w-full bg-white text-gray-900 text-xs px-3 py-2.5 rounded-lg border border-gray-300 focus:border-green-800 focus:ring-1 focus:ring-green-800 outline-none transition-colors cursor-pointer"
                     >
-                      <option value="" disabled>Select Barangay</option>
+                      <option value="" disabled>
+                        Select Barangay
+                      </option>
                       {AGOO_BARANGAYS.map((brgy) => (
                         <option key={brgy} value={brgy}>
                           {brgy}
                         </option>
                       ))}
                     </select>
-                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-outline">
-                      <span className="material-symbols-outlined text-[20px]">expand_more</span>
-                    </div>
                   </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-sm font-semibold text-on-surface mb-1.5">Municipality</label>
+                    <label className="block text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-1.5">
+                      Municipality
+                    </label>
                     <input
                       name="municipality"
                       defaultValue={farmProfile.municipality || 'Agoo'}
                       required
-                      readOnly
-                      className="w-full bg-surface-container/60 text-on-surface/80 p-3 rounded-xl border border-outline-variant outline-none cursor-not-allowed"
+                      className="w-full bg-gray-50 text-gray-700 text-xs px-3.5 py-2.5 rounded-lg border border-gray-300 focus:border-green-800 focus:ring-1 focus:ring-green-800 outline-none"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold text-on-surface mb-1.5">Province</label>
+                    <label className="block text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-1.5">
+                      Province
+                    </label>
                     <input
                       name="province"
                       defaultValue={farmProfile.province || 'La Union'}
                       required
-                      readOnly
-                      className="w-full bg-surface-container/60 text-on-surface/80 p-3 rounded-xl border border-outline-variant outline-none cursor-not-allowed"
+                      className="w-full bg-gray-50 text-gray-700 text-xs px-3.5 py-2.5 rounded-lg border border-gray-300 focus:border-green-800 focus:ring-1 focus:ring-green-800 outline-none"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-semibold text-on-surface mb-1.5">Land Area (Hectares)</label>
-                  <input
-                    name="landArea"
-                    type="number"
-                    step="0.01"
-                    min="0.01"
-                    defaultValue={farmProfile.landArea}
-                    required
-                    className="w-full bg-surface-container text-on-surface p-3 rounded-xl border border-outline-variant focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                  <label className="block text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-1.5">
+                    Farm Bio / Description
+                  </label>
+                  <textarea
+                    ref={bioRef}
+                    name="bio"
+                    defaultValue={farmProfile.bio || ''}
+                    placeholder="Tell buyers about your farm, harvest history, and quality standards..."
+                    className="w-full bg-white text-gray-900 text-xs p-3 rounded-lg border border-gray-300 focus:border-green-800 focus:ring-1 focus:ring-green-800 outline-none transition-colors min-h-[96px] resize-none"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-semibold text-on-surface mb-1.5">Bio / Description</label>
-                  <textarea
-                    name="bio"
-                    defaultValue={farmProfile.bio || ''}
-                    placeholder="Tell buyers about your farm..."
-                    className="w-full bg-surface-container text-on-surface p-3 rounded-xl border border-outline-variant focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all min-h-[100px] resize-none"
-                  />
+                  <label className="block text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-2">
+                    Farming Practices
+                  </label>
+                  <div className="flex flex-wrap gap-2">
+                    {FARMING_PRACTICE_OPTIONS.map((practice) => {
+                      const active = selectedPractices.includes(practice);
+                      return (
+                        <button
+                          key={practice}
+                          type="button"
+                          onClick={() => togglePractice(practice)}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors cursor-pointer ${
+                            active
+                              ? 'bg-green-800 text-white border-green-800'
+                              : 'bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100'
+                          }`}
+                        >
+                          {practice}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
 
-                <div className="flex justify-end gap-3 pt-2 border-t border-surface-variant">
+                {/* Aligned Footer Buttons */}
+                <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-200">
                   <button
                     type="button"
                     onClick={handleClose}
                     disabled={isPending || isAnyUploading}
-                    className="px-5 py-2.5 text-on-surface-variant font-medium hover:bg-surface-variant rounded-xl transition-colors disabled:opacity-50"
+                    className="h-10 px-5 inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white text-gray-700 text-sm font-medium hover:bg-gray-50 transition-colors disabled:opacity-50 cursor-pointer"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
                     disabled={isPending || isAnyUploading}
-                    className="px-5 py-2.5 bg-primary text-on-primary font-semibold rounded-xl hover:bg-primary/90 transition-colors disabled:opacity-50 flex items-center gap-2"
+                    className="h-10 px-5 inline-flex items-center justify-center rounded-lg bg-green-800 text-white text-sm font-medium hover:bg-green-900 transition-colors disabled:opacity-50 cursor-pointer"
                   >
-                    {isPending && (
-                      <span className="material-symbols-outlined animate-spin text-[18px]">progress_activity</span>
-                    )}
                     {isPending ? 'Saving...' : 'Save Changes'}
                   </button>
                 </div>

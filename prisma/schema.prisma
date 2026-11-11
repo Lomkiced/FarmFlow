@@ -127,6 +127,7 @@ model Farm {
   landArea         Float
   coverPhoto       String?
   bio              String?
+  practices        String[]     @default([])
   idType           String?
   idNumber         String?
   idPhotoUrl       String?

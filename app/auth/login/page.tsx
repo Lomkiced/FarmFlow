@@ -5,6 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import AuthLeftPanel from '@/components/auth/AuthLeftPanel';
 import AuthInput from '@/components/auth/AuthInput';
+import { AUTH_FARM_HERO_IMAGE } from '@/lib/constants/farm-media';
 import { loginAction, type AuthActionState } from '@/app/actions/auth';
 
 export default function LoginPage() {
@@ -23,17 +24,17 @@ export default function LoginPage() {
 
         {/* Mobile top section */}
         <div className="lg:hidden text-center mb-6 flex flex-col items-center mt-2">
-          <div className="relative w-16 h-16 rounded-2xl overflow-hidden mb-3 shadow-md border-2 border-primary/20">
+          <div className="relative w-16 h-16 rounded-xl overflow-hidden mb-3 border border-green-200">
             <Image
-              src="/images/FARMERLOG1.jpg"
-              alt="Rice farmers harvesting in Agoo"
+              src={AUTH_FARM_HERO_IMAGE}
+              alt="Lush agricultural fields in Agoo, La Union"
               fill
               className="object-cover"
               priority
             />
           </div>
-          <h2 className="text-[24px] font-semibold leading-tight tracking-[-0.02em] text-auth-on-surface mb-1">Welcome back</h2>
-          <p className="text-[14px] text-auth-on-surface-variant">Sign in to your FarmFlow account</p>
+          <h2 className="text-2xl font-bold leading-tight tracking-tight text-gray-900 mb-1">Welcome back</h2>
+          <p className="text-sm text-gray-500">Sign in to your FarmFlow account</p>
         </div>
 
         <div className="w-full max-w-md bg-white border border-auth-secondary-fixed rounded-xl p-[24px] md:p-[32px] shadow-sm">
